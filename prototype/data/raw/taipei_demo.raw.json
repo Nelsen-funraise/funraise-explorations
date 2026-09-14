@@ -1,0 +1,7229 @@
+{
+ "buildings": [
+  {
+   "id": "bud84cd402",
+   "name": "台北101大樓",
+   "lat": 25.033415,
+   "lon": 121.5647842,
+   "district": "台北市信義區",
+   "business_area": "台北市信義基隆商圈",
+   "grade": "P",
+   "floor_above": 101,
+   "floor_below": 5,
+   "total_floor_area": 113201.5349,
+   "license_date": "2003-05-23",
+   "usage_types": [
+    "office",
+    "store",
+    "others"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "鑽石級"
+    },
+    {
+     "type": "LEED",
+     "grade": "白金級"
+    },
+    {
+     "type": "WELL",
+     "grade": "白金級"
+    }
+   ],
+   "mrt": {
+    "station_name": "象山站",
+    "distance": 466
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F84cd402f4998360a93e5f3fc7af5ca011b4485926197f55a56f9007b05267587%2FAX014931.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 41,
+   "actual_rent_avg_ntd_per_ping": 4526,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud4727e7c",
+   "name": "富邦信義A25園區",
+   "lat": 25.0392461,
+   "lon": 121.5709307,
+   "district": "台北市信義區",
+   "business_area": "台北市信義基隆商圈",
+   "grade": "P",
+   "floor_above": 54,
+   "floor_below": 4,
+   "total_floor_area": 40039.76213,
+   "license_date": "2022-12-30",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "黃金級"
+    },
+    {
+     "type": "LEED",
+     "grade": "黃金級"
+    },
+    {
+     "type": "SmartScore",
+     "grade": "黃金級"
+    },
+    {
+     "type": "WiredScore",
+     "grade": "白金級"
+    }
+   ],
+   "mrt": {
+    "station_name": "市政府站",
+    "distance": 423
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F4727e7c32339836deeb0131935e8a486a28b52e26e85081078f7c629d176bbbf%2FAX01BC5D.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 7,
+   "actual_rent_avg_ntd_per_ping": 4000,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "budb71a26d",
+   "name": "國泰信義經貿大樓",
+   "lat": 25.0325823,
+   "lon": 121.5667998,
+   "district": "台北市信義區",
+   "business_area": "台北市信義基隆商圈",
+   "grade": "A",
+   "floor_above": 12,
+   "floor_below": 4,
+   "total_floor_area": 14244.2289,
+   "license_date": "2003-06-13",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "台北101/世貿站",
+    "distance": 256
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fb71a26d829be93df89f8c75a30c90d1534caa6b5ceb7f5f97da22cd68d504599%2FAX01060B.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 7,
+   "actual_rent_avg_ntd_per_ping": 3402,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud2d813ac",
+   "name": "國泰金融中心",
+   "lat": 25.0382635,
+   "lon": 121.5688591,
+   "district": "台北市信義區",
+   "business_area": "台北市信義基隆商圈",
+   "grade": "A",
+   "floor_above": 24,
+   "floor_below": 4,
+   "total_floor_area": 27195.5849,
+   "license_date": "2002-07-26",
+   "usage_types": [
+    "office",
+    "house"
+   ],
+   "certifications": [
+    {
+     "type": "LEED",
+     "grade": "黃金級"
+    }
+   ],
+   "mrt": {
+    "station_name": "市政府站",
+    "distance": 340
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F2d813ac1c569dd72f74c02355eb5ec3a0d78cc1981dcb06f1269f9f9be50c1f0%2FAX01C178.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 0,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "budbbcbafb",
+   "name": "遠雄國際中心",
+   "lat": 25.0401774,
+   "lon": 121.5635337,
+   "district": "台北市信義區",
+   "business_area": "台北市信義基隆商圈",
+   "grade": "A",
+   "floor_above": 24,
+   "floor_below": 5,
+   "total_floor_area": 10901.9427,
+   "license_date": "1992-10-15",
+   "usage_types": [
+    "office",
+    "store",
+    "others"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "銀級"
+    },
+    {
+     "type": "LEED",
+     "grade": "黃金級"
+    }
+   ],
+   "mrt": {
+    "station_name": "市政府站",
+    "distance": 177
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fbbcbafbbb1da3a5bd4f7d353f6588270aa55eddfa0cf265282ba192f2af25256%2FAX0131FC.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 13,
+   "actual_rent_avg_ntd_per_ping": 3101,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud74efe21",
+   "name": "國泰信義安和大樓",
+   "lat": 25.0330218,
+   "lon": 121.5530803,
+   "district": "台北市大安區",
+   "business_area": null,
+   "grade": "A",
+   "floor_above": 12,
+   "floor_below": 4,
+   "total_floor_area": 5628.0246,
+   "license_date": "1998-12-28",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "信義安和站",
+    "distance": 20
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F74efe2122604b92c5474bd4e09ffc886379ee73ac82a6d41d2f1732b4cc3bb99%2FJX0018X.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 0,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 2,
+   "actual_sale_avg_ntd_per_ping": 1183375
+  },
+  {
+   "id": "budc78d95e",
+   "name": "富邦敦南大樓",
+   "lat": 25.0444589,
+   "lon": 121.5492703,
+   "district": "台北市大安區",
+   "business_area": null,
+   "grade": "A",
+   "floor_above": 17,
+   "floor_below": 4,
+   "total_floor_area": 5952.440725,
+   "license_date": "2014-10-21",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "鑽石級"
+    }
+   ],
+   "mrt": {
+    "station_name": "忠孝敦化站",
+    "distance": 282
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fc78d95eaae89893f22faf875d8622bd5e136b101fb0eb5b4920d037ff2c7b3af%2FAX012D5E.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 1,
+   "actual_rent_avg_ntd_per_ping": 2400,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud7f27079",
+   "name": "敦南商業大樓",
+   "lat": 25.0220634,
+   "lon": 121.5491148,
+   "district": "台北市大安區",
+   "business_area": "台北市敦化南路商圈",
+   "grade": "A",
+   "floor_above": 27,
+   "floor_below": 3,
+   "total_floor_area": 12793.22413,
+   "license_date": "1989-09-15",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "六張犁站",
+    "distance": 416
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F7f27079ce6071782ae28730d2d1b3737547985cc7d55c1047d5d4050bbd2dcc7%2FAX019C98.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 1,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "budd3fd0b7",
+   "name": "統創龍騰大樓",
+   "lat": 25.0444061,
+   "lon": 121.5385018,
+   "district": "台北市大安區",
+   "business_area": null,
+   "grade": "A",
+   "floor_above": 15,
+   "floor_below": 5,
+   "total_floor_area": 3717.020175,
+   "license_date": "2016-05-17",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "鑽石級"
+    },
+    {
+     "type": "智慧建築",
+     "grade": "鑽石級"
+    }
+   ],
+   "mrt": null,
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fd3fd0b7039b4edcae1154beacd2ca2329b20cacd43e1d5e42f75203aae597150%2FX018K0.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 6,
+   "actual_rent_avg_ntd_per_ping": 2380,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "budd5e4b3c",
+   "name": "台北時代廣場B棟",
+   "lat": 25.0809584,
+   "lon": 121.5613439,
+   "district": "台北市中山區",
+   "business_area": null,
+   "grade": "A",
+   "floor_above": 10,
+   "floor_below": 4,
+   "total_floor_area": 18827.258175,
+   "license_date": "2015-10-27",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": null,
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=buildings%2Fbudd5e4b3c%2FX_eHJv-bf.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 42,
+   "actual_rent_avg_ntd_per_ping": 2264,
+   "actual_sale_count": 75,
+   "actual_sale_avg_ntd_per_ping": 1073180
+  },
+  {
+   "id": "budc68391f",
+   "name": "台壽中山大樓",
+   "lat": 25.0548125,
+   "lon": 121.5224831,
+   "district": "台北市中山區",
+   "business_area": "台北市中山北路商圈",
+   "grade": "A",
+   "floor_above": 12,
+   "floor_below": 4,
+   "total_floor_area": 8806.824675,
+   "license_date": "2012-12-26",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "中山站",
+    "distance": 279
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fc68391fbf12058db2f43666f82dd16875ee2dfca3093eeb78e2d591aef689107%2FJX001NE.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 0,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud5a4d5b2",
+   "name": "新安產險大樓",
+   "lat": 25.0517203,
+   "lon": 121.5407265,
+   "district": "台北市中山區",
+   "business_area": "台北市松江南京商圈",
+   "grade": "A",
+   "floor_above": 13,
+   "floor_below": 6,
+   "total_floor_area": 5579.673,
+   "license_date": "2002-10-11",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "南京復興站",
+    "distance": 115
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F5a4d5b2f888543fab694661b5551e35497054c2259875a395418785e2c8be7af%2FAX011279.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 0,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 1,
+   "actual_sale_avg_ntd_per_ping": 959557
+  },
+  {
+   "id": "bud7fc3eb1",
+   "name": "元大人壽元泰廣場",
+   "lat": 25.0522488,
+   "lon": 121.5311216,
+   "district": "台北市中山區",
+   "business_area": "台北市松江南京商圈",
+   "grade": "A",
+   "floor_above": 14,
+   "floor_below": 4,
+   "total_floor_area": 5205.1417,
+   "license_date": "2020-11-09",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "銀級"
+    }
+   ],
+   "mrt": {
+    "station_name": "松江南京站",
+    "distance": 135
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F7fc3eb17463e9b12787093238f8f241a8a2b78d79eb2fb73bcf8905a3131dc69%2FX010Q5.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 0,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "buddd8bbc3",
+   "name": "永昌大樓",
+   "lat": 25.0503521,
+   "lon": 121.5576982,
+   "district": "台北市松山區",
+   "business_area": "台北市南京光復商圈",
+   "grade": "B",
+   "floor_above": 12,
+   "floor_below": 2,
+   "total_floor_area": 1338.01195,
+   "license_date": "1984-11-30",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "台北小巨蛋站",
+    "distance": 486
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fdd8bbc3180364316f1d5b94cf6c61c348cd8ec6cb812197bd119e6839d853858%2FX014M6.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 9,
+   "actual_rent_avg_ntd_per_ping": 1503,
+   "actual_sale_count": 21,
+   "actual_sale_avg_ntd_per_ping": 756869
+  },
+  {
+   "id": "bud2518fee",
+   "name": "光復商業大樓",
+   "lat": 25.0502169,
+   "lon": 121.5576777,
+   "district": "台北市松山區",
+   "business_area": "台北市南京光復商圈",
+   "grade": "B",
+   "floor_above": 11,
+   "floor_below": 2,
+   "total_floor_area": 946.997425,
+   "license_date": "1992-04-10",
+   "usage_types": [
+    "office",
+    "others"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "台北小巨蛋站",
+    "distance": 488
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F2518fee47f7ffd51de0ebcb59588b22f02391cf3b04ba439fb60dd8286eb3178%2FX014R3.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 6,
+   "actual_rent_avg_ntd_per_ping": 1382,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "budbc30653",
+   "name": "揚昇敬業大樓",
+   "lat": 25.0507047,
+   "lon": 121.5577595,
+   "district": "台北市松山區",
+   "business_area": "台北市南京光復商圈",
+   "grade": "B",
+   "floor_above": 12,
+   "floor_below": 3,
+   "total_floor_area": 1824.059875,
+   "license_date": "1991-12-11",
+   "usage_types": [
+    "office"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "台北小巨蛋站",
+    "distance": 483
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fbc30653d00467f26b7676039df142963d55f63cfffcdd581d9164d4e45c2142e%2FX015X0.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 9,
+   "actual_rent_avg_ntd_per_ping": 1296,
+   "actual_sale_count": 4,
+   "actual_sale_avg_ntd_per_ping": 663716
+  },
+  {
+   "id": "bud3418949",
+   "name": "南京實業廣場",
+   "lat": 25.0510613,
+   "lon": 121.5696855,
+   "district": "台北市松山區",
+   "business_area": "台北市南京光復商圈",
+   "grade": "B",
+   "floor_above": 15,
+   "floor_below": 2,
+   "total_floor_area": 3593.073825,
+   "license_date": "1991-09-12",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": null,
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F3418949f7ecd7d4c33212ef0ebc73b704314ea5b09bf76fe5d64c414d524ef7a%2FX019L4.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 19,
+   "actual_rent_avg_ntd_per_ping": 916,
+   "actual_sale_count": 15,
+   "actual_sale_avg_ntd_per_ping": 601557
+  },
+  {
+   "id": "bud76476c8",
+   "name": "宏泰新象銀座",
+   "lat": 25.0815423,
+   "lon": 121.5914831,
+   "district": "台北市內湖區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 11,
+   "floor_below": 2,
+   "total_floor_area": 606.727275,
+   "license_date": "1994-07-01",
+   "usage_types": [
+    "office",
+    "house",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "內湖站",
+    "distance": 372
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F76476c82a1cc6c92ea68f19da3ff1f5a1291a335d95b20cc56d222ba6439906b%2FX011F0.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 5,
+   "actual_rent_avg_ntd_per_ping": 1230,
+   "actual_sale_count": 18,
+   "actual_sale_avg_ntd_per_ping": 882321
+  },
+  {
+   "id": "bud98a3125",
+   "name": "富享家",
+   "lat": 25.0728268,
+   "lon": 121.6065253,
+   "district": "台北市內湖區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 15,
+   "floor_below": 4,
+   "total_floor_area": 4599.261425,
+   "license_date": "2023-01-04",
+   "usage_types": [
+    "house",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "葫洲站",
+    "distance": 75
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F98a31258837ef0de945fd6a48f5bef85fd3353e909244b30a5648b58699fc0cc%2FX013N7.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 9,
+   "actual_rent_avg_ntd_per_ping": 1347,
+   "actual_sale_count": 38,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "buddf69445",
+   "name": "公園2001",
+   "lat": 25.0783112,
+   "lon": 121.5828027,
+   "district": "台北市內湖區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 10,
+   "floor_below": 2,
+   "total_floor_area": 3039.589575,
+   "license_date": "1996-02-06",
+   "usage_types": [
+    "house",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "文德站",
+    "distance": 168
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2Fdf69445587f8874d4ea712b8ad0af04de4264df9c2f16816311e2fa1e8ee64c0%2FX019B5.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 19,
+   "actual_rent_avg_ntd_per_ping": null,
+   "actual_sale_count": 36,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud6ba2469",
+   "name": "伯特利",
+   "lat": 25.065676,
+   "lon": 121.59202,
+   "district": "台北市內湖區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 11,
+   "floor_below": 3,
+   "total_floor_area": 3134.181325,
+   "license_date": "2022-05-10",
+   "usage_types": [
+    "house",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "EEWH綠建築",
+     "grade": "銀級"
+    }
+   ],
+   "mrt": null,
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F6ba2469a91f4f435eff4cd4867f99f9f78623369380adfc4dbe96aa846d56a5c%2FX014I8.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 10,
+   "actual_rent_avg_ntd_per_ping": 1116,
+   "actual_sale_count": 23,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud970dc3f",
+   "name": "南港軟體工業園區三期世正南軟大樓",
+   "lat": 25.0572575,
+   "lon": 121.6143986,
+   "district": "台北市南港區",
+   "business_area": "台北市南港經貿園區",
+   "grade": "B",
+   "floor_above": 16,
+   "floor_below": 5,
+   "total_floor_area": 25827.029525,
+   "license_date": "2008-04-01",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "智慧建築",
+     "grade": "級"
+    }
+   ],
+   "mrt": {
+    "station_name": "南港展覽館站",
+    "distance": 315
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=buildings%2Fbud970dc3f%2FXkhUCJiwT.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 2,
+   "actual_rent_avg_ntd_per_ping": 2000,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud99a274f",
+   "name": "南港軟體工業園區三期世正經貿大樓",
+   "lat": 25.0571412,
+   "lon": 121.6161955,
+   "district": "台北市南港區",
+   "business_area": "台北市南港經貿園區",
+   "grade": "B",
+   "floor_above": 16,
+   "floor_below": 5,
+   "total_floor_area": 26041.99208,
+   "license_date": "2008-06-16",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [
+    {
+     "type": "智慧建築",
+     "grade": "級"
+    }
+   ],
+   "mrt": {
+    "station_name": "南港展覽館站",
+    "distance": 175
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=buildings%2Fbud99a274f%2FX454VXTTJ.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 1,
+   "actual_rent_avg_ntd_per_ping": 1871,
+   "actual_sale_count": 0,
+   "actual_sale_avg_ntd_per_ping": null
+  },
+  {
+   "id": "bud2c911ed",
+   "name": "御璽大樓",
+   "lat": 25.0522364,
+   "lon": 121.6103649,
+   "district": "台北市南港區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 10,
+   "floor_below": 4,
+   "total_floor_area": 2729.581525,
+   "license_date": "2015-04-09",
+   "usage_types": [
+    "office",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "南港站",
+    "distance": 297
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F2c911edce59ea3cdab67904fc2fcd8d1b79ea2e0f9f9f95b9cb15ba000cb4d36%2FX016X5.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 25,
+   "actual_rent_avg_ntd_per_ping": 1179,
+   "actual_sale_count": 16,
+   "actual_sale_avg_ntd_per_ping": 489041
+  },
+  {
+   "id": "bud2cc8b69",
+   "name": "遠雄國際金融廣場",
+   "lat": 25.0469037,
+   "lon": 121.5826096,
+   "district": "台北市南港區",
+   "business_area": null,
+   "grade": "B",
+   "floor_above": 17,
+   "floor_below": 5,
+   "total_floor_area": 43417.63443,
+   "license_date": "2004-12-16",
+   "usage_types": [
+    "office",
+    "house",
+    "store"
+   ],
+   "certifications": [],
+   "mrt": {
+    "station_name": "後山埤站",
+    "distance": 145
+   },
+   "photo_thumb": "https://images.pickpeak.ai/?size=thumb&path=building%2F2cc8b69db9668ed9cfb6e83f3a0b6ea8c517b9231682e2e868be6ea393cd7b66%2FX013X1.jpg",
+   "geo_precision": "exact",
+   "actual_rent_count": 29,
+   "actual_rent_avg_ntd_per_ping": 1536,
+   "actual_sale_count": 35,
+   "actual_sale_avg_ntd_per_ping": 832202
+  }
+ ],
+ "tenants": {
+  "台北101大樓": {
+   "building_id": "bud84cd402",
+   "total_enterprises": 17,
+   "companies": [
+    {
+     "name": "台北金融大樓股份有限公司",
+     "industry": "不動產及營造業",
+     "capital": 14700000000
+    },
+    {
+     "name": "台灣巴克萊證券股份有限公司",
+     "industry": "金融保險業",
+     "capital": 1300000000
+    },
+    {
+     "name": "台灣拜耳股份有限公司",
+     "industry": "生技醫藥業",
+     "capital": 215000000
+    },
+    {
+     "name": "台灣摩根士丹利亞洲股份有限公司",
+     "industry": "專業顧問服務業",
+     "capital": 92200000
+    },
+    {
+     "name": "台灣摩根士丹利證券股份有限公司",
+     "industry": "金融保險業",
+     "capital": 7108210000
+    },
+    {
+     "name": "台灣科高供應鏈有限公司",
+     "industry": "資通訊科技業",
+     "capital": 2564700000
+    },
+    {
+     "name": "台灣科高基礎設施有限公司",
+     "industry": "資通訊科技業",
+     "capital": 3516200000
+    },
+    {
+     "name": "台灣萊雅股份有限公司",
+     "industry": "批發及零售業",
+     "capital": 8000000
+    }
+   ]
+  },
+  "富邦信義A25園區": {
+   "building_id": "bud4727e7c",
+   "total_enterprises": 1,
+   "companies": [
+    {
+     "name": "富邦人壽保險股份有限公司",
+     "industry": "金融保險業",
+     "capital": 118420450000
+    }
+   ]
+  },
+  "國泰金融中心": {
+   "building_id": "bud2d813ac",
+   "total_enterprises": 2,
+   "companies": [
+    {
+     "name": "台灣國際商業機器股份有限公司",
+     "industry": "批發及零售業",
+     "capital": 363833856
+    },
+    {
+     "name": "國泰世華商業銀行股份有限公司",
+     "industry": "金融保險業",
+     "capital": 128220969530
+    }
+   ]
+  }
+ },
+ "urban_renewal": {
+  "items": [
+   {
+    "id": "urf04f7256b2128",
+    "name": "兒福B1-2及B3-2",
+    "code": "公辦186-1",
+    "district": "信義區",
+    "area_sqm": 4514,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urfea5edcf1b0ee",
+    "name": "信義三興(序號6)",
+    "code": "公辦170",
+    "district": "信義區",
+    "area_sqm": 1045,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf310320c8d19b",
+    "name": "兒童福利中心",
+    "code": "公辦089",
+    "district": "信義區",
+    "area_sqm": 35643,
+    "category": "政府主導",
+    "polygon": [
+     [
+      121.5704826,
+      25.0480156
+     ],
+     [
+      121.5715716,
+      25.0479913
+     ],
+     [
+      121.5716145,
+      25.0491723
+     ],
+     [
+      121.5704987,
+      25.0491529
+     ],
+     [
+      121.5704826,
+      25.0480156
+     ]
+    ],
+    "geo_precision": "exact"
+   },
+   {
+    "id": "urf581a0c22e2a9",
+    "name": "犁和三小段",
+    "code": "公辦034",
+    "district": "信義區",
+    "area_sqm": 2041,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urfcc5aaee6cbb8",
+    "name": "忠孝懷生(序號7)",
+    "code": "公辦176",
+    "district": "大安區",
+    "area_sqm": 2120,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf4af72b57193e",
+    "name": "台電嘉興街學生宿舍",
+    "code": "公辦090",
+    "district": "大安區",
+    "area_sqm": 6996.54,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urfe98bc0f811cc",
+    "name": "學府敦南公辦都市更新案",
+    "code": "公辦232",
+    "district": "大安區",
+    "area_sqm": 7179,
+    "category": "政府主導",
+    "polygon": [
+     [
+      121.549816,
+      25.023111
+     ],
+     [
+      121.549849,
+      25.023585
+     ],
+     [
+      121.54985,
+      25.023596
+     ],
+     [
+      121.54987,
+      25.023873
+     ],
+     [
+      121.549842,
+      25.023902
+     ],
+     [
+      121.549847,
+      25.023956
+     ],
+     [
+      121.549827,
+      25.023957
+     ],
+     [
+      121.549361,
+      25.023982
+     ],
+     [
+      121.549249,
+      25.023989
+     ],
+     [
+      121.549176,
+      25.023993
+     ],
+     [
+      121.549064,
+      25.023999
+     ],
+     [
+      121.549064,
+      25.023944
+     ],
+     [
+      121.549063,
+      25.023875
+     ],
+     [
+      121.549063,
+      25.023842
+     ],
+     [
+      121.549062,
+      25.023615
+     ],
+     [
+      121.549058,
+      25.023177
+     ],
+     [
+      121.549355,
+      25.023163
+     ],
+     [
+      121.549375,
+      25.023162
+     ],
+     [
+      121.54979,
+      25.023138
+     ],
+     [
+      121.549816,
+      25.023111
+     ]
+    ],
+    "geo_precision": "exact"
+   },
+   {
+    "id": "urfe775bbd9ef98",
+    "name": "嘉興街都市更新案",
+    "code": "公辦190",
+    "district": "大安區",
+    "area_sqm": 5120,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf6de52b1ec29b",
+    "name": "中山里仁",
+    "code": "公辦007",
+    "district": "中山區",
+    "area_sqm": 1233,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf411550f5cfa6",
+    "name": "長安市民",
+    "code": "公辦238",
+    "district": "中山區",
+    "area_sqm": 4504,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf249d81305d66",
+    "name": "中山女中南側",
+    "code": "公辦078",
+    "district": "中山區",
+    "area_sqm": 42100,
+    "category": "政府主導",
+    "polygon": [
+     [
+      121.537091,
+      25.048297
+     ],
+     [
+      121.537056,
+      25.048266
+     ],
+     [
+      121.537012,
+      25.046293
+     ],
+     [
+      121.537072,
+      25.046246
+     ],
+     [
+      121.5380645,
+      25.0464007
+     ],
+     [
+      121.539072,
+      25.04656
+     ],
+     [
+      121.539005,
+      25.046964
+     ],
+     [
+      121.5390225,
+      25.0475913
+     ],
+     [
+      121.539034,
+      25.048234
+     ],
+     [
+      121.539005,
+      25.048261
+     ],
+     [
+      121.537091,
+      25.048297
+     ]
+    ],
+    "geo_precision": "exact"
+   },
+   {
+    "id": "urf559d475f718a",
+    "name": "捷運大直北安三小段(序號2)",
+    "code": "公辦156",
+    "district": "中山區",
+    "area_sqm": 2113.07,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf881fa8336642",
+    "name": "南機場一二三期整宅公辦",
+    "code": "公辦136",
+    "district": "萬華區",
+    "area_sqm": 28000,
+    "category": "政府主導",
+    "polygon": [
+     [
+      121.503688,
+      25.0298277
+     ],
+     [
+      121.503646,
+      25.029251
+     ],
+     [
+      121.504093,
+      25.02877
+     ],
+     [
+      121.504142,
+      25.028766
+     ],
+     [
+      121.504656,
+      25.029162
+     ],
+     [
+      121.5048388,
+      25.0293002
+     ],
+     [
+      121.504928,
+      25.029199
+     ],
+     [
+      121.505475,
+      25.0286075
+     ],
+     [
+      121.5058153,
+      25.0282466
+     ],
+     [
+      121.5060751,
+      25.0279671
+     ],
+     [
+      121.506123,
+      25.027913
+     ],
+     [
+      121.506163,
+      25.02791
+     ],
+     [
+      121.507283,
+      25.028776
+     ],
+     [
+      121.507287,
+      25.028811
+     ],
+     [
+      121.506568,
+      25.029585
+     ],
+     [
+      121.506519,
+      25.029589
+     ],
+     [
+      121.5058884,
+      25.0291076
+     ],
+     [
+      121.505429,
+      25.029584
+     ],
+     [
+      121.505014,
+      25.03003
+     ],
+     [
+      121.504965,
+      25.0300417
+     ],
+     [
+      121.5042642,
+      25.0299124
+     ],
+     [
+      121.504014,
+      25.0298837
+     ],
+     [
+      121.503688,
+      25.0298277
+     ]
+    ],
+    "geo_precision": "exact"
+   },
+   {
+    "id": "urf206e1ee790df",
+    "name": "福星四小段",
+    "code": "公辦060",
+    "district": "萬華區",
+    "area_sqm": 1526,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urfc12691408504",
+    "name": "文化園區館前土地",
+    "code": "公辦012",
+    "district": "萬華區",
+    "area_sqm": 4551,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   },
+   {
+    "id": "urf609f817f4646",
+    "name": "莒光三小段",
+    "code": "公辦011",
+    "district": "萬華區",
+    "area_sqm": 3480.07,
+    "category": "政府主導",
+    "polygon": null,
+    "geo_precision": null
+   }
+  ],
+  "with_polygon_count": 4,
+  "aggregate_by_district_taipei": [
+   {
+    "district": "大安區",
+    "count": 360,
+    "total_area_sqm": 1254278.33,
+    "avg_area_sqm": 3503.57
+   },
+   {
+    "district": "中山區",
+    "count": 294,
+    "total_area_sqm": 2010204.32,
+    "avg_area_sqm": 6837.43
+   },
+   {
+    "district": "中正區",
+    "count": 236,
+    "total_area_sqm": 2080659.36,
+    "avg_area_sqm": 8816.35
+   },
+   {
+    "district": "士林區",
+    "count": 233,
+    "total_area_sqm": 1233437.87,
+    "avg_area_sqm": 5386.19
+   },
+   {
+    "district": "松山區",
+    "count": 186,
+    "total_area_sqm": 1233106.06,
+    "avg_area_sqm": 6665.44
+   },
+   {
+    "district": "北投區",
+    "count": 185,
+    "total_area_sqm": 1078611.61,
+    "avg_area_sqm": 5830.33
+   },
+   {
+    "district": "信義區",
+    "count": 174,
+    "total_area_sqm": 1383869.93,
+    "avg_area_sqm": 7953.28
+   },
+   {
+    "district": "南港區",
+    "count": 154,
+    "total_area_sqm": 2239382.21,
+    "avg_area_sqm": 14830.35
+   },
+   {
+    "district": "內湖區",
+    "count": 142,
+    "total_area_sqm": 910275.07,
+    "avg_area_sqm": 6410.39
+   },
+   {
+    "district": "文山區",
+    "count": 135,
+    "total_area_sqm": 1031282.6,
+    "avg_area_sqm": 7639.13
+   },
+   {
+    "district": "大同區",
+    "count": 123,
+    "total_area_sqm": 1089600.74,
+    "avg_area_sqm": 8858.54
+   },
+   {
+    "district": "萬華區",
+    "count": 115,
+    "total_area_sqm": 1148388.77,
+    "avg_area_sqm": 10073.59
+   }
+  ],
+  "aggregate_by_category_taipei": [
+   {
+    "category": "自劃單元",
+    "count": 1239,
+    "total_area_sqm": 3046275.13,
+    "avg_area_sqm": 2458.66
+   },
+   {
+    "category": "已核定事業",
+    "count": 676,
+    "total_area_sqm": 1816643.57,
+    "avg_area_sqm": 2711.41
+   },
+   {
+    "category": "更新地區",
+    "count": 365,
+    "total_area_sqm": 10247227.87,
+    "avg_area_sqm": 28074.6
+   },
+   {
+    "category": "政府主導",
+    "count": 85,
+    "total_area_sqm": 1868213.25,
+    "avg_area_sqm": 23352.67
+   }
+  ]
+ },
+ "future_dev": [
+  {
+   "id": "fda9b62c9",
+   "name": "富邦建設信義段五小段集合住宅",
+   "developer": "富邦建設",
+   "district": "信義區",
+   "business_area": "信義基隆商圈",
+   "completion_date": "2030-12-01",
+   "floors_above": 38,
+   "floors_below": -4,
+   "max_floor_area": 780.83,
+   "typical_floor_height": 3.6,
+   "usage_mix": {
+    "office": 0,
+    "hotel": 0.214,
+    "house": 0.667,
+    "store": 0.071,
+    "parking": 0.095,
+    "others": 0.024
+   }
+  },
+  {
+   "id": "fd68f53199",
+   "name": "台北四季酒店",
+   "developer": "元利建設",
+   "district": "信義區",
+   "business_area": "信義基隆商圈",
+   "completion_date": "2026-12-01",
+   "floors_above": 31,
+   "floors_below": -4,
+   "max_floor_area": 801.02,
+   "typical_floor_height": 3.6,
+   "usage_mix": {
+    "office": 0,
+    "hotel": 0.875,
+    "house": 0.025,
+    "store": 0.875,
+    "parking": 0.1,
+    "others": 0
+   }
+  },
+  {
+   "id": "fd29f4415",
+   "name": "南山A21綠環塔",
+   "developer": "南山人壽",
+   "district": "信義區",
+   "business_area": "信義基隆商圈",
+   "completion_date": "2028-12-01",
+   "floors_above": 46,
+   "floors_below": -3,
+   "max_floor_area": 2706.83,
+   "typical_floor_height": 4.8,
+   "usage_mix": {
+    "office": 0.84,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.84,
+    "parking": 0.06,
+    "others": 0.12
+   }
+  },
+  {
+   "id": "fdca95752",
+   "name": "南山信義A26",
+   "developer": "南山人壽",
+   "district": "信義區",
+   "business_area": "信義基隆商圈",
+   "completion_date": "2027-01-01",
+   "floors_above": 32,
+   "floors_below": -3,
+   "max_floor_area": 1349.46,
+   "typical_floor_height": 4.5,
+   "usage_mix": {
+    "office": 0.778,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.806,
+    "parking": 0.083,
+    "others": 0.111
+   }
+  },
+  {
+   "id": "fdf3859e5",
+   "name": "南港商三公辦都更案(南港之星)",
+   "developer": "潤泰創新國際",
+   "district": "南港區",
+   "business_area": null,
+   "completion_date": "2034-12-01",
+   "floors_above": 39,
+   "floors_below": -5,
+   "max_floor_area": 3965.69,
+   "typical_floor_height": 3.45,
+   "usage_mix": {
+    "office": 0,
+    "hotel": 0,
+    "house": 0.85,
+    "store": 0.1,
+    "parking": 0.08,
+    "others": 0.05
+   }
+  },
+  {
+   "id": "fde23aebc",
+   "name": "HCBD虹創科技大樓",
+   "developer": "長虹建設",
+   "district": "南港區",
+   "business_area": null,
+   "completion_date": "2026-12-01",
+   "floors_above": 18,
+   "floors_below": -4,
+   "max_floor_area": 1440.28,
+   "typical_floor_height": 4.2,
+   "usage_mix": {
+    "office": 0.696,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.043,
+    "parking": 0.174,
+    "others": 0.13
+   }
+  },
+  {
+   "id": "fda667c9d",
+   "name": "南港調車場公辦都更案(東街廓)",
+   "developer": "南港國際二",
+   "district": "南港區",
+   "business_area": null,
+   "completion_date": "2028-07-01",
+   "floors_above": 27,
+   "floors_below": -5,
+   "max_floor_area": 3663.41,
+   "typical_floor_height": 4.2,
+   "usage_mix": {
+    "office": 0.906,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.813,
+    "parking": 0.125,
+    "others": 0.094
+   }
+  },
+  {
+   "id": "fd7bab556",
+   "name": "力麒寰山",
+   "developer": "力麒建設",
+   "district": "內湖區",
+   "business_area": null,
+   "completion_date": "2029-07-01",
+   "floors_above": 20,
+   "floors_below": -5,
+   "max_floor_area": 329.01,
+   "typical_floor_height": 3.3,
+   "usage_mix": {
+    "office": 0.12,
+    "hotel": 0,
+    "house": 0.52,
+    "store": 0.04,
+    "parking": 0.2,
+    "others": 0.12
+   }
+  },
+  {
+   "id": "fd3dfb3dc",
+   "name": "潭美段五小段地上權案(緯創內湖研發大樓)",
+   "developer": "緯創資通",
+   "district": "內湖區",
+   "business_area": "大內湖科技園區",
+   "completion_date": "2028-12-01",
+   "floors_above": 9,
+   "floors_below": -4,
+   "max_floor_area": 955.2,
+   "typical_floor_height": 5.0,
+   "usage_mix": {
+    "office": 0.615,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.077,
+    "parking": 0.308,
+    "others": 0.077
+   }
+  },
+  {
+   "id": "fdaeaa5d4",
+   "name": "東煒建設潭美段一小段辦公大樓",
+   "developer": "東煒建設",
+   "district": "內湖區",
+   "business_area": "大內湖科技園區",
+   "completion_date": "2026-12-01",
+   "floors_above": 12,
+   "floors_below": -3,
+   "max_floor_area": 801.56,
+   "typical_floor_height": 4.6,
+   "usage_mix": {
+    "office": 0.667,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.067,
+    "parking": 0.2,
+    "others": 0.133
+   }
+  },
+  {
+   "id": "fd980fdad",
+   "name": "耕薪都市更新中山段二小段辦公大樓",
+   "developer": "耕薪都市更新",
+   "district": "中山區",
+   "business_area": "中山北路商圈",
+   "completion_date": "2031-12-01",
+   "floors_above": 22,
+   "floors_below": -5,
+   "max_floor_area": 363.26,
+   "typical_floor_height": 3.9,
+   "usage_mix": {
+    "office": 0.704,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.037,
+    "parking": 0.185,
+    "others": 0.111
+   }
+  },
+  {
+   "id": "fd0d3e47e",
+   "name": "長春段二小段626地號等都更案",
+   "developer": "丹棠長春",
+   "district": "中山區",
+   "business_area": "松江南京商圈",
+   "completion_date": "2031-12-01",
+   "floors_above": 18,
+   "floors_below": -4,
+   "max_floor_area": 175.3,
+   "typical_floor_height": 3.2,
+   "usage_mix": {
+    "office": 0.364,
+    "hotel": 0,
+    "house": 0.273,
+    "store": 0.5,
+    "parking": 0.227,
+    "others": 0.136
+   }
+  },
+  {
+   "id": "fd6d8e6c4",
+   "name": "吉林段四小段508地號等都更案",
+   "developer": "忠泰建設",
+   "district": "中山區",
+   "business_area": "中山北路商圈",
+   "completion_date": "2032-12-01",
+   "floors_above": 24,
+   "floors_below": -5,
+   "max_floor_area": 389.69,
+   "typical_floor_height": 3.9,
+   "usage_mix": {
+    "office": 0.724,
+    "hotel": 0,
+    "house": 0,
+    "store": 0.034,
+    "parking": 0.172,
+    "others": 0.069
+   }
+  }
+ ],
+ "building_licenses": [
+  {
+   "license_number": "114建字第0201號",
+   "issue_date": "1141201",
+   "construction_type": "新建",
+   "first_address": "臺北市北投區光明路46號",
+   "developer_masked": "久○○",
+   "designer": "吳成榮(吳成榮建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0076號",
+   "issue_date": "1140415",
+   "construction_type": "新建",
+   "first_address": "臺北市北投區福美路",
+   "developer_masked": "佳○○",
+   "designer": "蔡嘉生(郭旭原聯合建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0141號",
+   "issue_date": "1140808",
+   "construction_type": "新建",
+   "first_address": "臺北市中正區南海53號",
+   "developer_masked": "農○○",
+   "designer": "簡順章(瀚品聯合建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0015號",
+   "issue_date": "1140115",
+   "construction_type": "修建",
+   "first_address": "臺北市大同區安西街4號",
+   "developer_masked": "羅○○",
+   "designer": "呂大吉(呂大吉建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0050號",
+   "issue_date": "1140307",
+   "construction_type": "新建",
+   "first_address": "臺北市北投區知行路245巷28號",
+   "developer_masked": "杜○○",
+   "designer": "黃淑玲(黃淑玲建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0173號",
+   "issue_date": "1141013",
+   "construction_type": "新建",
+   "first_address": "臺北市內湖區行愛路",
+   "developer_masked": "利○○",
+   "designer": "蘇光華(蘇光華建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0140號",
+   "issue_date": "1140806",
+   "construction_type": "增建",
+   "first_address": "臺北市文山區汀州路四段88號",
+   "developer_masked": "國○○",
+   "designer": "林彥穎(十彥建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0185號",
+   "issue_date": "1141029",
+   "construction_type": "增建",
+   "first_address": "臺北市士林區中山北路六段800號",
+   "developer_masked": "台○○",
+   "designer": "黃昱豪(曲墨建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0038號",
+   "issue_date": "1140221",
+   "construction_type": "新建",
+   "first_address": "臺北市文山區木柵路三段66巷8-1號",
+   "developer_masked": "國○○",
+   "designer": "吳聲明(十禾建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0128號",
+   "issue_date": "1140711",
+   "construction_type": "修建",
+   "first_address": "臺北市大同區安西街1巷11號",
+   "developer_masked": "許○○",
+   "designer": "呂大吉(呂大吉建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0132號",
+   "issue_date": "1140728",
+   "construction_type": "新建",
+   "first_address": "臺北市中山區龍江路223巷27號",
+   "developer_masked": "春○○",
+   "designer": "郭秋利(郭秋利建築師事務所)"
+  },
+  {
+   "license_number": "114建字第0018號",
+   "issue_date": "1140117",
+   "construction_type": "新建",
+   "first_address": "臺北市大安區光復南路240巷31-3號",
+   "developer_masked": "德○○",
+   "designer": "陳傳宗(陳傳宗建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0013號",
+   "issue_date": "1150130",
+   "construction_type": "新建",
+   "first_address": "臺北市士林區東山路25巷81弄58-1號",
+   "developer_masked": "翁○○",
+   "designer": "王山頌(王山頌建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0096號",
+   "issue_date": "1150717",
+   "construction_type": "新建",
+   "first_address": "臺北市中正區汀州路三段",
+   "developer_masked": "國○○",
+   "designer": "呂建勳(呂建勳建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0105號",
+   "issue_date": "1150729",
+   "construction_type": "增建",
+   "first_address": "臺北市大安區辛亥路3段330號",
+   "developer_masked": "臺○○",
+   "designer": "葉德發(葉德發建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0055號",
+   "issue_date": "1150518",
+   "construction_type": "新建",
+   "first_address": "臺北市士林區平菁街93巷27號",
+   "developer_masked": "呂○○",
+   "designer": "呂建勳(呂建勳建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0060號",
+   "issue_date": "1150522",
+   "construction_type": "新建",
+   "first_address": "臺北市士林區仰德大道一段23號",
+   "developer_masked": "邱○○",
+   "designer": "林俊充(山原設建築師事務所)"
+  },
+  {
+   "license_number": "115建字第0106號",
+   "issue_date": "1150729",
+   "construction_type": "新建",
+   "first_address": "臺北市士林區仰德大道二段136號",
+   "developer_masked": "振○○",
+   "designer": "王山頌(王山頌建築師事務所)"
+  }
+ ],
+ "mops": [
+  {
+   "id": "2501-1150911-1",
+   "announcement_date": "2026-09-11",
+   "company_name": "國建",
+   "company_id": "2501",
+   "industry": "建材營造業",
+   "product_type": "住宅",
+   "property_name": "南港區玉成段公辦都更案",
+   "building_address": "",
+   "district": "南港區",
+   "land_area_ping": 1057.54,
+   "building_area_ping": 0,
+   "total_price": 4015000000,
+   "buyer_name": "國泰玉成置業開發股份有限公司",
+   "buyer_type": "建商開發商",
+   "seller_name": "臺北市住宅及都市更新中心",
+   "seller_type": "公部門單位"
+  },
+  {
+   "id": "3521-1150910-5",
+   "announcement_date": "2026-09-10",
+   "company_name": "台鋼建設",
+   "company_id": "3521",
+   "industry": "建材營造業",
+   "product_type": "商辦",
+   "property_name": "敦化南路一段25號",
+   "building_address": "台北市松山區敦化南路一段25號12樓、13樓",
+   "district": "松山區",
+   "land_area_ping": 0,
+   "building_area_ping": 110.14,
+   "total_price": 3634452,
+   "buyer_name": "台鋼建設",
+   "buyer_type": "建商開發商",
+   "seller_name": "恆達空間智庫股份有限公司",
+   "seller_type": "其他"
+  },
+  {
+   "id": "3703-1150910-1",
+   "announcement_date": "2026-09-10",
+   "company_name": "欣陸",
+   "company_id": "3703",
+   "industry": "建材營造業",
+   "product_type": "商辦",
+   "property_name": "台北市敦化南路二段95號15樓",
+   "building_address": "台北市敦化南路二段95號15樓",
+   "district": "大安區",
+   "land_area_ping": 0,
+   "building_area_ping": 120,
+   "total_price": 21154752,
+   "buyer_name": "大陸建設股份有限公司",
+   "buyer_type": "建商開發商",
+   "seller_name": "大陸工程公司",
+   "seller_type": "其他"
+  },
+  {
+   "id": "2206-1150831-2",
+   "announcement_date": "2026-08-31",
+   "company_name": "三陽工業",
+   "company_id": "2206",
+   "industry": "汽車工業",
+   "product_type": "土地+建物",
+   "property_name": "台北市南京東路六段386號4樓",
+   "building_address": "台北市南京東路六段386號4樓",
+   "district": "內湖區",
+   "land_area_ping": 200,
+   "building_area_ping": 93.38,
+   "total_price": 5064705,
+   "buyer_name": "朝陽小客車租賃股份有限公司",
+   "buyer_type": "自用型買方-傳產業",
+   "seller_name": "上揚資產管理公司",
+   "seller_type": "不動產投資公司"
+  },
+  {
+   "id": "2206-1150831-3",
+   "announcement_date": "2026-08-31",
+   "company_name": "三陽工業",
+   "company_id": "2206",
+   "industry": "汽車工業",
+   "product_type": "商辦",
+   "property_name": "台北市南京東路六段386號",
+   "building_address": "台北市南京東路六段386號3樓及3樓之1",
+   "district": "內湖區",
+   "land_area_ping": 41.7,
+   "building_area_ping": 861,
+   "total_price": 29605445,
+   "buyer_name": "南陽實業股份有限公司",
+   "buyer_type": "自用型買方-傳產業",
+   "seller_name": "上揚資產管理公司",
+   "seller_type": "不動產投資公司"
+  },
+  {
+   "id": "5880-1150831-1",
+   "announcement_date": "2026-08-31",
+   "company_name": "合庫金",
+   "company_id": "5880",
+   "industry": "金融保險業",
+   "product_type": "土地+建物",
+   "property_name": "",
+   "building_address": "",
+   "district": "大安區",
+   "land_area_ping": 40.04,
+   "building_area_ping": 694.56,
+   "total_price": 1198000000,
+   "buyer_name": "合作金庫商業銀行股份有限公司",
+   "buyer_type": "金融業",
+   "seller_name": "臻品商務股份有限公司、臻品顧問股份有限公司",
+   "seller_type": "其他"
+  },
+  {
+   "id": "5534-1150830-1",
+   "announcement_date": "2026-08-30",
+   "company_name": "長虹",
+   "company_id": "5534",
+   "industry": "建材營造業",
+   "product_type": "住宅",
+   "property_name": "大直藏璽",
+   "building_address": "",
+   "district": "中山區",
+   "land_area_ping": 0,
+   "building_area_ping": 0,
+   "total_price": 0,
+   "buyer_name": "長虹建設股份有限公司",
+   "buyer_type": "建商開發商",
+   "seller_name": "臺北市住宅及都市更新中心",
+   "seller_type": "公部門單位"
+  },
+  {
+   "id": "4571-1150828-1",
+   "announcement_date": "2026-08-28",
+   "company_name": "鈞興-KY",
+   "company_id": "4571",
+   "industry": "電機機械",
+   "product_type": "商辦",
+   "property_name": "忠孝東路三段98號大樓",
+   "building_address": "臺北市大安區忠孝東路三段98號12樓",
+   "district": "大安區",
+   "land_area_ping": 7.84,
+   "building_area_ping": 102.71,
+   "total_price": 123825000,
+   "buyer_name": "鈞興機電股份有限公司",
+   "buyer_type": "自用型買方-傳產業",
+   "seller_name": "唯福投資股份有限公司、合仲建設股份有限公司",
+   "seller_type": "其他"
+  },
+  {
+   "id": "2758-1150827-1",
+   "announcement_date": "2026-08-27",
+   "company_name": "路易莎咖啡",
+   "company_id": "2758",
+   "industry": "觀光餐旅",
+   "product_type": "零售",
+   "property_name": "台北市北投區福善路50號",
+   "building_address": "台北市北投區福善路50號",
+   "district": "北投區",
+   "land_area_ping": 20.75,
+   "building_area_ping": 172.46,
+   "total_price": 132000000,
+   "buyer_name": "路易莎咖啡",
+   "buyer_type": "自用型買方-傳產業",
+   "seller_name": "穎灃有限公司",
+   "seller_type": "不動產投資公司"
+  },
+  {
+   "id": "8077-1150826-1",
+   "announcement_date": "2026-08-26",
+   "company_name": "洛碁",
+   "company_id": "8077",
+   "industry": "觀光餐旅",
+   "product_type": "旅館",
+   "property_name": "協美",
+   "building_address": "台北市中山區中山北路",
+   "district": "中山區",
+   "land_area_ping": 0,
+   "building_area_ping": 74.39,
+   "total_price": 7515911,
+   "buyer_name": "洛碁",
+   "buyer_type": "其他",
+   "seller_name": "謝00",
+   "seller_type": "自然人"
+  },
+  {
+   "id": "4416-1150824-2",
+   "announcement_date": "2026-08-24",
+   "company_name": "三圓",
+   "company_id": "4416",
+   "industry": "建材營造業",
+   "product_type": "住宅",
+   "property_name": "台北之星",
+   "building_address": "",
+   "district": "",
+   "land_area_ping": 0,
+   "building_area_ping": 0,
+   "total_price": 0,
+   "buyer_name": "",
+   "buyer_type": "其他",
+   "seller_name": "三圓建設股份有限公司",
+   "seller_type": "建商開發商"
+  },
+  {
+   "id": "5880-1150824-3",
+   "announcement_date": "2026-08-24",
+   "company_name": "合庫金",
+   "company_id": "5880",
+   "industry": "金融保險業",
+   "product_type": "土地+建物",
+   "property_name": "",
+   "building_address": "",
+   "district": "大安區",
+   "land_area_ping": 40.04,
+   "building_area_ping": 0,
+   "total_price": 0,
+   "buyer_name": "合作金庫商業銀行股份有限公司",
+   "buyer_type": "金融業",
+   "seller_name": "臻品商務股份有限公司、臻品顧問股份有限公司",
+   "seller_type": "其他"
+  },
+  {
+   "id": "1229-1150821-1",
+   "announcement_date": "2026-08-21",
+   "company_name": "聯華",
+   "company_id": "1229",
+   "industry": "食品工業",
+   "product_type": "商辦",
+   "property_name": "台北市大同區長安西路85巷1弄1號1樓~3樓",
+   "building_address": "台北市大同區長安西路85巷1弄1號1樓~3樓",
+   "district": "大同區",
+   "land_area_ping": 0,
+   "building_area_ping": 116.58,
+   "total_price": 3749054,
+   "buyer_name": "神通資訊科技股份有限公司",
+   "buyer_type": "自用型買方-科技業",
+   "seller_name": "聯華置產股份有限公司",
+   "seller_type": "不動產投資公司"
+  },
+  {
+   "id": "5289-1150821-2",
+   "announcement_date": "2026-08-21",
+   "company_name": "宜鼎",
+   "company_id": "5289",
+   "industry": "電腦及週邊設備業",
+   "product_type": "商辦",
+   "property_name": "忠孝東路六段465號",
+   "building_address": "台北市南港區忠孝東路六段465號10樓",
+   "district": "南港區",
+   "land_area_ping": 47.41,
+   "building_area_ping": 365.29,
+   "total_price": 168000000,
+   "buyer_name": "睿鼎投資股份有限公司",
+   "buyer_type": "不動產投資公司",
+   "seller_name": "宜鼎",
+   "seller_type": "自用型買方-科技業"
+  }
+ ],
+ "development_zones": [
+  {
+   "id": "HCF2244516339",
+   "name": "新隆里地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.032141,
+   "lon": 121.521162
+  },
+  {
+   "id": "TUW2244651796",
+   "name": "南港經貿園區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.06187,
+   "lon": 121.617719
+  },
+  {
+   "id": "WEH2244710113",
+   "name": "奇岩新社區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.127067,
+   "lon": 121.505277
+  },
+  {
+   "id": "IOT2244556351",
+   "name": "八德路饒河街口附近地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.049664,
+   "lon": 121.572614
+  },
+  {
+   "id": "NXH6143055841",
+   "name": "木柵路四段、五段附近地區",
+   "category": "區段徵收",
+   "status": "規劃中",
+   "lat": 25.002037,
+   "lon": 121.589432
+  },
+  {
+   "id": "VBR2244499389",
+   "name": "木柵景美140高地",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.00254,
+   "lon": 121.565681
+  },
+  {
+   "id": "SGI2244638699",
+   "name": "基隆河成美橋至南湖大橋段河道整治地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.058219,
+   "lon": 121.597216
+  },
+  {
+   "id": "HSM2244451152",
+   "name": "華江地區(第一期)",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.034502,
+   "lon": 121.492421
+  },
+  {
+   "id": "UIK2244535368",
+   "name": "柳鄉社區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.037513,
+   "lon": 121.495823
+  },
+  {
+   "id": "GNT2244695275",
+   "name": "士林官邸北側地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.094834,
+   "lon": 121.532624
+  },
+  {
+   "id": "JIL6143804641",
+   "name": "社子島地區",
+   "category": "區段徵收",
+   "status": "規劃中",
+   "lat": 25.107414,
+   "lon": 121.484806
+  },
+  {
+   "id": "FRZ2244668060",
+   "name": "士林官邸附近地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.091479,
+   "lon": 121.529214
+  },
+  {
+   "id": "QCX2244681911",
+   "name": "南港車站特定專用區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "LMN6651125333",
+   "name": "華江地區（第一區,第二期）",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.034502,
+   "lon": 121.492421
+  },
+  {
+   "id": "NLP2480773362",
+   "name": "北投士林科技園區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.099324,
+   "lon": 121.505725
+  },
+  {
+   "id": "IHK2244621066",
+   "name": "基隆河中山橋至成美橋段河道整治地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.076815,
+   "lon": 121.567943
+  },
+  {
+   "id": "LTB2244573263",
+   "name": "大同區大龍段地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.071191,
+   "lon": 121.517913
+  },
+  {
+   "id": "KOU2244587148",
+   "name": "北投百齡五路東北側地區",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.120477,
+   "lon": 121.503258
+  },
+  {
+   "id": "LMA2244604668",
+   "name": "台北工專北側",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.044084,
+   "lon": 121.535748
+  },
+  {
+   "id": "LBD2244482221",
+   "name": "華江地區(第二區,第二期)",
+   "category": "區段徵收",
+   "status": "辦理完成",
+   "lat": 25.034502,
+   "lon": 121.492421
+  },
+  {
+   "id": "ONX7123527020",
+   "name": "中山區第三期市地重劃區",
+   "category": "市地重劃",
+   "status": "辦理完成",
+   "lat": 25.064052,
+   "lon": 121.534224
+  },
+  {
+   "id": "CLS4298520541",
+   "name": "大安區第一期市地重劃區",
+   "category": "市地重劃",
+   "status": "辦理完成",
+   "lat": 25.020863,
+   "lon": 121.555326
+  },
+  {
+   "id": "GUV4298874886",
+   "name": "內湖區第八期市地重劃區",
+   "category": "市地重劃",
+   "status": "辦理完成",
+   "lat": 25.075653,
+   "lon": 121.621404
+  },
+  {
+   "id": "YJE6465544909",
+   "name": "士林區第四期市地重劃區",
+   "category": "市地重劃",
+   "status": "辦理完成",
+   "lat": 25.099039,
+   "lon": 121.531462
+  },
+  {
+   "id": "BMJ6462097023",
+   "name": "士林區第一期市地重劃區",
+   "category": "市地重劃",
+   "status": "辦理完成",
+   "lat": 25.108514,
+   "lon": 121.561718
+  }
+ ],
+ "industrial_parks": [
+  {
+   "id": "ipk23b26b665a65",
+   "name": "南港軟體園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 8.27,
+   "city": "臺北市",
+   "lat": 25.05765495195585,
+   "lon": 121.61264866574467
+  },
+  {
+   "id": "ipkd5ad40e71926",
+   "name": "土城產業園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 107,
+   "city": "新北市",
+   "lat": 24.96486980267761,
+   "lon": 121.42241105533603
+  },
+  {
+   "id": "ipk0da857eef9eb",
+   "name": "新北產業園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 140.55,
+   "city": "新北市",
+   "lat": 25.066661765387735,
+   "lon": 121.45311085499692
+  },
+  {
+   "id": "ipkc43307cd595d",
+   "name": "樹林產業園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 21.75,
+   "city": "新北市",
+   "lat": 25.001821751853374,
+   "lon": 121.41941623248907
+  },
+  {
+   "id": "ipk91cb5d619367",
+   "name": "瑞芳產業園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 38.17,
+   "city": "新北市",
+   "lat": 25.09824932997992,
+   "lon": 121.78745650219982
+  },
+  {
+   "id": "ipkef6dbdfe6b52",
+   "name": "林口工二產業園區",
+   "park_type": "編定產業園區",
+   "status": "已開發",
+   "area_ha": 52.44,
+   "city": "新北市",
+   "lat": 25.079116397795545,
+   "lon": 121.40172516956468
+  },
+  {
+   "id": "ipk8faf1aeca49d",
+   "name": "泰山工業區",
+   "park_type": "報編產業園區",
+   "status": "已開發",
+   "area_ha": 135.17,
+   "city": "新北市",
+   "lat": 25.043898197659185,
+   "lon": 121.41459350533538
+  }
+ ],
+ "mrt_stations": [
+  {
+   "name": "台北101/世貿站",
+   "lat": 25.033028,
+   "lon": 121.562755
+  },
+  {
+   "name": "台北車站",
+   "lat": 25.04631,
+   "lon": 121.517415
+  },
+  {
+   "name": "市政府站",
+   "lat": 25.041135,
+   "lon": 121.565685
+  },
+  {
+   "name": "南港展覽館站",
+   "lat": 25.054919,
+   "lon": 121.616861
+  },
+  {
+   "name": "大安站",
+   "lat": 25.033311,
+   "lon": 121.54237
+  }
+ ],
+ "public_infras": [
+  {
+   "id": "puifb02cf64",
+   "name": "臺北市立圖書館新總館與臺北音樂廳",
+   "subcategory": "cultural_venue",
+   "status": "constructing",
+   "completion_year": 2030,
+   "lat": 25.03246582,
+   "lon": 121.5400802
+  },
+  {
+   "id": "puiff149946",
+   "name": "新北第二行政中心",
+   "subcategory": "government",
+   "status": "constructing",
+   "completion_year": 2026,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif389b584",
+   "name": "劍潭站TOD開發案",
+   "subcategory": "government",
+   "status": "constructing",
+   "completion_year": 2028,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif5d79205",
+   "name": "士林站TOD開發案",
+   "subcategory": "government",
+   "status": "constructing",
+   "completion_year": 2026,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif3390311",
+   "name": "劍南路站TOD開發案",
+   "subcategory": "government",
+   "status": "constructing",
+   "completion_year": 2029,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif07f205e",
+   "name": "環狀線東環段",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2032,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif9549c4a",
+   "name": "環狀線南環段",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2031,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifbdf0e68",
+   "name": "環狀線北環段",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2031,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif87a7cf9",
+   "name": "信義線東延段",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2026,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif2f5a9f0",
+   "name": "臺中捷運藍線",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2034,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifbbd0ca7",
+   "name": "萬大中和樹林線第二期",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2031,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifa16f9a7",
+   "name": "萬大中和樹林線第一期",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2027,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifbd997f7",
+   "name": "汐東捷運",
+   "subcategory": "mrt_line",
+   "status": "constructing",
+   "completion_year": 2032,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif5407d41",
+   "name": "Y36站",
+   "subcategory": "mrt_station",
+   "status": "constructing",
+   "completion_year": 2032,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif38d88b2",
+   "name": "Y33站",
+   "subcategory": "mrt_station",
+   "status": "constructing",
+   "completion_year": 2032,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif77aa27f",
+   "name": "臺中國際會展中心二期A棟",
+   "subcategory": "exhibition",
+   "status": "planning",
+   "completion_year": 2033,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puiff7512cc",
+   "name": "臺中國際會展中心二期C棟",
+   "subcategory": "exhibition",
+   "status": "planning",
+   "completion_year": 2033,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifadf7ff6",
+   "name": "臺灣智慧營運塔",
+   "subcategory": "government",
+   "status": "planning",
+   "completion_year": null,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifa8366c0",
+   "name": "民生汐止線(台北市段)",
+   "subcategory": "mrt_line",
+   "status": "planning",
+   "completion_year": null,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif0ffe814",
+   "name": "三鶯線（延伸八德段）",
+   "subcategory": "mrt_line",
+   "status": "planning",
+   "completion_year": 2034,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif31272f4",
+   "name": "桃園捷運棕線",
+   "subcategory": "mrt_line",
+   "status": "planning",
+   "completion_year": 2032,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puifedc89ea",
+   "name": "基隆捷運(第一階段)",
+   "subcategory": "mrt_line",
+   "status": "planning",
+   "completion_year": 2033,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif3f9a9ea",
+   "name": "淡海輕軌藍海線第二期",
+   "subcategory": "mrt_line",
+   "status": "planning",
+   "completion_year": 2030,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif623d2ed",
+   "name": "LB13和平站",
+   "subcategory": "mrt_station",
+   "status": "planning",
+   "completion_year": null,
+   "lat": null,
+   "lon": null
+  },
+  {
+   "id": "puif7562cc4",
+   "name": "LB12a八德轉運站",
+   "subcategory": "mrt_station",
+   "status": "planning",
+   "completion_year": null,
+   "lat": null,
+   "lon": null
+  }
+ ],
+ "business_areas": [
+  {
+   "id": "ard5ef314",
+   "name": "台北市南京光復商圈",
+   "description": "位於市區東側，以南京東路與光復北路交會區域為核心。捷運松山新店線提供東西向串聯，連結市區與松山機場，交通條件良好。",
+   "pp_insight": "位處信義與松山區交界的戰略節點，鄰近雙捷運站點與小巨蛋，具備發展為新興商業區的優越地理條件。然而指標性的京華廣場開發案陷入停滯，為此區的短期發展前景帶來了極大的不確定性。",
+   "tags": [
+    "新興商業區"
+   ],
+   "company_total": 3979,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.35
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.12
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.11
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 272
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 1459
+    },
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 2008
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 220
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 20
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1629,
+    "rent_yoy": -0.040546932655015966,
+    "sale_avg": 814678,
+    "sale_yoy": 0.021006268605449963
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 1
+    },
+    {
+     "grade": "B",
+     "count": 83
+    },
+    {
+     "grade": "F",
+     "count": 3
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1638,
+      "count": 13
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1539,
+      "count": 11
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1548,
+      "count": 10
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1616,
+      "count": 7
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1657,
+      "count": 7
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1601,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1718,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1588,
+      "count": 18
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1623,
+      "count": 11
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1722,
+      "count": 9
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 932,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 758560,
+      "count": 17
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 785375,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 744703,
+      "count": 13
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 774158,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 924147,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 789187,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 832156,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 915259,
+      "count": 5
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 727490,
+      "count": 5
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 862197,
+      "count": 12
+     }
+    ]
+   }
+  },
+  {
+   "id": "arce6f1d9",
+   "name": "台北市民生敦北商圈",
+   "description": "位於市區東北側，鄰近松山機場與松山火車站，交通仰賴民生東路與敦化北路等幹道。公共運輸以公車路網為主，捷運可及性有限。",
+   "pp_insight": "憑藉敦化北路指標性的林蔭門牌，成為金融保險業與大型傳產的總部首選。鄰近松山機場的區位優勢，結合區域內多項重建計劃與都市更新，未來仍值得關注與期待。",
+   "tags": [
+    "指標林蔭門牌"
+   ],
+   "company_total": 5815,
+   "company_growth_rate": 0.05,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.3
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.16
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.14
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.12
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 2490
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2093
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 516
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 587
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 129
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1928,
+    "rent_yoy": 0.05398746771779561,
+    "sale_avg": 927768,
+    "sale_yoy": -0.042132922279749185
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 21
+    },
+    {
+     "grade": "B",
+     "count": 79
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1735,
+      "count": 10
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1940,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1734,
+      "count": 8
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 2126,
+      "count": 8
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2190,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1924,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 2206,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1689,
+      "count": 17
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 2029,
+      "count": 16
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2263,
+      "count": 8
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1111,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 761953,
+      "count": 6
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 884385,
+      "count": 8
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 857352,
+      "count": 4
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 873987,
+      "count": 6
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1002232,
+      "count": 4
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 830296,
+      "count": 3
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 824423,
+      "count": 4
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1021179,
+      "count": 5
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 920141,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 919180,
+      "count": 4
+     }
+    ]
+   }
+  },
+  {
+   "id": "ardce743f",
+   "name": "台北市中山北路商圈",
+   "description": "沿中山北路展開，南北向交通要道直通市中心與北區，沿線星級飯店與商辦大樓並存，是歷史悠久的商業區域之一。捷運淡水信義線支撐通勤需求，區內道路寬闊，具備市區與外圍銜接功能。",
+   "pp_insight": "承載著昔日「外交大道」的深厚歷史底蘊，在星級飯店、金融機構與日商企業的交織下，形成獨特商業氛圍。在土地供給飽和下，指標性的危老重建案是其維持區域活力的主要驅動力。",
+   "tags": [
+    "日商企業核心"
+   ],
+   "company_total": 5604,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.36
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.12
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.11
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.1
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 2843
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2002
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 337
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 364
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 58
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1780,
+    "rent_yoy": 0.07201105006954522,
+    "sale_avg": 747816,
+    "sale_yoy": -0.003877020348542426
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 4
+    },
+    {
+     "grade": "B",
+     "count": 175
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1682,
+      "count": 16
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1620,
+      "count": 27
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1613,
+      "count": 25
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1761,
+      "count": 21
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1725,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1630,
+      "count": 16
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1771,
+      "count": 28
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1773,
+      "count": 28
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1823,
+      "count": 28
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1794,
+      "count": 27
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1745,
+      "count": 5
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 724565,
+      "count": 29
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 718783,
+      "count": 35
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 771759,
+      "count": 23
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 757936,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 726823,
+      "count": 17
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 741823,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 744913,
+      "count": 20
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 764638,
+      "count": 16
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 757332,
+      "count": 15
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 715195,
+      "count": 6
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 800635,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar8f2122d",
+   "name": "台北市信義基隆商圈",
+   "description": "位於市東南側，以信義計畫區與基隆路走廊為核心，區內聚集眾多國際級飯店與百貨，為台北最具指標性的中央商業區。道路系統完整，銜接東西向快速道路與高速公路，並有多線捷運交會，區位條件優越。",
+   "pp_insight": "作為台灣不動搖的頂級CBD，憑藉國際金融機構的緊密群聚與指標性建築的門戶效應，持續為跨國企業總部定義市場標竿。頂級ESG綠建築更在此建立新的價值典範。",
+   "tags": [
+    "金融總部核心",
+    "國際頂級商辦",
+    "市政府所在地"
+   ],
+   "company_total": 7087,
+   "company_growth_rate": 0.08,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.26
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.17
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.16
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.14
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2228
+    },
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 3818
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 416
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 454
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 171
+    }
+   ],
+   "market_price": {
+    "rent_avg": 2229,
+    "rent_yoy": -0.07413093109826419,
+    "sale_avg": 912124,
+    "sale_yoy": 0.13213199981916257
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 18
+    },
+    {
+     "grade": "B",
+     "count": 57
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 4
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 2776,
+      "count": 21
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 2666,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 2758,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 2395,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2646,
+      "count": 18
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 2360,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 2933,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 2431,
+      "count": 9
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1836,
+      "count": 19
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2244,
+      "count": 14
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 889673,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 929109,
+      "count": 11
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 798403,
+      "count": 11
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 875038,
+      "count": 6
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1055917,
+      "count": 7
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 983023,
+      "count": 7
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 945929,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 877162,
+      "count": 8
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 761883,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 938320,
+      "count": 7
+     }
+    ]
+   }
+  },
+  {
+   "id": "aree972c1",
+   "name": "台北市台北車站商圈",
+   "description": "位於市中心重要的交通樞紐，為台鐵、高鐵及多線捷運匯集地，並結合國道客運轉運功能，台北市最重要的交通樞紐。交通可及性最高，周邊道路網密集，為全市核心區域。",
+   "pp_insight": "以其「六鐵共構」的國家門戶之姿，極具交通樞紐優勢。儘管現階段面臨舊城區的轉型陣痛，但眾所矚目的雙子星開發案與其他西區門戶計畫正為其注入強大動能，西區未來精彩可期。",
+   "tags": [
+    "六鐵共構",
+    "西區門戶"
+   ],
+   "company_total": 5316,
+   "company_growth_rate": 0.09,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.32
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.14
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.13
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.12
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 3161
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 1538
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 273
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 276
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 68
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1911,
+    "rent_yoy": 0.071814296425742,
+    "sale_avg": 816767,
+    "sale_yoy": 0.04804116887625587
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 6
+    },
+    {
+     "grade": "B",
+     "count": 142
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1539,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1565,
+      "count": 12
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1686,
+      "count": 17
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1719,
+      "count": 18
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1768,
+      "count": 12
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1758,
+      "count": 11
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1696,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 2046,
+      "count": 12
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1916,
+      "count": 17
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2076,
+      "count": 14
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 2400,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 840557,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 783925,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 790035,
+      "count": 12
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 779772,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 725691,
+      "count": 8
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 704974,
+      "count": 12
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 697373,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 822111,
+      "count": 18
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 879740,
+      "count": 7
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 842552,
+      "count": 8
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar11225db",
+   "name": "台北市松江南京商圈",
+   "description": "位於市中心東側，是台北市著名金融商圈重鎮，曾擁有「台北華爾街」之譽。區內捷運松江南京站為雙線交會，交通路網完整，東西向與南北向動線均衡，往來便捷。",
+   "pp_insight": "以其雙捷運線交會的絕對交通優勢，屬台北核心樞紐地位。松江南京商圈是傳統金融證券業與日商企業的密集據點，透過活躍的重建計劃與都市更新，正逐步為這個成熟的商業生態系注入新動能。",
+   "tags": [
+    "金融總部核心"
+   ],
+   "company_total": 11329,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.3
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.13
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.12
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 5623
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 850
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 4060
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 683
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 113
+    }
+   ],
+   "market_price": {
+    "rent_avg": 2008,
+    "rent_yoy": -0.005612056349579397,
+    "sale_avg": 843784,
+    "sale_yoy": -0.14170194800739733
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 15
+    },
+    {
+     "grade": "B",
+     "count": 199
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1696,
+      "count": 27
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 2046,
+      "count": 27
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 2068,
+      "count": 28
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 2149,
+      "count": 24
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1914,
+      "count": 36
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 2031,
+      "count": 25
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1954,
+      "count": 29
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1962,
+      "count": 24
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1863,
+      "count": 24
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2242,
+      "count": 35
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 2620,
+      "count": 3
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1052918,
+      "count": 31
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1185637,
+      "count": 22
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 989246,
+      "count": 25
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1079567,
+      "count": 20
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 840323,
+      "count": 22
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 920216,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 802416,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1065084,
+      "count": 12
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 906142,
+      "count": 16
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 853669,
+      "count": 7
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1019129,
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar1eeb4f8",
+   "name": "台北市敦化南路商圈",
+   "description": "位於大安區核心地帶，以敦化南路為主要軸線展開，兼具商業氛圍與高端住宅環境。區內由捷運文湖線及淡水信義線串聯全市，街廓整齊，屬市中心重要走廊地帶。",
+   "pp_insight": "以其經典的林蔭大道景觀，形塑出獨樹一幟的精品辦公聚落。儘管普遍屋齡偏高，但供給稀缺性使其價值穩固，未來的發展潛力仰賴都市更新的成功與否。",
+   "tags": [
+    "精品辦公聚落"
+   ],
+   "company_total": 8220,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.27
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.17
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.16
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.13
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.1
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 4058
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2707
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 630
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 669
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 156
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1909,
+    "rent_yoy": -0.06498003343649972,
+    "sale_avg": 1100206,
+    "sale_yoy": 0.01863299153103748
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 13
+    },
+    {
+     "grade": "B",
+     "count": 176
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1901,
+      "count": 11
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 2059,
+      "count": 13
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1991,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1906,
+      "count": 16
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1873,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1943,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1731,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1895,
+      "count": 16
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1926,
+      "count": 21
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1816,
+      "count": 17
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 3761,
+      "count": 2
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 974180,
+      "count": 17
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1106247,
+      "count": 17
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1097718,
+      "count": 15
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1045696,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1070815,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1088291,
+      "count": 17
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1123440,
+      "count": 18
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1131266,
+      "count": 8
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1069491,
+      "count": 7
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1040604,
+      "count": 6
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 773355,
+      "count": 1
+     }
+    ]
+   }
+  }
+ ],
+ "districts": [
+  {
+   "id": "ar3704383",
+   "name": "台北市大安區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 16850,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.29
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.16
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.14
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.13
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 9150
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 5414
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 1074
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 999
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 213
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1880,
+    "rent_yoy": -0.03587302097909606,
+    "sale_avg": 1116659,
+    "sale_yoy": -9.646289096554295e-05
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 20
+    },
+    {
+     "grade": "B",
+     "count": 382
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1736,
+      "count": 26
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1947,
+      "count": 27
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1984,
+      "count": 28
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1838,
+      "count": 28
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2033,
+      "count": 38
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1972,
+      "count": 21
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1879,
+      "count": 20
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1899,
+      "count": 30
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1886,
+      "count": 32
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1789,
+      "count": 30
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 2987,
+      "count": 3
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 984435,
+      "count": 30
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1135767,
+      "count": 35
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1099876,
+      "count": 28
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1077005,
+      "count": 25
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1176699,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1097490,
+      "count": 27
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1139724,
+      "count": 28
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1070366,
+      "count": 19
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1098044,
+      "count": 15
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1084289,
+      "count": 17
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 773355,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar76268ba",
+   "name": "台北市萬華區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 586,
+   "company_growth_rate": 0.12,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.32
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.14
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.12
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.07
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 391
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 15
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 170
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 9
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 1
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1595,
+    "rent_yoy": 0.05859659396663619,
+    "sale_avg": 674102,
+    "sale_yoy": 0.05123816705632578
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 0
+    },
+    {
+     "grade": "B",
+     "count": 50
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1279,
+      "count": 7
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1468,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1669,
+      "count": 9
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1401,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1480,
+      "count": 8
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1441,
+      "count": 11
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1576,
+      "count": 6
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1907,
+      "count": 13
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1505,
+      "count": 25
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1573,
+      "count": 18
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1377,
+      "count": 2
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 765339,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 661987,
+      "count": 11
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 692730,
+      "count": 6
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 713827,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 645302,
+      "count": 5
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 698754,
+      "count": 7
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 653575,
+      "count": 3
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 756079,
+      "count": 5
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 539717,
+      "count": 5
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 793802,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 708192,
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "are5b083e",
+   "name": "台北市中正區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 7613,
+   "company_growth_rate": 0.08,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.33
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.13
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.13
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.13
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 4342
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2343
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 409
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 432
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 87
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1903,
+    "rent_yoy": 0.0494122737434195,
+    "sale_avg": 844409,
+    "sale_yoy": -0.006674980116964657
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 8
+    },
+    {
+     "grade": "B",
+     "count": 254
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1610,
+      "count": 19
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1620,
+      "count": 21
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1790,
+      "count": 22
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1679,
+      "count": 21
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1845,
+      "count": 21
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1798,
+      "count": 16
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1800,
+      "count": 20
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1913,
+      "count": 18
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1924,
+      "count": 27
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2014,
+      "count": 20
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 2078,
+      "count": 4
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 926075,
+      "count": 22
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 867664,
+      "count": 24
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 886635,
+      "count": 22
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 957814,
+      "count": 18
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 777794,
+      "count": 10
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 852412,
+      "count": 19
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 797170,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 856398,
+      "count": 23
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 847820,
+      "count": 13
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 868430,
+      "count": 13
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar907b83b",
+   "name": "台北市北投區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 394,
+   "company_growth_rate": 0.03,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.43
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.13
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.12
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.08
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.07
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 197
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 135
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 29
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 29
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 4
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1100,
+    "rent_yoy": -0.24300699300699302,
+    "sale_avg": 705744,
+    "sale_yoy": 0.18361148600458654
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 0
+    },
+    {
+     "grade": "B",
+     "count": 18
+    },
+    {
+     "grade": "F",
+     "count": 28
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1051,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1323,
+      "count": 2
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1134,
+      "count": 1
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1227,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1016,
+      "count": 3
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 552499,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 638928,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 642980,
+      "count": 9
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 689964,
+      "count": 16
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 695051,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 730601,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 609620,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 629115,
+      "count": 3
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 827635,
+      "count": 4
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 544192,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar0c733a2",
+   "name": "台北市大同區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 2975,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.39
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.13
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.12
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.09
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 1500
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 1066
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 220
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 165
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 24
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1769,
+    "rent_yoy": -0.13108156278236938,
+    "sale_avg": 826921,
+    "sale_yoy": 0.002142511575374595
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 2
+    },
+    {
+     "grade": "B",
+     "count": 110
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1417,
+      "count": 12
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1606,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1965,
+      "count": 14
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1854,
+      "count": 13
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2229,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1856,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1837,
+      "count": 14
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1793,
+      "count": 18
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1745,
+      "count": 14
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1731,
+      "count": 18
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 710851,
+      "count": 19
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 781928,
+      "count": 23
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 897230,
+      "count": 21
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 762931,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 862080,
+      "count": 6
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 784942,
+      "count": 12
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 831553,
+      "count": 11
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 889623,
+      "count": 7
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 843865,
+      "count": 6
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 652668,
+      "count": 4
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 642007,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "ar156c8ee",
+   "name": "台北市松山區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 11237,
+   "company_growth_rate": 0.05,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.33
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.14
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.13
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.12
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 874
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 4084
+    },
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 5295
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 842
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 142
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1805,
+    "rent_yoy": 0.03152411440736036,
+    "sale_avg": 903354,
+    "sale_yoy": -0.007409300543500086
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 21
+    },
+    {
+     "grade": "B",
+     "count": 203
+    },
+    {
+     "grade": "F",
+     "count": 9
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1736,
+      "count": 32
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1725,
+      "count": 36
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1579,
+      "count": 25
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1747,
+      "count": 28
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2012,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1702,
+      "count": 31
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1976,
+      "count": 34
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1703,
+      "count": 38
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1804,
+      "count": 42
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1918,
+      "count": 31
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1764,
+      "count": 3
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 820523,
+      "count": 40
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 910676,
+      "count": 40
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 894376,
+      "count": 28
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 890679,
+      "count": 37
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 959095,
+      "count": 32
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 953331,
+      "count": 28
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 929456,
+      "count": 23
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 946737,
+      "count": 23
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 921080,
+      "count": 20
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 911116,
+      "count": 20
+     }
+    ]
+   }
+  },
+  {
+   "id": "arac226d9",
+   "name": "台北市內湖區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 7555,
+   "company_growth_rate": 0.03,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.28
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.21
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.14
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.08
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 2436
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 1008
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 900
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 229
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 2982
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1149,
+    "rent_yoy": -0.03707230144936957,
+    "sale_avg": 590089,
+    "sale_yoy": -0.05056744214756792
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 0
+    },
+    {
+     "grade": "B",
+     "count": 14
+    },
+    {
+     "grade": "F",
+     "count": 392
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1137,
+      "count": 46
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1199,
+      "count": 47
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1166,
+      "count": 32
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1222,
+      "count": 35
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1161,
+      "count": 35
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1181,
+      "count": 29
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1112,
+      "count": 39
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1144,
+      "count": 42
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1128,
+      "count": 36
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1214,
+      "count": 38
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1111,
+      "count": 4
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 563992,
+      "count": 34
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 569252,
+      "count": 41
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 581771,
+      "count": 35
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 632635,
+      "count": 31
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 639029,
+      "count": 38
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 634924,
+      "count": 38
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 569583,
+      "count": 35
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 622372,
+      "count": 27
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 603216,
+      "count": 34
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 536938,
+      "count": 15
+     }
+    ]
+   }
+  },
+  {
+   "id": "arb05110d",
+   "name": "台北市信義區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 11340,
+   "company_growth_rate": 0.07,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.28
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.17
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.14
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.14
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.12
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 3725
+    },
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 6089
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 698
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 631
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 197
+    }
+   ],
+   "market_price": {
+    "rent_avg": 2074,
+    "rent_yoy": 0.03278547511195273,
+    "sale_avg": 1004752,
+    "sale_yoy": 0.07696785712881837
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 20
+    },
+    {
+     "grade": "B",
+     "count": 111
+    },
+    {
+     "grade": "F",
+     "count": 4
+    },
+    {
+     "grade": "P",
+     "count": 4
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 2228,
+      "count": 37
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 2087,
+      "count": 31
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 2319,
+      "count": 29
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1965,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 2232,
+      "count": 31
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 2035,
+      "count": 30
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 2287,
+      "count": 33
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 2198,
+      "count": 27
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1772,
+      "count": 33
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 2188,
+      "count": 34
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1405,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 976039,
+      "count": 36
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1007073,
+      "count": 40
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 918930,
+      "count": 26
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 898876,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1002534,
+      "count": 26
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1039067,
+      "count": 21
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1063367,
+      "count": 24
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1011566,
+      "count": 25
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1031722,
+      "count": 14
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1002958,
+      "count": 21
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 774473,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "arba97dd3",
+   "name": "台北市士林區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 695,
+   "company_growth_rate": 0.02,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.33
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.17
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.14
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.1
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.1
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 266
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 249
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 76
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 90
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 14
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1130,
+    "rent_yoy": -0.12340181008475803,
+    "sale_avg": 675549,
+    "sale_yoy": -0.07008644803443587
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 1
+    },
+    {
+     "grade": "B",
+     "count": 12
+    },
+    {
+     "grade": "F",
+     "count": 21
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1084,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 949,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1291,
+      "count": 2
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1095,
+      "count": 3
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1508,
+      "count": 4
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1111,
+      "count": 6
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1157,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1197,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 671087,
+      "count": 5
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 918862,
+      "count": 5
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 954803,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 962481,
+      "count": 3
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 769171,
+      "count": 2
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 917377,
+      "count": 5
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 462114,
+      "count": 2
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 778585,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 648079,
+      "count": 1
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 923815,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "arcbda6c0",
+   "name": "台北市南港區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 1469,
+   "company_growth_rate": 0.04,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.27
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.23
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.15
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.1
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.09
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 429
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 253
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 531
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 185
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 71
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1604,
+    "rent_yoy": 0.0914416146992616,
+    "sale_avg": 789483,
+    "sale_yoy": -0.1437522389279372
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 16
+    },
+    {
+     "grade": "B",
+     "count": 9
+    },
+    {
+     "grade": "F",
+     "count": 47
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1258,
+      "count": 6
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1423,
+      "count": 12
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1327,
+      "count": 10
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1370,
+      "count": 15
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1527,
+      "count": 12
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1354,
+      "count": 8
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1668,
+      "count": 4
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1585,
+      "count": 12
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1435,
+      "count": 7
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1673,
+      "count": 9
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 686818,
+      "count": 9
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 683669,
+      "count": 18
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 618579,
+      "count": 2
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 733530,
+      "count": 5
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 498562,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 834797,
+      "count": 9
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 397575,
+      "count": 2
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 805089,
+      "count": 2
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1037956,
+      "count": 4
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 751137,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "ard82b215",
+   "name": "台北市文山區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 71,
+   "company_growth_rate": 0,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.39
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.18
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.11
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.1
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.08
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 44
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 5
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 1
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 21
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1106,
+    "rent_yoy": null,
+    "sale_avg": 699398,
+    "sale_yoy": -0.028651487589957503
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 0
+    },
+    {
+     "grade": "B",
+     "count": 9
+    },
+    {
+     "grade": "F",
+     "count": 0
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 774,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1547,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1415,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1547,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1008,
+      "count": 1
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 797,
+      "count": 1
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1415,
+      "count": 1
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 741339,
+      "count": 2
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 650909,
+      "count": 1
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 819691,
+      "count": 3
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 719587,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 875107,
+      "count": 1
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 694028,
+      "count": 4
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 717527,
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "id": "arc219eb2",
+   "name": "台北市中山區",
+   "description": null,
+   "pp_insight": null,
+   "tags": [],
+   "company_total": 20337,
+   "company_growth_rate": 0.06,
+   "top_industries": [
+    {
+     "name": "批發及零售業",
+     "percentage": 0.32
+    },
+    {
+     "name": "金融保險業",
+     "percentage": 0.13
+    },
+    {
+     "name": "專業顧問服務業",
+     "percentage": 0.12
+    },
+    {
+     "name": "資通訊科技業",
+     "percentage": 0.11
+    },
+    {
+     "name": "不動產及營造業",
+     "percentage": 0.11
+    }
+   ],
+   "capital_distribution": [
+    {
+     "min": 0,
+     "max": 4999999,
+     "count": 9926
+    },
+    {
+     "min": 5000000,
+     "max": 29999999,
+     "count": 7314
+    },
+    {
+     "min": 100000000,
+     "max": 999999999,
+     "count": 1340
+    },
+    {
+     "min": 30000000,
+     "max": 99999999,
+     "count": 1507
+    },
+    {
+     "min": 1000000000,
+     "max": null,
+     "count": 250
+    }
+   ],
+   "market_price": {
+    "rent_avg": 1821,
+    "rent_yoy": 0.025798986167183013,
+    "sale_avg": 844836,
+    "sale_yoy": 0.02526494043790728
+   },
+   "building_stats": [
+    {
+     "grade": "A",
+     "count": 32
+    },
+    {
+     "grade": "B",
+     "count": 454
+    },
+    {
+     "grade": "F",
+     "count": 3
+    },
+    {
+     "grade": "P",
+     "count": 0
+    }
+   ],
+   "self_series": {
+    "rent": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 1671,
+      "count": 57
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 1792,
+      "count": 60
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 1780,
+      "count": 62
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 1920,
+      "count": 55
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 1778,
+      "count": 59
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 1855,
+      "count": 45
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 1789,
+      "count": 68
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 1845,
+      "count": 65
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 1756,
+      "count": 60
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 1993,
+      "count": 68
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 1872,
+      "count": 11
+     }
+    ],
+    "sale": [
+     {
+      "year": 2024,
+      "quarter": 1,
+      "value": 898580,
+      "count": 60
+     },
+     {
+      "year": 2024,
+      "quarter": 2,
+      "value": 898932,
+      "count": 70
+     },
+     {
+      "year": 2024,
+      "quarter": 3,
+      "value": 853172,
+      "count": 60
+     },
+     {
+      "year": 2024,
+      "quarter": 4,
+      "value": 914890,
+      "count": 58
+     },
+     {
+      "year": 2025,
+      "quarter": 1,
+      "value": 784278,
+      "count": 43
+     },
+     {
+      "year": 2025,
+      "quarter": 2,
+      "value": 824076,
+      "count": 32
+     },
+     {
+      "year": 2025,
+      "quarter": 3,
+      "value": 867923,
+      "count": 61
+     },
+     {
+      "year": 2025,
+      "quarter": 4,
+      "value": 903530,
+      "count": 35
+     },
+     {
+      "year": 2026,
+      "quarter": 1,
+      "value": 848846,
+      "count": 45
+     },
+     {
+      "year": 2026,
+      "quarter": 2,
+      "value": 842470,
+      "count": 25
+     },
+     {
+      "year": 2026,
+      "quarter": 3,
+      "value": 946298,
+      "count": 3
+     }
+    ]
+   }
+  }
+ ],
+ "district_sales": {
+  "台北市": [
+   {
+    "district": "中山區",
+    "count": 46979,
+    "avg_price": 27457256,
+    "median_price": 14734959
+   },
+   {
+    "district": "內湖區",
+    "count": 40622,
+    "avg_price": 30881466,
+    "median_price": 17638489
+   },
+   {
+    "district": "北投區",
+    "count": 34179,
+    "avg_price": 23553447,
+    "median_price": 13885851
+   },
+   {
+    "district": "大安區",
+    "count": 33619,
+    "avg_price": 33196010,
+    "median_price": 22364908
+   },
+   {
+    "district": "文山區",
+    "count": 32845,
+    "avg_price": 17906167,
+    "median_price": 14282113
+   },
+   {
+    "district": "士林區",
+    "count": 30286,
+    "avg_price": 24485048,
+    "median_price": 15268170
+   },
+   {
+    "district": "信義區",
+    "count": 25778,
+    "avg_price": 29231501,
+    "median_price": 16870891
+   },
+   {
+    "district": "萬華區",
+    "count": 24141,
+    "avg_price": 15453952,
+    "median_price": 11000746
+   },
+   {
+    "district": "松山區",
+    "count": 22175,
+    "avg_price": 28940274,
+    "median_price": 19588990
+   },
+   {
+    "district": "中正區",
+    "count": 19456,
+    "avg_price": 30704766,
+    "median_price": 19122315
+   },
+   {
+    "district": "南港區",
+    "count": 16714,
+    "avg_price": 31505503,
+    "median_price": 17901381
+   },
+   {
+    "district": "大同區",
+    "count": 16331,
+    "avg_price": 21550047,
+    "median_price": 14014942
+   }
+  ],
+  "新北市": [
+   {
+    "district": "淡水區",
+    "count": 85483,
+    "avg_price": 11653001,
+    "median_price": 8609273
+   },
+   {
+    "district": "板橋區",
+    "count": 82949,
+    "avg_price": 15592966,
+    "median_price": 11795306
+   },
+   {
+    "district": "新莊區",
+    "count": 74569,
+    "avg_price": 19346180,
+    "median_price": 12648701
+   },
+   {
+    "district": "中和區",
+    "count": 67626,
+    "avg_price": 15498938,
+    "median_price": 11562793
+   },
+   {
+    "district": "三重區",
+    "count": 62660,
+    "avg_price": 16025526,
+    "median_price": 11912265
+   },
+   {
+    "district": "新店區",
+    "count": 61812,
+    "avg_price": 18479958,
+    "median_price": 12765511
+   },
+   {
+    "district": "汐止區",
+    "count": 52716,
+    "avg_price": 13632944,
+    "median_price": 9977653
+   },
+   {
+    "district": "林口區",
+    "count": 48704,
+    "avg_price": 20772682,
+    "median_price": 13746327
+   },
+   {
+    "district": "土城區",
+    "count": 43606,
+    "avg_price": 15113139,
+    "median_price": 11224763
+   },
+   {
+    "district": "永和區",
+    "count": 28271,
+    "avg_price": 14574002,
+    "median_price": 12330139
+   },
+   {
+    "district": "蘆洲區",
+    "count": 25841,
+    "avg_price": 14559154,
+    "median_price": 11855571
+   },
+   {
+    "district": "三峽區",
+    "count": 25702,
+    "avg_price": 9800078,
+    "median_price": 7838729
+   },
+   {
+    "district": "樹林區",
+    "count": 24799,
+    "avg_price": 13386682,
+    "median_price": 9260869
+   },
+   {
+    "district": "五股區",
+    "count": 23354,
+    "avg_price": 14603462,
+    "median_price": 10507243
+   },
+   {
+    "district": "鶯歌區",
+    "count": 20151,
+    "avg_price": 10902492,
+    "median_price": 7543374
+   },
+   {
+    "district": "泰山區",
+    "count": 14104,
+    "avg_price": 19832277,
+    "median_price": 11465855
+   },
+   {
+    "district": "八里區",
+    "count": 12763,
+    "avg_price": 11656613,
+    "median_price": 7356661
+   },
+   {
+    "district": "三芝區",
+    "count": 7275,
+    "avg_price": 4902112,
+    "median_price": 2821396
+   },
+   {
+    "district": "瑞芳區",
+    "count": 4799,
+    "avg_price": 3843319,
+    "median_price": 1615283
+   },
+   {
+    "district": "深坑區",
+    "count": 3846,
+    "avg_price": 11530260,
+    "median_price": 8064789
+   },
+   {
+    "district": "萬里區",
+    "count": 3213,
+    "avg_price": 4573530,
+    "median_price": 1778105
+   },
+   {
+    "district": "金山區",
+    "count": 3138,
+    "avg_price": 8208240,
+    "median_price": 4034603
+   },
+   {
+    "district": "雙溪區",
+    "count": 1734,
+    "avg_price": 2142023,
+    "median_price": 556295
+   },
+   {
+    "district": "貢寮區",
+    "count": 1664,
+    "avg_price": 2030457,
+    "median_price": 625390
+   },
+   {
+    "district": "石門區",
+    "count": 1005,
+    "avg_price": 5215484,
+    "median_price": 2100000
+   },
+   {
+    "district": "石碇區",
+    "count": 775,
+    "avg_price": 4498610,
+    "median_price": 1370000
+   },
+   {
+    "district": "平溪區",
+    "count": 680,
+    "avg_price": 1616677,
+    "median_price": 312799
+   },
+   {
+    "district": "坪林區",
+    "count": 679,
+    "avg_price": 2524245,
+    "median_price": 700000
+   },
+   {
+    "district": "烏來區",
+    "count": 213,
+    "avg_price": 3704367,
+    "median_price": 1130000
+   }
+  ]
+ },
+ "registry_moves": {
+  "cross_district_or_city_moves": [
+   {
+    "company_name": "銀護管理顧問有限公司",
+    "uniform_number": "52892447",
+    "date": "2026-07-31",
+    "before": "臺北市內湖區舊宗路1段30巷18號5樓之2",
+    "after": "臺北市信義區基隆路1段101巷2號4樓之4",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "猿友有限公司",
+    "uniform_number": "53204931",
+    "date": "2026-07-31",
+    "before": "新北市汐止區忠三街39巷41弄28號(1樓)",
+    "after": "臺北市信義區市民大道6段250號6樓",
+    "move_scope": "cross_city"
+   },
+   {
+    "company_name": "常恆資本有限公司",
+    "uniform_number": "82900943",
+    "date": "2026-07-31",
+    "before": "臺北市大安區信義路4段296號6樓之5",
+    "after": "臺北市信義區基隆路2段51號8樓之7",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "翌萬投資有限公司",
+    "uniform_number": "83745174",
+    "date": "2026-07-31",
+    "before": "臺北市大安區市民大道3段178號5樓之2",
+    "after": "臺北市信義區基隆路1段159號6樓",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "聯廣有限公司",
+    "uniform_number": "27505382",
+    "date": "2026-07-30",
+    "before": "臺北市大安區通化街150號1樓",
+    "after": "臺北市信義區信義路6段30號",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "芳坊有限公司",
+    "uniform_number": "60352340",
+    "date": "2026-07-30",
+    "before": "新北市淡水區英專路79巷13號(1樓)",
+    "after": "臺北市信義區光復南路547號3樓之4",
+    "move_scope": "cross_city"
+   },
+   {
+    "company_name": "盛源實業股份有限公司",
+    "uniform_number": "60475814",
+    "date": "2026-07-30",
+    "before": "基隆市七堵區長安街231巷100號1樓",
+    "after": "臺北市信義區基隆路2段22號2樓之9",
+    "move_scope": "cross_city"
+   },
+   {
+    "company_name": "富諾可有限公司",
+    "uniform_number": "60530773",
+    "date": "2026-07-30",
+    "before": "臺北市中正區重慶南路1段119號",
+    "after": "臺北市信義區信義路4段415號7樓之3",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "思構燚有限公司",
+    "uniform_number": "42637849",
+    "date": "2026-07-29",
+    "before": "臺北市中正區羅斯福路2段44號5樓之2",
+    "after": "臺北市信義區忠孝東路4段169號11樓之4",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "悅心管理顧問有限公司",
+    "uniform_number": "50795530",
+    "date": "2026-07-29",
+    "before": "臺北市松山區南京東路5段188號6樓之5",
+    "after": "臺北市信義區基隆路1段176號13樓",
+    "move_scope": "cross_district"
+   },
+   {
+    "company_name": "五路智能股份有限公司",
+    "uniform_number": "60560810",
+    "date": "2026-07-29",
+    "before": "臺北市大安區復興南路1段352號2樓之3",
+    "after": "臺北市信義區松德路159號7樓之2",
+    "move_scope": "cross_district"
+   }
+  ],
+  "large_capital_increases": [
+   {
+    "company_name": "台灣微軟營運有限公司",
+    "uniform_number": "90417859",
+    "date": "2026-07-17",
+    "before": 16039800000,
+    "after": 24639800000,
+    "delta": 8600000000,
+    "address": "臺北市信義區忠孝東路5段68號18樓"
+   },
+   {
+    "company_name": "台灣亞馬遜柯伊伯有限公司",
+    "uniform_number": "94177070",
+    "date": "2026-07-06",
+    "before": 3775000000,
+    "after": 8856000000,
+    "delta": 5081000000,
+    "address": "臺北市信義區松仁路100號23樓之1"
+   },
+   {
+    "company_name": "美好創新股份有限公司",
+    "uniform_number": "90668829",
+    "date": "2026-07-27",
+    "before": 4000000000,
+    "after": 6000000000,
+    "delta": 2000000000,
+    "address": "臺北市中山區民生東路3段2號7樓"
+   },
+   {
+    "company_name": "永明生技投資股份有限公司",
+    "uniform_number": "00162697",
+    "date": "2026-07-16",
+    "before": 1100000000,
+    "after": 3000000000,
+    "delta": 1900000000,
+    "address": "臺北市南港區忠孝東路7段508號9樓"
+   },
+   {
+    "company_name": "新鑫股份有限公司",
+    "uniform_number": "22764579",
+    "date": "2026-07-14",
+    "before": 8012881000,
+    "after": 9841354800,
+    "delta": 1828473800,
+    "address": "臺北市大安區敦化南路2段2號14樓"
+   },
+   {
+    "company_name": "哥本哈根基礎設施渢妙二號股份有限公司",
+    "uniform_number": "94220549",
+    "date": "2026-07-30",
+    "before": 703609400,
+    "after": 2466256100,
+    "delta": 1762646700,
+    "address": "臺北市信義區忠孝東路5段68號26樓"
+   },
+   {
+    "company_name": "鼎越開發股份有限公司",
+    "uniform_number": "89614591",
+    "date": "2026-07-27",
+    "before": 42075000000,
+    "after": 43725000000,
+    "delta": 1650000000,
+    "address": "臺北市松山區東興路12號地下一層"
+   },
+   {
+    "company_name": "宏益資本股份有限公司",
+    "uniform_number": "00140982",
+    "date": "2026-07-23",
+    "before": 5000000,
+    "after": 1400000000,
+    "delta": 1395000000,
+    "address": "臺北市中山區植福路308號8樓之5"
+   }
+  ]
+ },
+ "sample_transactions": {
+  "address": "臺北市信義區信義路五段7號 (台北101)",
+  "sales": {
+   "note": "search_actual_sales returned 0 results for this address (no individually-sold office units on record)",
+   "records": []
+  },
+  "rentals": {
+   "total_found": 56,
+   "sample_shown": 8,
+   "records": [
+    {
+     "id": "RPXNMLTLKILFFDA98CC",
+     "load_date": "2026-05-04",
+     "floor": "二十一樓之1",
+     "area_sqm": 286.45,
+     "monthly_rent_ntd": 318439,
+     "unit_rent_ntd_per_sqm": 1111.7,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPVPMLMKIILFFDA97CC",
+     "load_date": "2026-05-04",
+     "floor": "27樓之1",
+     "area_sqm": 188.73,
+     "monthly_rent_ntd": 194106,
+     "unit_rent_ntd_per_sqm": 1028.5,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPVPMLSJJIGGFDA18CC",
+     "load_date": "2026-05-04",
+     "floor": "54樓",
+     "area_sqm": 446.45,
+     "monthly_rent_ntd": 564393,
+     "unit_rent_ntd_per_sqm": 1264.2,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPWPMLSJJIGGFDA28CC",
+     "load_date": "2026-05-04",
+     "floor": "54樓",
+     "area_sqm": 52.13,
+     "monthly_rent_ntd": 63079,
+     "unit_rent_ntd_per_sqm": 1210.0,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPUPMLSJJIGGFDA08CC",
+     "load_date": "2026-05-04",
+     "floor": "54樓、54樓之1",
+     "area_sqm": 2225.2,
+     "monthly_rent_ntd": 2692488,
+     "unit_rent_ntd_per_sqm": 1210.0,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPPOMLMKJIGGFDA96CC",
+     "load_date": "2026-05-04",
+     "floor": "56樓",
+     "area_sqm": 1595.42,
+     "monthly_rent_ntd": 2026962,
+     "unit_rent_ntd_per_sqm": 1270.5,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPPQMLNJKINFFDA87CC",
+     "load_date": "2026-05-04",
+     "floor": "四十四樓之1",
+     "area_sqm": 652.48,
+     "monthly_rent_ntd": 750000,
+     "unit_rent_ntd_per_sqm": 1149.5,
+     "building_type": "辦公商業大樓"
+    },
+    {
+     "id": "RPSPMLLMPHIFFDA08CC",
+     "load_date": "2026-05-04",
+     "floor": "57樓",
+     "area_sqm": 1628.65,
+     "monthly_rent_ntd": 1550462,
+     "unit_rent_ntd_per_sqm": 952.0,
+     "building_type": "辦公商業大樓"
+    }
+   ]
+  }
+ },
+ "zoning_samples": {
+  "zoning_samples": [
+   {
+    "point_name": "台北101",
+    "lon": 121.5645,
+    "lat": 25.0339,
+    "zone_code": "BB7",
+    "zone_name": "業務設施區",
+    "far_decimal": null,
+    "bcr_decimal": null,
+    "max_height_m": null,
+    "is_special_zone": true,
+    "note": "Tier-3 machine-generated variant; FAR/BCR governed by individual urban-plan documents, not directly estimable"
+   },
+   {
+    "point_name": "大安森林公園東側",
+    "lon": 121.538,
+    "lat": 25.03,
+    "zone_code": null,
+    "zone_name": null,
+    "far_decimal": null,
+    "bcr_decimal": null,
+    "max_height_m": null,
+    "is_special_zone": null,
+    "note": "no zoning match returned at this point"
+   },
+   {
+    "point_name": "內湖科技園區",
+    "lon": 121.575,
+    "lat": 25.079,
+    "zone_code": "PS",
+    "zone_name": "學校用地",
+    "far_decimal": null,
+    "bcr_decimal": null,
+    "max_height_m": null,
+    "is_special_zone": true,
+    "note": "point landed on adjacent school-use land, not the tech-park industrial zone"
+   },
+   {
+    "point_name": "南港軟體園區",
+    "lon": 121.6126,
+    "lat": 25.0576,
+    "zone_code": "IDA",
+    "zone_name": "軟體工業園區（供軟體工業使用）",
+    "far_decimal": null,
+    "bcr_decimal": null,
+    "max_height_m": null,
+    "is_special_zone": true,
+    "note": null
+   },
+   {
+    "point_name": "中山北路二段",
+    "lon": 121.523,
+    "lat": 25.06,
+    "zone_code": null,
+    "zone_name": null,
+    "far_decimal": null,
+    "bcr_decimal": null,
+    "max_height_m": null,
+    "is_special_zone": null,
+    "note": "no zoning match returned at this point"
+   }
+  ],
+  "land_parcel_101": {
+   "point_name": "台北101",
+   "section": "0688",
+   "sectcode": "AD0688",
+   "landno": "34-1",
+   "town": "信義區",
+   "area_sqm": 8374.349094,
+   "area_ping": 2533.24
+  }
+ },
+ "providers_summary": {
+  "total_providers": 39,
+  "by_category": [
+   {
+    "category_name": "空間設計",
+    "count": 16,
+    "example_brands": [
+     "IKEA企業業務",
+     "賀眾牌",
+     "Backbone®",
+     "有偶設計 Yoo Design",
+     "\"id SHOW\" 好宅秀居家設計平台"
+    ]
+   },
+   {
+    "category_name": "辦公室服務",
+    "count": 11,
+    "example_brands": [
+     "USPACE 悠勢科技",
+     "55688台灣大車隊",
+     "康福搬家 Kang Fu Moving",
+     "潔客幫 Jackercleaning",
+     "容安清潔公司"
+    ]
+   },
+   {
+    "category_name": "企業服務",
+    "count": 12,
+    "example_brands": [
+     "車可充 Chuck Charging",
+     "淨毒五郎 Chef Clean",
+     "AlphaLoan 阿發龍｜信貸預測網",
+     "磊山保險經紀人",
+     "DYCTEAM"
+    ]
+   }
+  ]
+ },
+ "meta": {
+  "generated_at": "2026-09-14T02:05:33.402173+00:00",
+  "source": "FUNRAISE MCP (connector: Funraise Data Team)",
+  "purpose": "Compact demo dataset for a Taipei God's Eye View real-estate map prototype",
+  "coverage": "Primarily Taipei City districts: 信義區, 大安區, 中山區, 松山區, 內湖區, 南港區 (plus a few 萬華區/新北市 reference rows)",
+  "units_notes": {
+   "total_floor_area": "square meters (m²) — verified by summing per-floor `area` values against `total_floor_area` on a sample building; NOT 坪",
+   "actual price/rent unit_price in building trend_chart / area market_price": "NTD per 坪 per month (rent) or NTD per 坪 (sale), as returned by the API's own comparison/trend endpoints",
+   "sample_transactions.rentals unit_rent_ntd_per_sqm": "computed here as monthly_rent_ntd / area_sqm (NTD per m² per month) — a DIFFERENT unit basis than the 坪-based figures above; do not compare directly without converting (1 坪 = 3.305785 m²)",
+   "urban_renewal area_sqm": "square meters",
+   "industrial_parks area_ha": "hectares",
+   "mops land_area_ping / building_area_ping": "坪 (ping), as returned by the API"
+  },
+  "geo_precision_legend": {
+   "exact": "coordinates returned directly by the API for this specific entity (get_building/get_mrt_station/get_public_infra location, or a get_urban_renewal geom polygon)",
+   "address": "coordinates would need geocoding via land-info.coordinates_by_address (NOT performed for building_licenses/mops in this dataset — see adaptation note)",
+   "area_centroid": "coordinates estimated from the centroid of a related business_area/district (used only where noted)"
+  },
+  "adaptations_and_gaps": [
+   "buildings.search_buildings list view has no lat/lon; buildings.get_building DOES return exact location, so every building here was fetched individually via get_building (this is what consumed most of the MCP-call budget) rather than falling back to address geocoding.",
+   "mrt_stations: only 5 of the ~25 requested key stations were fetched (each requires its own get_mrt_station call, 1 per station, no bulk-coordinate endpoint exists) — trimmed to fit the ~75-call budget after buildings consumed more calls than planned.",
+   "public_infras: only the first sample item (臺北市立圖書館新總館與臺北音樂廳) has exact coordinates, fetched once during the initial capability check; the other 24 items are listed without lat/lon since each would need its own get_public_infra call and that was not affordable within budget.",
+   "building_licenses and mops: NOT geocoded (land-info.coordinates_by_address was not called) — raw addresses are kept as text (first_address / building_address fields) so they can be geocoded later if needed; this was a deliberate trade-off to stay near the ~75 call budget after buildings/mrt/tenants/urban_renewal/future_dev usage.",
+   "future_dev projects have no location field from the API at all; per instructions this would need a get_building(name=...) location check, which was also skipped for budget reasons — future_dev entries in this dataset carry NO lat/lon (not even area_centroid), only district/business_area text.",
+   "actual-price-sale.search_actual_sales for 信義路五段7號 (Taipei 101) returned 0 rows (no individually-sold high-rise office condo units on record for that address); the fallback addresses (松高路1號 / 松仁路100號) suggested in the brief were NOT tried, to avoid exceeding the call budget. Rentals for the same address returned 56 rows (8 sampled).",
+   "zoning_at_point returned no match for 2 of 5 requested points (大安森林公園東側, 中山北路二段); the 內湖科技園區 point landed on adjacent school-use land (zone PS) rather than the tech park's industrial zone.",
+   "industrial-parks.aggregate_industrial_parks was skipped entirely: search already returned the full universe (1 park in 台北市, 6 in 新北市, both under the requested limits), so an aggregate call would have added nothing."
+  ],
+  "mcp_calls_used_approx": 78,
+  "mcp_call_budget_target": "~75 (finished ~4% over, after trimming per-item coordinate lookups for public_infras/mrt/licenses/mops to compensate for buildings needing 1 get_building call per row)",
+  "tools_used": [
+   "buildings.search_buildings",
+   "buildings.get_building",
+   "mrt.get_mrt_station",
+   "public-infras.search_public_infras",
+   "public-infras.get_public_infra",
+   "key-enterprise.search_key_enterprises",
+   "urban-renewal.search_urban_renewal",
+   "urban-renewal.get_urban_renewal",
+   "urban-renewal.aggregate_urban_renewal",
+   "future-dev.search_future_dev",
+   "taipei-licenses.search_taipei_building_licenses",
+   "mops-property.search_mops_property",
+   "development-zones.search_development_zones",
+   "industrial-parks.search_industrial_parks",
+   "areas.list_areas",
+   "actual-price-sale.aggregate_sales_by_district",
+   "actual-price-sale.search_actual_sales",
+   "actual-price-rental.search_actual_rentals",
+   "company-registry.search_registry_changes",
+   "land-info.taipei_zoning_at_point",
+   "land-info.find_taipei_land_at_point",
+   "providers.list_providers"
+  ],
+  "bbox": {
+   "min_lon": 121.40172516956468,
+   "min_lat": 24.96486980267761,
+   "max_lon": 121.78745650219982,
+   "max_lat": 25.127067
+  }
+ }
+}

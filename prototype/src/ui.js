@@ -1,0 +1,116 @@
+/* PeakLens 睿鏡 — UI wiring */
+'use strict';
+(function () {
+  const { Engine, LAYERS, Agent, LENSES, TOUR, fmtInt, fmtMoney } = window.PL;
+  const $ = s => document.querySelector(s); const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+  const readJSON = id => { try { const n = document.getElementById(id); return n && n.textContent.trim() ? JSON.parse(n.textContent) : {}; } catch (e) { console.warn('bad json', id, e); return {}; } };
+  const BASE = readJSON('data-basemap'), DEMO = readJSON('data-demo');
+  const engine = new Engine($('#map'), BASE, DEMO);
+  const ui = {}; const agent = new Agent(engine, DEMO, ui); window.PL.engine = engine; window.PL.agent = agent;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- clock & status ---- */
+  const tick = () => { $('#clock').textContent = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date()) + ' TPE'; }; tick(); setInterval(tick, 1000);
+  const meta = DEMO.meta || {}; $('#datastamp').textContent = meta.generated_at ? '資料快照 ' + String(meta.generated_at).slice(0, 10) : '示範資料';
+  const toolCount = meta.tools_used ? Object.keys(meta.tools_used).length : 27; $('#mcpstat').textContent = `FUNRAISE MCP · ${toolCount} tools`;
+
+  /* ---- lenses ---- */
+  const lensBox = $('#lenses');
+  for (const [id, L] of Object.entries(LENSES)) { const b = el('button', 'lens-btn', `<span class="dot" style="--c:${L.color}"></span>${L.name}`); b.dataset.lens = id; b.setAttribute('aria-pressed', 'false'); b.title = L.who; b.onclick = () => { agent.setLens(id); toast(`${L.name} · ${L.who}`); }; lensBox.appendChild(b); }
+  ui.applyLens = id => { const L = LENSES[id]; lensBox.querySelectorAll('.lens-btn').forEach(b => { const on = b.dataset.lens === id; b.setAttribute('aria-pressed', on); b.querySelector('.dot').style.background = on ? L.color : ''; b.querySelector('.dot').style.boxShadow = on ? `0 0 8px ${L.color}` : ''; }); document.documentElement.style.setProperty('--accent', L.color); for (const k of Object.keys(LAYERS)) ui.setLayer(k, L.layers.includes(k) || (k === 'mrt')); renderSuggest(); renderLensKPIs(id); $('#readout .eyebrow').textContent = `${L.name} · LENS`; };
+
+  /* ---- layers ---- */
+  const list = $('#layers'); const counts = { stock: (DEMO.buildings || []).length, future: (DEMO.future_dev || []).length, licenses: (DEMO.building_licenses || []).length, renewal: (DEMO.urban_renewal || []).length, zones: (DEMO.development_zones || []).length, mops: (DEMO.mops || []).length, moves: (DEMO.registry_moves || []).length, infra: (DEMO.public_infras || []).length, parks: (DEMO.industrial_parks || []).length, heat: (DEMO.business_areas || []).length, mrt: (BASE.mrt_stations || []).length };
+  for (const [k, L] of Object.entries(LAYERS)) { const b = el('button', 'layer', `<span class="sw ${L.glyph}" style="background:${L.color || '#8FA3C8'};color:${L.color || '#8FA3C8'}"></span><span class="lbl">${L.name}</span><span class="cnt">${counts[k] || ''}</span>`); b.dataset.layer = k; b.title = L.desc; b.setAttribute('aria-pressed', engine.visible.has(k)); b.onclick = () => ui.setLayer(k, !engine.visible.has(k)); list.appendChild(b); }
+  ui.setLayer = (k, on) => { if (on) engine.visible.add(k); else engine.visible.delete(k); const b = list.querySelector(`[data-layer="${k}"]`); if (b) b.setAttribute('aria-pressed', on); engine.dirty = true; };
+
+  /* ---- modes & sensors ---- */
+  const modes = { city: '俯視', orbit: '環繞', street: '街景', globe: '全台', timelapse: '時光' }; const mbox = $('#modes');
+  let lapse = null;
+  ui.setMode = m => { mbox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m)); if (m !== 'timelapse' && lapse) { clearInterval(lapse); lapse = null; } if (m === 'timelapse') { ui.setYear(2012); engine.setMode('city'); lapse = setInterval(() => { const y = +$('#year').value; if (y >= 2030) { clearInterval(lapse); lapse = null; ui.setMode('city'); return; } ui.setYear(y + 1); }, reduce ? 1200 : 700); } else engine.setMode(m); };
+  for (const [m, n] of Object.entries(modes)) { const b = el('button', null, n); b.dataset.mode = m; b.setAttribute('aria-pressed', m === 'city'); b.onclick = () => ui.setMode(m); mbox.appendChild(b); }
+  const sensors = { normal: '一般', night: '夜視', thermal: '熱感', blueprint: '藍圖' }; const sbox = $('#sensors');
+  ui.setSensor = s => { $('#map').className = 'sensor-' + s; sbox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.sensor === s)); };
+  for (const [s, n] of Object.entries(sensors)) { const b = el('button', null, n); b.dataset.sensor = s; b.setAttribute('aria-pressed', s === 'normal'); b.onclick = () => ui.setSensor(s); sbox.appendChild(b); }
+
+  /* ---- timeline ---- */
+  const yr = $('#year'); ui.setYear = y => { yr.value = y; engine.year = y; agent.year = y; $('#yearlbl').textContent = y; engine.dirty = true; updateReadout(); }; yr.oninput = () => ui.setYear(+yr.value); ui.setYear(new Date().getFullYear());
+
+  /* ---- readout ---- */
+  function updateReadout() { const c = engine.countInView(); const d = engine.districtAt(engine.cam.lon, engine.cam.lat); const parts = [d ? d.name : (engine.cam.zoom < 10 ? '台灣' : '雙北')]; if (c.stock) parts.push(`商辦 ${c.stock}`); if (c.future) parts.push(`規劃中 ${c.future}`); if (c.renewal) parts.push(`都更 ${c.renewal}`); if (c.mops) parts.push(`法人交易 ${c.mops}`); if (c.infra) parts.push(`公建 ${c.infra}`); if (engine.year !== new Date().getFullYear()) parts.push(`${engine.year} 年`); $('#readout .line').textContent = parts.join(' · '); $('#readout .coords').textContent = `${engine.cam.lat.toFixed(4)}N ${engine.cam.lon.toFixed(4)}E · z${engine.cam.zoom.toFixed(1)} · ${Math.round(engine.cam.pitch)}° · ${Math.round(engine.cam.bearing)}°`; };
+  engine.onIdle = updateReadout; setTimeout(updateReadout, 300);
+
+  /* ---- inspector ---- */
+  const insp = $('#inspector'); const lensKPIs = $('#lens-kpis');
+  const tw = m2 => m2; // area units passthrough (dataset records unit in meta)
+  function renderLensKPIs(id) {
+    const k = []; const ds = (DEMO.district_sales && DEMO.district_sales['台北市']) || []; const mops = DEMO.mops || []; const vol12 = mops.reduce((s, m) => s + (m.total_price || 0), 0); const areas = DEMO.business_areas || []; const rents = areas.filter(a => a.market_price).map(a => a.market_price.actual_rent_avg); const avgRent = rents.length ? rents.reduce((a, b) => a + b, 0) / rents.length : 0; const yields = areas.filter(a => a.market_price && a.market_price.actual_sale_avg).map(a => a.market_price.actual_rent_avg * 12 / a.market_price.actual_sale_avg); const yld = yields.length ? yields.reduce((a, b) => a + b, 0) / yields.length : 0; const ren = (DEMO.urban_renewal_stats && DEMO.urban_renewal_stats.by_district) || []; const renTotal = ren.reduce((s, r) => s + (r.count || 0), 0); const infra = DEMO.public_infras || []; const moves = DEMO.registry_moves || [];
+    const kpi = (v, l, cls) => `<div class="kpi ${cls || ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    if (id === 'investor') k.push(kpi(fmtMoney(vol12), '上市櫃不動產交易額 · 近 12 月 · 台北市'), kpi(mops.length, '公告筆數'), kpi((yld * 100).toFixed(2) + '<small>%</small>', '商辦毛租金收益率（商圈均值）'), kpi(fmtInt(avgRent) + '<small>元/坪/月</small>', '商圈平均租金'));
+    if (id === 'developer') k.push(kpi(fmtInt(renTotal), '台北市都更地區／單元'), kpi((DEMO.building_licenses || []).length, '114 年建照（樣本）'), kpi((DEMO.future_dev || []).length, '規劃／興建中案（樣本）'), kpi((DEMO.development_zones || []).length, '重劃／區段徵收（北市）'));
+    if (id === 'occupier') k.push(kpi((DEMO.buildings || []).length, '商辦（示範樣本）'), kpi(fmtInt(avgRent) + '<small>元/坪/月</small>', '商圈平均租金'), kpi((BASE.mrt_stations || []).length, '捷運站'), kpi((DEMO.providers_summary && DEMO.providers_summary.total) || 39, '生態系服務商'));
+    if (id === 'city') k.push(kpi(infra.filter(i => i.status === 'constructing').length, '興建中公共建設'), kpi(moves.length, '跨區遷入企業（樣本）'), kpi(fmtInt(renTotal), '都更地區／單元'), kpi((DEMO.industrial_parks || []).length, '產業園區（雙北）'));
+    if (id === 'research') { const tot = ds.reduce((s, d) => s + d.transaction_count, 0); k.push(kpi(fmtInt(tot), '台北市實價登錄成交（2012–）'), kpi('477<small>萬</small>', '全國實價登錄筆數'), kpi(ds.length, '行政區'), kpi('2012→2030', '時間軸')); }
+    lensKPIs.innerHTML = k.join(''); $('#lens-who').textContent = LENSES[id].who; $('#lens-title').textContent = LENSES[id].name;
+  }
+  ui.select = (item, layer) => { engine.selected = item ? { key: keyOf(item, layer), item, layer } : null; renderSelection(item, layer); };
+  const keyOf = (it, layer) => ({ stock: 'stock:' + it.id, future: 'future:' + it.id, renewal: 'renewal:' + it.id, mops: 'mops:' + it.id, infra: 'infra:' + it.id, parks: 'ipark:' + it.id, zones: 'zone:' + it.id, heat: 'heat:' + it.id, mrt: 'mrt:' + it.name, licenses: 'license:' + it.license_number, moves: 'move:' + it.uniform_number }[layer] || layer + ':' + it.id);
+  engine.onSelect = (item, layer) => { renderSelection(item, layer); if (item && innerWidth < 820) document.body.classList.add('show-inspector'); };
+  const sel = $('#selection');
+  function row(k, v) { return v == null || v === '' ? '' : `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
+  function renderSelection(it, layer) {
+    if (!it) { sel.innerHTML = ''; sel.classList.add('hidden'); return; } sel.classList.remove('hidden'); let h = '';
+    const title = it.name || it.company_name || it.license_number || '—';
+    h += `<div class="eyebrow" style="color:${(LAYERS[layer] || {}).color || 'var(--ink-3)'}">${(LAYERS[layer] || { name: layer }).name}</div><h3>${title}</h3>`;
+    if (layer === 'stock') { h += it.photo_thumb ? `<img class="thumb" alt="${title} 外觀" src="${it.photo_thumb}">` : ''; h += `<div class="rows">${row('地址', it.rep_address || it.address)}${row('等級', it.grade ? it.grade + ' 級' : null)}${row('樓層', `${it.floor_above || '?'}F / B${it.floor_below || '?'}`)}${row('總樓地板', it.total_floor_area ? fmtInt(it.total_floor_area) + ' ' + (meta.area_unit || 'm²') : null)}${row('使照', it.license_date)}${row('用途', (it.usage_types || []).join('、'))}${row('認證', (it.certifications || []).map(c => c.type + (c.grade ? '·' + c.grade : '')).join('、'))}${(it.mrt || []).slice(0, 2).map(m => row('捷運', `${m.station_name || m.station} ${m.exit || ''} ${m.distance} m`)).join('')}${row('商圈', it.business_area && (it.business_area.name || it.business_area))}</div><div class="chips"><button class="chip" data-say="${title}的租戶是誰">租戶</button><button class="chip" data-say="這裡容積率多少">容積率</button><button class="chip" data-say="幫我做這棟的 DD memo">DD memo</button><button class="chip" data-say="環繞模式 ${title}">環繞</button></div>`; }
+    if (layer === 'future') { const mix = Object.entries(it.usage_mix || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${{ office: '辦公', hotel: '旅館', house: '住宅', store: '零售', parking: '停車', others: '其他' }[k] || k} ${Math.round(v * 100)}%`).join('、'); h += `<div class="rows">${row('開發商', it.developer)}${row('完工', it.completion_date)}${row('樓層', `${it.floors_above || '?'}F / B${it.floors_below || '?'}`)}${row('標準層', it.max_floor_area ? fmtInt(it.max_floor_area) + ' m²' : null)}${row('用途', mix)}${row('商圈', it.business_area)}${row('定位精度', it.geo_precision)}</div>`; }
+    if (layer === 'renewal') h += `<div class="rows">${row('編號', it.code)}${row('類別', it.category)}${row('圖層', it.layer)}${row('劃定', it.designation_method)}${row('面積', it.area_sqm ? fmtInt(it.area_sqm) + ' m²' : null)}${row('公告', it.announce_date)}${row('行政區', it.district)}</div>`;
+    if (layer === 'mops') h += `<div class="rows">${row('公告日', it.announcement_date)}${row('公司', `${it.company_name} (${it.company_id})`)}${row('產業', it.industry)}${row('類型', it.product_type)}${row('標的', it.property_name)}${row('地址', it.building_address)}${row('土地', it.land_area_ping ? fmtInt(it.land_area_ping) + ' 坪' : null)}${row('建物', it.building_area_ping ? fmtInt(it.building_area_ping) + ' 坪' : null)}${row('金額', fmtMoney(it.total_price) + ' 元')}${row('買方', `${it.buyer_name || ''}（${it.buyer_type || ''}）`)}${row('賣方', `${it.seller_name || ''}（${it.seller_type || ''}）`)}</div>`;
+    if (layer === 'infra') h += `<div class="rows">${row('類別', it.subcategory)}${row('狀態', it.status === 'constructing' ? '興建中' : '規劃中')}${row('完工年', it.completion_year)}</div>`;
+    if (layer === 'parks') h += `<div class="rows">${row('類型', it.park_type)}${row('法令', it.legal_basis)}${row('狀態', it.status)}${row('面積', it.area_ha + ' 公頃')}${row('主管', it.manager)}</div>`;
+    if (layer === 'zones') h += `<div class="rows">${row('類別', it.category)}${row('狀態', it.status)}</div>`;
+    if (layer === 'licenses') h += `<div class="rows">${row('證號', it.license_number)}${row('發照', it.issue_date)}${row('類型', it.construction_type)}${row('地址', it.address)}${row('設計人', it.designer)}${row('起造人', it.developer_masked + '（來源遮罩）')}</div>`;
+    if (layer === 'moves') h += `<div class="rows">${row('統編', it.uniform_number)}${row('日期', it.date)}${row('原址', it.before)}${row('新址', it.after)}${row('範圍', it.move_scope)}</div>`;
+    if (layer === 'heat') { const mp = it.market_price || {}; h += `<div class="meta">${it.pp_insight || it.description || ''}</div><div class="kpis">${kpiHtml(fmtInt(mp.actual_rent_avg) + '<small>元/坪/月</small>', '平均租金 · YoY ' + ((mp.actual_rent_yoy || 0) * 100).toFixed(1) + '%', mp.actual_rent_yoy >= 0 ? 'up' : 'down')}${kpiHtml(fmtInt((mp.actual_sale_avg || 0) / 1e4) + '<small>萬/坪</small>', '平均售價 · YoY ' + ((mp.actual_sale_yoy || 0) * 100).toFixed(1) + '%', mp.actual_sale_yoy >= 0 ? 'up' : 'down')}${kpiHtml(fmtInt((it.company_stats || {}).total || it.company_total || 0), '企業數 · 成長 ' + (((it.company_stats || {}).growth_rate ?? it.company_growth_rate ?? 0) * 100).toFixed(0) + '%')}${kpiHtml((it.building_stats || []).filter(b => b.grade === 'A').map(b => b.count)[0] ?? '—', 'A 辦棟數')}</div>`; const ser = (it.rent_series || (it.market_analytics || []).find(m => m.deal_type === 'rent' && m.scope_type === 'self') || {}).series || it.rent_series || []; if (ser.length >= 3) h += sparkSVG('租金季線（元/坪/月）', ser.map(s => ({ t: `${s.year}Q${s.quarter}`, v: s.value }))); }
+    if (layer === 'mrt') h += `<div class="rows">${row('路線', (it.lines || []).join('、'))}</div><div class="chips"><button class="chip" data-say="帶我去${it.name}">500m 內商辦</button></div>`;
+    sel.innerHTML = h; sel.querySelectorAll('[data-say]').forEach(b => b.onclick = () => say(b.dataset.say));
+  }
+  const kpiHtml = (v, l, cls) => `<div class="kpi ${cls || ''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  function sparkSVG(title, pts) { const w = 280, h = 56, p = 6; const vs = pts.map(x => x.v); const min = Math.min(...vs), max = Math.max(...vs); const X = i => p + i * (w - 2 * p) / (pts.length - 1), Y = v => h - p - (v - min) / ((max - min) || 1) * (h - 2 * p); const d = pts.map((x, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(x.v).toFixed(1)}`).join(' '); const last = pts[pts.length - 1]; return `<div class="eyebrow">${title} · ${pts[0].t}–${last.t}</div><svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="${title}"><path d="${d} L${X(pts.length - 1).toFixed(1)},${h - p} L${p},${h - p} Z" fill="rgba(201,142,44,.15)"/><path d="${d}" fill="none" stroke="#C98E2C" stroke-width="2"/><circle cx="${X(pts.length - 1).toFixed(1)}" cy="${Y(last.v).toFixed(1)}" r="3.5" fill="#F2B84B" stroke="#0B1222" stroke-width="2"/><text x="${w - p}" y="${Math.max(10, Y(last.v) - 8)}" text-anchor="end" font-size="10" font-family="IBM Plex Mono, monospace" fill="#E9EFFA">${fmtInt(last.v)}</text><text x="${p}" y="${h - 1}" font-size="9" font-family="IBM Plex Mono, monospace" fill="#66789A">${fmtInt(min)}–${fmtInt(max)}</text></svg>`; }
+  ui.showSpark = (title, pts) => { const box = $('#analysis'); box.innerHTML = sparkSVG(title, pts); box.classList.remove('hidden'); };
+  ui.showBars = (title, rows, color) => { const box = $('#analysis'); const max = Math.max(...rows.map(r => r.v)) || 1; box.innerHTML = `<div class="eyebrow">${title}</div><div class="bars">${rows.map(r => `<div class="bar"><span class="k" title="${r.k}">${r.k}</span><span class="t"><i style="width:${(r.v / max * 100).toFixed(1)}%;background:${color || 'var(--ch-1)'}"></i></span><span class="v">${r.label != null ? r.label : fmtInt(r.v)}</span></div>`).join('')}</div>`; box.classList.remove('hidden'); if (innerWidth < 820) document.body.classList.add('show-inspector'); };
+
+  /* ---- transcript & tool cards ---- */
+  const tr = $('#transcript');
+  ui.userTurn = text => { const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
+  ui.agentTurn = () => { const t = el('div', 'turn agent', `<div class="who">睿鏡</div><div class="body"><div class="tools"></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
+  ui.toolStart = (turn, name, params) => { const p = Object.entries(params || {}).filter(([k, v]) => v !== undefined).map(([k, v]) => `${k}=${typeof v === 'string' ? '"' + v + '"' : JSON.stringify(v)}`).join(', '); const c = el('div', 'tool run', `<span class="st"></span><span class="name"><b>${name}</b> (${escapeHtml(p)})</span><span class="res">…</span>`); turn.querySelector('.tools').appendChild(c); tr.scrollTop = tr.scrollHeight; c._t0 = performance.now(); return c; };
+  ui.toolDone = (card, summary) => { card.classList.remove('run'); card.classList.add('ok'); card.querySelector('.res').textContent = `${summary} · ${Math.round(performance.now() - card._t0)} ms`; };
+  ui.type = async (turn, text, refs) => { const ans = turn.querySelector('.answer'); const spd = reduce ? 0 : 9; if (!spd) { ans.textContent = text; } else { for (let i = 0; i <= text.length; i += 3) { ans.textContent = text.slice(0, i); tr.scrollTop = tr.scrollHeight; await new Promise(r => setTimeout(r, spd)); } ans.textContent = text; } ans.classList.remove('caret'); if (tts.on) speak(text.split('\n')[0]); tr.scrollTop = tr.scrollHeight; };
+  const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /* ---- command bar ---- */
+  const cmd = $('#cmd'); const say = text => { cmd.value = ''; agent.handle(text); }; ui.say = say;
+  $('#send').onclick = () => { if (cmd.value.trim()) say(cmd.value.trim()); }; cmd.addEventListener('keydown', e => { if (e.key === 'Enter' && cmd.value.trim()) say(cmd.value.trim()); });
+  function renderSuggest() { const box = $('#suggest'); box.innerHTML = ''; for (const s of LENSES[agent.lens].suggest) { const b = el('button', 'chip', s); b.onclick = () => say(s); box.appendChild(b); } }
+  /* speech in */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; const mic = $('#mic'); let rec = null;
+  if (!SR) { mic.title = '此瀏覽器不支援語音辨識，請改用輸入框'; }
+  mic.onclick = () => { if (!SR) { toast('此瀏覽器不支援語音辨識（Chrome/Edge 可用），請直接輸入'); cmd.focus(); return; } if (rec) { rec.stop(); return; } try { rec = new SR(); rec.lang = 'zh-TW'; rec.interimResults = true; rec.onresult = e => { const t = Array.from(e.results).map(r => r[0].transcript).join(''); cmd.value = t; if (e.results[e.results.length - 1].isFinal) { say(t); } }; rec.onend = () => { rec = null; mic.classList.remove('listening'); }; rec.onerror = ev => { toast('語音辨識無法使用：' + (ev.error === 'not-allowed' ? '未取得麥克風權限（沙箱環境常見），請改用輸入框' : ev.error)); rec = null; mic.classList.remove('listening'); }; rec.start(); mic.classList.add('listening'); toast('聆聽中…請說出指令'); } catch (e) { toast('語音辨識啟動失敗，請直接輸入'); } };
+  /* speech out */
+  const tts = { on: false }; const ttsBtn = $('#tts'); ttsBtn.onclick = () => { tts.on = !tts.on; ttsBtn.setAttribute('aria-pressed', tts.on); if (!tts.on) speechSynthesis && speechSynthesis.cancel(); toast(tts.on ? '語音回覆：開' : '語音回覆：關'); };
+  function speak(text) { try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.slice(0, 160)); u.lang = 'zh-TW'; u.rate = 1.05; const v = speechSynthesis.getVoices().find(v => /zh[-_]TW/i.test(v.lang)); if (v) u.voice = v; speechSynthesis.speak(u); } catch (e) { } }
+  /* tour */
+  let touring = false; ui.tour = async () => { if (touring) return; touring = true; $('#tour').setAttribute('aria-pressed', 'true'); for (const [text, wait] of TOUR) { if (!touring) break; await agent.handle(text); await new Promise(r => setTimeout(r, wait)); } touring = false; $('#tour').setAttribute('aria-pressed', 'false'); }; $('#tour').onclick = () => { if (touring) { touring = false; toast('導覽停止'); } else ui.tour(); };
+  /* toast */
+  let toastT; function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); } ui.toast = toast;
+  /* keyboard */
+  addEventListener('keydown', e => { if (e.target === cmd || e.metaKey || e.ctrlKey) { if (e.key === 'Escape') cmd.blur(); return; } const k = e.key.toLowerCase(); if (k === '/') { e.preventDefault(); cmd.focus(); } else if (k === '1') ui.setSensor('normal'); else if (k === '2') ui.setSensor('night'); else if (k === '3') ui.setSensor('thermal'); else if (k === '4') ui.setSensor('blueprint'); else if (k === 'o') ui.setMode('orbit'); else if (k === 's') ui.setMode('street'); else if (k === 'c') ui.setMode('city'); else if (k === 'g') ui.setMode('globe'); else if (k === 't') ui.setMode('timelapse'); else if (k === 'l') { const ids = Object.keys(LENSES); agent.setLens(ids[(ids.indexOf(agent.lens) + 1) % ids.length]); } else if (k === ' ') { e.preventDefault(); engine.cam.orbit = !engine.cam.orbit; } });
+  /* mobile */
+  $('#m-layers').onclick = () => { document.body.classList.toggle('show-rail'); document.body.classList.remove('show-inspector'); }; $('#m-insp').onclick = () => { document.body.classList.toggle('show-inspector'); document.body.classList.remove('show-rail'); }; $('#m-tour').onclick = () => ui.tour();
+  /* boot */
+  agent.setLens('occupier'); ui.setSensor('normal');
+  const first = (DEMO.buildings || []).find(b => b.lat); engine.cam.lon = 121.5580; engine.cam.lat = 25.0380; engine.cam.zoom = 12.6;
+  setTimeout(() => { engine.flyTo(121.5650, 25.0350, 14.4, 46, 20, reduce ? 10 : 2600); }, 400);
+  setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，Nelsen。這是「睿鏡 PeakLens」原型：God's Eye View 的即時上帝視角 × FUNRAISE MCP 的台灣不動產資料。地圖上的每一個圖形都對應一個真實的 MCP 工具結果（示範資料快照）。試著說「帶我去信義計畫區」或按「導覽」。`); }, 900);
+})();

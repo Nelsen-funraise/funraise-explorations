@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.log
+prototype/dist/*.png
+app/dist/
+app/.env
+app/.env.local
+design/**/*.html
+!design/**/*.dc.html
+app/server/.mcp-token.json
