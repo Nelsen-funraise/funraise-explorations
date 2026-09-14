@@ -208,3 +208,4 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 | ![street](assets/v2-street.jpg) 街景：南港軟體園區 | ![thermal](assets/v2-thermal.jpg) 熱感測 |
 | ![light clusters](assets/v2-light-clusters.jpg) PickPeak 日間主題：淺色底圖 + 白色量體，建物聚合成青色「N 棟」泡泡 | ![light xinyi](assets/v2-light-xinyi.jpg) 日間主題拉近信義計畫區：icon 標註（交易／執照／基建）與資料卡 |
 | ![timelapse](assets/v2-timelapse.jpg) 時光機：年份 HUD、當年新增量體長高 + 脈衝 | ![renewal sim](assets/v2-renewal-sim.jpg) 智慧都更模擬：地號拼成基地 → 容積量體 + 獎勵滑桿 |
+| ![dark scene](assets/v2-scene-dark.jpg) 夜間戰情室主題（保留）：投資人鏡場景，正射影像 + 玻璃量體 | |
