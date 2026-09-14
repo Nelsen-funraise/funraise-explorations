@@ -37,6 +37,11 @@ export const SCENES = [
 ];
 export class SceneDirector {
   constructor(ctx) { this.c = ctx; this.playing = null; this.stopFlag = false; }
-  async play(id) { const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop(); this.playing = id; this.stopFlag = false; const { ui } = this.c; ui.cine(sc.title, ''); for (const st of sc.steps) { if (this.stopFlag) break; ui.cine(sc.title, st.text); ui.speak && ui.speak(st.text); try { await st.run(this.c); } catch (e) { console.warn('scene step failed', e); } await wait(st.hold); } if (!this.stopFlag) ui.cine(null); this.playing = null; }
+  // Each step: start narration + camera together, then wait for the narration to FINISH (plus the step's hold budget) before moving on.
+  async play(id) { const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop(); this.playing = id; this.stopFlag = false; const { ui } = this.c; ui.cine(sc.title, ''); ui.warmSpeech && ui.warmSpeech(sc.steps.map(s => s.text));
+    for (const st of sc.steps) { if (this.stopFlag) break; ui.cine(sc.title, st.text); const t0 = performance.now(); const narration = ui.speak ? ui.speak(st.text).catch(() => ({ ms: 0 })) : Promise.resolve({ ms: 0 });
+      try { await st.run(this.c); } catch (e) { console.warn('scene step failed', e); }
+      const res = await narration; if (this.stopFlag) break; const elapsed = performance.now() - t0; const minHold = res && res.ms ? 900 : st.hold; await wait(Math.max(minHold - Math.max(0, elapsed - (res && res.ms || 0)), 400)); }
+    if (!this.stopFlag) ui.cine(null); this.playing = null; }
   stop() { this.stopFlag = true; this.playing = null; this.c.timeline.stopLapse(); this.c.ui.cine(null); }
 }

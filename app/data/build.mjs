@@ -34,6 +34,8 @@ out.development_zones = rows('zones_all.json').filter(z => z.lat).map(z => ({ ..
 // passthrough
 for (const k of ['future_dev', 'public_infras', 'industrial_parks', 'business_areas', 'districts_analytics', 'district_sales', 'tenants', 'sample_transactions', 'zoning_samples', 'providers_summary', 'capital_increases', 'mrt_stations']) out[k] = v1[k] || (Array.isArray(v1[k]) ? [] : {});
 out.meta = { ...(v1.meta || {}), built_at: new Date().toISOString(), counts: stats, source: 'FUNRAISE MCP (Funraise Data Team) snapshot 2026-09-14 + expanded pulls', notes: ['buildings: exact (get_building) or address geocode', 'future_dev: area_centroid approximations', 'licenses/mops/moves: address geocode; road-only addresses approximate'] };
+const parcelsFile = path.join(root, 'data/raw/parcels.json');
+if (fs.existsSync(parcelsFile)) { try { const pj = JSON.parse(fs.readFileSync(parcelsFile, 'utf8')); out.parcels = { generated_at: pj.generated_at, source: pj.source, units: pj.units || {} }; stats.parcel_units = Object.keys(out.parcels.units).length; stats.parcels = Object.values(out.parcels.units).reduce((n, u) => n + (u.parcels || []).length, 0); } catch (e) { console.warn('parcels.json unreadable', e.message); } }
 fs.mkdirSync(path.join(root, 'public/data'), { recursive: true });
 fs.writeFileSync(path.join(root, 'public/data/peaklens.json'), JSON.stringify(out));
 console.log('peaklens.json', (fs.statSync(path.join(root, 'public/data/peaklens.json')).size / 1024).toFixed(0) + ' KB', JSON.stringify(stats));

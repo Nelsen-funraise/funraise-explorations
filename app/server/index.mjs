@@ -35,6 +35,26 @@ const REDIRECT_URI = `${PUBLIC_URL}/api/mcp/callback`;
 const TOKEN_FILE = path.join(here, '.mcp-token.json');
 const client = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
 
+/* ---------------- Fish Audio TTS (server-side key, on-disk cache) ---------------- */
+const FISH_KEY = env.FISH_API_KEY || ''; const FISH_MODEL = env.FISH_MODEL || 's2.1-pro-free';
+export const DEFAULT_VOICES = [
+  { id: 'nelsen', name: 'Nelsen', desc: '陳致瑋 · 沉穩敘事（帳號內聲音模型）', fish: 'ebebcafee7784ad6b5b1205723f936de', gender: 'male' },
+  { id: 'eunice', name: 'Eunice', desc: '溫暖親切的台灣女聲（帳號內聲音模型）', fish: '0883de2699424fb5a19f84631d6d4c0d', gender: 'female' },
+  { id: 'twf', name: '台灣腔女生', desc: '清晰專業的台灣女聲（Fish Audio 公開模型）', fish: '3cb8677aa52f4792b0153422dbf4e14b', gender: 'female' },
+];
+let VOICES = DEFAULT_VOICES; try { if (env.FISH_VOICES) VOICES = JSON.parse(env.FISH_VOICES); } catch { console.warn('[tts] FISH_VOICES is not valid JSON; using defaults'); }
+const TTS_CACHE = path.join(here, '.tts-cache'); fs.mkdirSync(TTS_CACHE, { recursive: true });
+export const fnv1a = (str) => { let h = 0x811c9dc5; for (const c of Buffer.from(str, 'utf8')) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+export async function synthesize(text, voiceId, { speed = 1 } = {}) {
+  const v = VOICES.find(x => x.id === voiceId) || VOICES[0]; if (!FISH_KEY) throw Object.assign(new Error('FISH_API_KEY not set'), { status: 503 });
+  text = String(text || '').trim().slice(0, 800); if (!text) throw Object.assign(new Error('empty text'), { status: 400 });
+  const key = fnv1a(v.fish + '|' + speed + '|' + text); const file = path.join(TTS_CACHE, key + '.mp3');
+  if (fs.existsSync(file)) return { file, cached: true, voice: v };
+  const r = await fetch('https://api.fish.audio/v1/tts', { method: 'POST', headers: { authorization: `Bearer ${FISH_KEY}`, 'content-type': 'application/json', model: FISH_MODEL }, body: JSON.stringify({ text, reference_id: v.fish, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, prosody: { speed } }), signal: AbortSignal.timeout(60000) });
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw Object.assign(new Error(`fish ${r.status}: ${t.slice(0, 160)}`), { status: r.status === 402 ? 402 : 502 }); }
+  const buf = Buffer.from(await r.arrayBuffer()); fs.writeFileSync(file, buf); return { file, cached: false, voice: v };
+}
+
 /* ---------------- token store ---------------- */
 const store = {
   load() { try { return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')); } catch { return null; } },
@@ -119,6 +139,8 @@ const CAMERA_TOOLS = [
   { name: 'set_sensor', description: '切換畫面感測濾鏡：normal、night 夜視、thermal 熱感、blueprint 藍圖。', input_schema: { type: 'object', properties: { sensor: { type: 'string', enum: ['normal', 'night', 'thermal', 'blueprint'] } }, required: ['sensor'] } },
   { name: 'set_density', description: '切換 HUD 密度：immersive 沉浸（只留地圖與字幕）、balanced 平衡、annotated 標註（資料欄 + 地圖編號標註）。使用者說「沉浸」「乾淨一點」「多一點資料」「標註模式」時使用。', input_schema: { type: 'object', properties: { density: { type: 'string', enum: ['immersive', 'balanced', 'annotated'] } }, required: ['density'] } },
   { name: 'highlight', description: '讓地圖上的物件脈衝發光，並在標註模式下加上編號標註。key 格式：stock:<building_id>、future:<id>、renewal:<id>、mops:<id>、license:<建照號>、move:<統編>、infra:<id>、ipark:<id>、zone:<id>、heat:<area_id>、mrt:<站名>。id 可用 search_local_snapshot 查。', input_schema: { type: 'object', properties: { keys: { type: 'array', items: { type: 'string' } }, ms: { type: 'integer' } }, required: ['keys'] } },
+  { name: 'simulate_renewal', description: '智慧都更模擬：對一個都更單元套用地號、使用分區容積率／建蔽率與建照套繪，畫出可建量體並回傳基準容積、獎勵容積、總樓地板、樓層、屋齡與整合難度。使用者說「模擬○○都更」「這個單元可以蓋多高」時使用；unit_id 或 name 其一。', input_schema: { type: 'object', properties: { unit_id: { type: 'string' }, name: { type: 'string', description: '都更單元名稱關鍵字，例如「兒福B1-2」' }, bonus: { type: 'number', description: '容積獎勵比例 0–0.5，預設 0.3' } } } },
+  { name: 'set_theme', description: '切換主題：light（PickPeak 日間）或 dark（夜間戰情室）。', input_schema: { type: 'object', properties: { theme: { type: 'string', enum: ['light', 'dark'] } }, required: ['theme'] } },
   { name: 'pin', description: '把一個物件的資料卡釘在地圖上（帶引線的標註，跟著物件移動）。key 同 highlight。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
   { name: 'get_view_state', description: '取得目前畫面狀態：相機中心、行政區、年份、鏡、密度、可見圖層、選取物件、視野內各圖層數量。', input_schema: { type: 'object', properties: {} } },
   { name: 'search_local_snapshot', description: '在前端本地資料快照中用名稱搜尋物件（商辦、建案、都更單元、上市櫃交易、公建、園區、重劃區），回傳 key 與座標，用於 highlight / fly_to / pin / select_entity。', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
@@ -166,14 +188,16 @@ function serveStatic(req, res) {
 }
 const CALLBACK_PAGE = (ok, msg) => `<!doctype html><meta charset="utf-8"><title>PeakLens · FUNRAISE MCP</title><body style="margin:0;display:grid;place-items:center;height:100vh;background:#030712;color:#F3F4F6;font:15px Inter,'Noto Sans TC',sans-serif"><div style="text-align:center;max-width:420px;padding:24px"><div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#93DCE6">FUNRAISE MCP</div><h1 style="font-size:20px;margin:8px 0">${ok ? '已授權，睿鏡可以即時查資料了' : '授權失敗'}</h1><p style="color:#99A1AF">${msg}</p><p style="color:#6A7282;font-size:12px">${ok ? '這個視窗會自動關閉。' : '請關閉視窗後再試一次。'}</p></div><script>try{(window.opener||window.parent).postMessage({type:'peaklens-mcp-authorized',ok:${ok ? 'true' : 'false'}},'*')}catch(e){} ${ok ? 'setTimeout(()=>window.close(),1400);' : ''}</script></body>`;
 
-if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!client, model: MODEL, mcp: mcpSummary(m), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
+if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!client, model: MODEL, mcp: mcpSummary(m), tts: FISH_KEY ? 'fish:' + FISH_MODEL : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
 
 if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
   http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     try {
       if (req.method === 'OPTIONS') return json(res, 204, {});
-      if (url.pathname === '/api/health') { const m = await mcpProbe(url.searchParams.has('force')); return json(res, 200, { ok: !!client, model: MODEL, mcp: mcpSummary(m), tools: CAMERA_TOOLS.length }); }
+      if (url.pathname === '/api/health') { const m = await mcpProbe(url.searchParams.has('force')); return json(res, 200, { ok: !!client, model: MODEL, mcp: mcpSummary(m), tools: CAMERA_TOOLS.length, tts: FISH_KEY ? 'fish' : 'none', voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) }); }
+      if (url.pathname === '/api/voices') return json(res, 200, { fish: !!FISH_KEY, model: FISH_MODEL, voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) });
+      if (url.pathname === '/api/tts' && req.method === 'POST') { const body = await readBody(req, 64000); const t0 = Date.now(); const out = await synthesize(body.text, body.voice, { speed: Math.min(2, Math.max(0.5, +body.speed || 1)) }); console.log(`[tts] ${out.voice.id} ${out.cached ? 'cache' : 'fish'} ${Date.now() - t0} ms · ${String(body.text).slice(0, 40)}`); const st = fs.statSync(out.file); res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': st.size, 'cache-control': 'public, max-age=86400', 'x-tts-voice': out.voice.id, 'x-tts-cached': out.cached ? '1' : '0', 'access-control-allow-origin': '*' }); return fs.createReadStream(out.file).pipe(res); }
       if (url.pathname === '/api/mcp/authorize') { const loc = await beginAuthorize(); res.writeHead(302, { location: loc, 'cache-control': 'no-store' }); return res.end(); }
       if (url.pathname === '/api/mcp/callback') { const err = url.searchParams.get('error'); if (err) return html(res, 400, CALLBACK_PAGE(false, `${err}: ${url.searchParams.get('error_description') || ''}`)); try { await finishAuthorize(url.searchParams.get('code'), url.searchParams.get('state')); const m = await mcpProbe(true); return html(res, 200, CALLBACK_PAGE(m.status === 'live', m.status === 'live' ? `已連上 ${m.server && m.server.name ? m.server.name : 'FUNRAISE MCP'}。` : `已取得 token，但探測回報 ${m.status}（${m.reason || ''}）。`)); } catch (e) { return html(res, 400, CALLBACK_PAGE(false, e.message)); } }
       if (url.pathname === '/api/mcp/logout' && req.method === 'POST') { store.clear(); mcpState = { status: 'unknown', checked: 0 }; return json(res, 200, { ok: true }); }
@@ -183,6 +207,6 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }
   }).listen(PORT, async () => {
     const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message }));
-    console.log(`PeakLens agent server on http://localhost:${PORT}  model=${MODEL}  claude=${client ? 'on' : 'OFF (set ANTHROPIC_API_KEY)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
+    console.log(`PeakLens agent server on http://localhost:${PORT}  model=${MODEL}  claude=${client ? 'on' : 'OFF (set ANTHROPIC_API_KEY)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY ? 'fish' : 'none'}  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
   });
 }

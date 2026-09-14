@@ -158,6 +158,46 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 `.env` 可選 `FUNRAISE_MCP_TOKEN`（靜態 token 跳過 OAuth）、`FUNRAISE_MCP_CLIENT_ID/SECRET`（預先註冊的 client）、`PUBLIC_URL`（server 對外網址，OAuth redirect 用）。`npm run check` 會探測一次並印出狀態。
 
+## 10. 語音、主題、相機、動態（2026-09-14 下午更新）
+
+**Fish Audio 語音**：右下 🔈 可選「關閉／系統語音／Nelsen／Eunice／台灣腔女生」。Nelsen 與 Eunice 是帳號內的聲音模型，台灣腔女生是 Fish Audio 公開模型（`3cb8677a…`）。免費模型 `s2.1-pro-free` 不需 API credit。五段場景的旁白已預錄成 `public/audio/<voice>/<hash>.mp3`（`npm run tts:prerender`），所以 GitHub Pages 靜態版也有真人聲；即時回答走 `/api/tts`（server 端持 key、磁碟快取）。**場景步驟現在會等旁白播完才換下一句**（`SceneDirector` 以音檔結束事件為準），不再被打斷。
+
+**主題**：右上 ☀︎／☾（快捷鍵 `N`）切換「PickPeak 日間」（白底卡片、Esri 淺灰底圖、淺色 OSM 建物、深色標籤）與「夜間戰情室」（原本的深色）。預設日間。
+
+**相機**：左鍵平移、**右鍵（或中鍵／Ctrl+左鍵）拖曳旋轉方位與俯仰**、滾輪縮放；右下方向盤可拖曳轉向、點 N 回正北，滑桿調俯角，`2D` 正俯視；鍵盤 ←→ 旋轉、↑↓ 俯仰、+/− 縮放、Home 回北。
+
+**PickPeak 風格呈現**：遠看時商辦聚合成「N 棟」藍色圓圈（同 pickpeak.ai 地圖），點一下拉近；中距離顯示大樓圖示；近看只剩 3D 量體。點圖層（建照／交易／公建／園區／商圈／捷運）都有專屬 icon。
+
+**趨勢動態**：時間軸每跨一年，新取得使照的大樓會「長出來」（金色量體 1.1 秒），當年上市櫃交易與完工案自動脈衝，畫面上方跳出年份與當年增量（+N 棟 · 建照 · 交易），左側面板顯示累計供給趨勢線與當年標記；KPI 數字以 0.7 秒 count-up 呈現。
+
+## 11. 智慧都更模擬（first cut）與地號資料
+
+**做了什麼**：用 FUNRAISE MCP 的 `land-info` 工具，對 6 個政府主導都更單元（信義 兒福B1-2及B3-2、逸仙二小段、兒福B1-1；大安 忠孝懷生、敦南安和；中山 長安市民）在單元多邊形內做格點取樣 → `find_taipei_land_at_point` 反查地號與地籤 polygon → `taipei_zoning_at_point` 帶回使用分區與法定容積率／建蔽率 → `taipei_bldg_overlay_at_point` 帶回建照套繪（民國年 → 屋齡）。共 17 筆地號、7 張建照，存於 `app/data/raw/parcels.json`，併入快照。
+
+**怎麼玩**：切到開發商鏡 → 說「模擬兒福B1-2及B3-2都更」或點都更多邊形 → 面板「🏗 模擬都更量體」。地圖上長出半透明藍色量體（高度 = 估算樓層 × 3.6 m），面板顯示基地面積（坪）、地號數、分區與容積率／建蔽率、基準容積、獎勵容積、總樓地板（含免計 15%）、樓層、現況最舊建照與屋齡、整合難度（地號密度 proxy）；**拉動容積獎勵滑桿（0–50%）量體即時長高**。Claude 模式有 `simulate_renewal` 工具。
+
+**誠實標註的限制**：6 個單元中 4 個落在特定區（住4-1、商三特、敦化專用區B、住3-1(特)），法定容積不是單一數字，工具回傳 `far_decimal: null` 並附條件說明；模擬器改用住三 225% 作假設並在面板標「（假設）」。兒福B1-2及B3-2 有兩個不相連街廓，這次只取樣了 B1-2。產權人數（整合難度的真正關鍵）需要土地謄本（`transcripts` 工具，付費爬取），這輪沒動。
+
+**MCP 裡還有什麼厲害的（值得下一輪接進來）**：
+- `land-info.taipei_bldg_overlay_at_point` / `taipei_bldg_overlay_by_permit`：29 萬筆建照套繪，民國 57 年起 —— 屋齡與危老資格（30 年以上）的全市掃描來源。
+- `land-info.taipei_zoning_regulation_get`：240 列分區管制對照表（容積、建蔽、高度、特定區條款）—— 全市容積潛力地圖的基礎。
+- `urban-renewal.urban_renewal_at_point` / `aggregate_urban_renewal`：任一點落在哪些更新地區／單元、各區件數與面積。
+- `transcripts.*`（土地／建物謄本、地籤圖、地址→地號）：所有權人數、抵押、面積 —— 都更整合難度的真資料（付費、需授權）。
+- `dd-memo.find_property_lifecycle`：預售 → 成交 → 建照／使照的時序事件，一棟樓的生命週期。
+- `key-enterprise` / `company-registry.aggregate_registry_changes` / `capital_increases`：企業遷徙、增資 —— 需求端訊號。
+- `actual-price-presale` / `properties` / `rtube`：預售案、物件掛牌 —— 供給端與價格訊號。
+- `newtaipei-cadastral.*`：新北地籤，把模擬擴到雙北。
+
+## 12. 想要「真正有貼圖紋理」的 3D 城市，要補什麼
+
+| 方案 | 要補的東西 | 成本／限制 | 建議 |
+|---|---|---|---|
+| **Google Photorealistic 3D Tiles**（GEV 用的） | Google Maps Platform 專案啟用 Map Tiles API，把 key 放 `VITE_GOOGLE_MAPS_API_KEY`（Pages 用 repo secret）。程式已支援：有 key 自動載入、略過 OSM 量體 | 計量收費（每千次 root tile 請求計價，每月有免費額度；demo 等級幾乎免費）；必須保留 Google 標示；不能把其他底圖蓋在上面 | **最快看到效果**，一把 key 就能 demo；FUNRAISE 圖層需改成「貼在 3D Tiles 上」的分類多邊形 + 浮空標籤（下一步我可以做） |
+| 臺北市 3D 建物模型（市府開放資料 LOD1/LOD2） | 下載模型 → 轉 3D Tiles（Cesium ion 上傳或 `3d-tiles-tools`）→ 自架或 ion 託管 | 只有幾何 + 簡單貼圖，非相片級；授權需確認可商用 | 中期自有資產：不受 Google 條款限制 |
+| 國土測繪中心 3D 建物（全臺 LOD1） | 同上流程 | 無貼圖，高度來自建物模型；適合全國尺度 | 搭配 OSM 補台北以外縣市 |
+| 自拍攝影測量（接待中心案場、重點街廓） | 無人機拍攝 → RealityCapture/Metashape → Cesium ion → 3D Tiles | 每案數萬～數十萬；最真實 | 建商天眼牆的獨賣素材 |
+| 加地形 | `VITE_CESIUM_ION_TOKEN`（Cesium World Terrain，ion Community 僅非商業） | 商用需 ion 付費方案 | 台北盆地平坦，優先度低 |
+
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 
 | | |
@@ -166,3 +206,5 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 | ![annotated](assets/v2-annotated.jpg) 標註模式：亮起的交易加編號 ①–③，對應左側「地圖標註」與來源晶片 | ![pin](assets/v2-pin.jpg) 釘在地圖上：台北101 的資料卡帶引線跟著物件 |
 | ![renewal](assets/v2-renewal.jpg) 「信義區有哪些都更單元」 | ![future](assets/v2-future-2028.jpg) 「2028 年南港會長出什麼」 |
 | ![street](assets/v2-street.jpg) 街景：南港軟體園區 | ![thermal](assets/v2-thermal.jpg) 熱感測 |
+| ![light clusters](assets/v2-light-clusters.jpg) PickPeak 日間主題：淺色底圖 + 白色量體，建物聚合成青色「N 棟」泡泡 | ![light xinyi](assets/v2-light-xinyi.jpg) 日間主題拉近信義計畫區：icon 標註（交易／執照／基建）與資料卡 |
+| ![timelapse](assets/v2-timelapse.jpg) 時光機：年份 HUD、當年新增量體長高 + 脈衝 | ![renewal sim](assets/v2-renewal-sim.jpg) 智慧都更模擬：地號拼成基地 → 容積量體 + 獎勵滑桿 |

@@ -9,7 +9,8 @@
     "server": "node server/index.mjs",
     "check": "node server/index.mjs --check",
     "data:build": "node data/build.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "tts:prerender": "node scripts/prerender-tts.mjs"
   },
   "keywords": [
     "cesium",

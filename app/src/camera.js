@@ -26,6 +26,20 @@ export class CameraRig {
   _tick() { const o = this.orbit; if (!o) return; o.heading += o.speed; this.camera.lookAt(o.target, new Cesium.HeadingPitchRange(o.heading, o.pitch, o.range)); }
   // camera interaction cancels orbit
   bindUserInterrupt(canvas) { const stop = () => this.orbit && this.stopOrbit(); canvas.addEventListener('pointerdown', stop); canvas.addEventListener('wheel', stop, { passive: true }); }
+  centerPoint() { const c = this.viewer.canvas; const win = new Cesium.Cartesian2(c.clientWidth / 2, c.clientHeight / 2); const ray = this.camera.getPickRay(win); let p = ray && this.viewer.scene.globe.pick(ray, this.viewer.scene); if (!p) p = this.camera.pickEllipsoid(win, this.viewer.scene.globe.ellipsoid); return p || null; }
+  // Re-aim the camera around the point at the screen centre with a new heading/pitch/range (keeps what the user is looking at).
+  aim({ heading, pitch, range } = {}) { const c = this.centerPoint(); if (!c) return false; this.stopOrbit(); const r = range ?? Cesium.Cartesian3.distance(this.camera.position, c); const h = heading == null ? this.camera.heading : heading; const p = Math.max(-89.9 * D2R, Math.min(-2 * D2R, pitch == null ? this.camera.pitch : pitch)); this.camera.lookAt(c, new Cesium.HeadingPitchRange(h, p, Math.max(30, r))); this.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); return true; }
+  animateAim(target, ms = 450) { // tween heading/pitch/range with ease-out
+    const c0 = this.centerPoint(); if (!c0) return; const h0 = this.camera.heading, p0 = this.camera.pitch, r0 = Cesium.Cartesian3.distance(this.camera.position, c0);
+    let h1 = target.heading == null ? h0 : target.heading; while (h1 - h0 > Math.PI) h1 -= 2 * Math.PI; while (h1 - h0 < -Math.PI) h1 += 2 * Math.PI;
+    const p1 = target.pitch == null ? p0 : target.pitch, r1 = target.range == null ? r0 : target.range; const t0 = performance.now(); cancelAnimationFrame(this._aimRaf);
+    const step = () => { const u = Math.min(1, (performance.now() - t0) / ms); const e = 1 - Math.pow(1 - u, 3); this.camera.lookAt(c0, new Cesium.HeadingPitchRange(h0 + (h1 - h0) * e, p0 + (p1 - p0) * e, r0 + (r1 - r0) * e)); this.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); if (u < 1) this._aimRaf = requestAnimationFrame(step); }; this.stopOrbit(); step();
+  }
+  rotateBy(deg) { this.animateAim({ heading: this.camera.heading + deg * D2R }); }
+  tiltBy(deg) { this.animateAim({ pitch: this.camera.pitch + deg * D2R }); }
+  zoomBy(factor) { const c = this.centerPoint(); if (!c) return; this.animateAim({ range: Cesium.Cartesian3.distance(this.camera.position, c) * factor }, 350); }
+  north() { this.animateAim({ heading: 0 }, 600); }
+  topDown(on) { this.animateAim({ pitch: (on ? -89.5 : -50) * D2R }, 700); }
   bounds() { // approximate lon/lat bounds of the current view via corner picks
     const c = this.viewer.canvas; const pts = [[0, 0], [c.clientWidth, 0], [0, c.clientHeight], [c.clientWidth, c.clientHeight], [c.clientWidth / 2, c.clientHeight / 2]]; const ll = [];
     for (const [x, y] of pts) { const win = new Cesium.Cartesian2(x, y); const ray = this.camera.getPickRay(win); let p = ray && this.viewer.scene.globe.pick(ray, this.viewer.scene); if (!p) p = this.camera.pickEllipsoid(win, this.viewer.scene.globe.ellipsoid); if (p) { const g = Cesium.Cartographic.fromCartesian(p); ll.push([g.longitude / D2R, g.latitude / D2R]); } }
