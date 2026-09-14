@@ -3,7 +3,7 @@
 > God's Eye View 的即時上帝視角 × FUNRAISE MCP 的台灣不動產資料 × 語音 × 多視角 × 時間軸。
 > 本 repo 是策略提案（繁體中文）與可互動原型；2026-09-14 由 Nelsen 委託 Claude 規劃與製作。
 
-**線上原型（claude.ai Artifact）**：ARTIFACT_URL_PLACEHOLDER
+**線上原型（claude.ai Artifact）**：https://claude.ai/code/artifact/699569fa-bcaa-4911-bcbe-b0cf78ea9807
 **本機開啟**：`prototype/dist/index.html`（單一 HTML，不需伺服器；語音辨識需 Chrome／Edge 並允許麥克風）
 
 ## 先讀這三份
