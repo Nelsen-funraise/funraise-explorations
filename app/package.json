@@ -1,0 +1,32 @@
+{
+  "name": "peaklens",
+  "version": "1.0.0",
+  "description": "睿鏡 PeakLens v2 — God's Eye View × FUNRAISE MCP on CesiumJS",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.mjs",
+    "check": "node server/index.mjs --check",
+    "data:build": "node data/build.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "keywords": [
+    "cesium",
+    "funraise",
+    "gods-eye-view",
+    "taipei",
+    "real-estate",
+    "mcp"
+  ],
+  "author": "FUNRAISE 方睿科技",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
+    "cesium": "^1.124.0",
+    "vite": "^6.4.3",
+    "vite-plugin-cesium": "^1.2.23"
+  }
+}

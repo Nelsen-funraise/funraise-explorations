@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>睿鏡 PeakLens</title>
+<meta name="description" content="God's Eye View × FUNRAISE MCP：台北不動產即時上帝視角（CesiumJS 版）">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230B1222%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%279%27 fill=%27none%27 stroke=%27%23F2B84B%27 stroke-width=%272.5%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%273.5%27 fill=%27%23F2B84B%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<div id="stage">
+  <div id="cesiumContainer" aria-label="台北 3D 不動產地圖" role="img"></div>
+  <div id="vignette"></div><div id="scan"></div>
+  <div id="loading"><div class="spinner"></div><div class="eyebrow">PEAKLENS · BOOT</div><div id="loadmsg">載入台北 3D 建物…</div></div>
+
+  <header id="topbar">
+    <div class="brand"><span class="name">睿鏡 <em>PeakLens</em></span><span class="sub">God's Eye View × FUNRAISE MCP · Taiwan · v2 Cesium</span></div>
+    <nav id="lenses" class="lenses" aria-label="視角"></nav>
+    <div class="status"><span class="live"><i></i><span id="mcpstat">FUNRAISE MCP</span></span><span id="datastamp"></span><span id="clock" class="mono">--:--:-- TPE</span></div>
+  </header>
+
+  <div id="readout" aria-live="polite"><span class="eyebrow">LENS</span><span class="line">正在載入…</span><span class="coords"></span></div>
+
+  <aside id="rail" aria-label="圖層與相機">
+    <div class="rail-group"><h4><span class="eyebrow">圖層 · Layers</span></h4><div id="layers" class="layer-list"></div></div>
+    <div class="rail-group"><h4><span class="eyebrow">相機 · Perspective</span></h4><div id="modes" class="seg"></div></div>
+    <div class="rail-group"><h4><span class="eyebrow">感測 · Sensor</span></h4><div id="sensors" class="seg"></div></div>
+    <div class="rail-group"><h4><span class="eyebrow">底圖 · Basemap</span></h4><div id="basemaps" class="seg"></div></div>
+    <div class="hint">左鍵拖曳平移 · 滾輪縮放 · 中鍵／Ctrl 拖曳旋轉俯仰 · <kbd>/</kbd> 指令 · <kbd>O</kbd> 環繞 <kbd>S</kbd> 街景 <kbd>C</kbd> 俯視 <kbd>T</kbd> 時光 <kbd>L</kbd> 換鏡 · <kbd>1</kbd>–<kbd>4</kbd> 感測</div>
+  </aside>
+
+  <aside id="inspector" aria-label="檢視面板">
+    <div><div class="eyebrow">LENS · 目標客群</div><h3 id="lens-title">—</h3><div id="lens-who" class="meta"></div></div>
+    <div id="lens-kpis" class="kpis"></div>
+    <div id="analysis" class="hidden"></div>
+    <div id="selection" class="hidden"></div>
+  </aside>
+
+  <div id="cinebar" class="hidden"><div class="eyebrow" id="cine-title">SCENE</div><div id="cine-text"></div></div>
+
+  <div id="console">
+    <div id="suggest"></div>
+    <div id="transcript" aria-live="polite"></div>
+    <div id="timeline"><span class="now">2012</span><input id="year" type="range" min="2012" max="2030" step="1" value="2026" aria-label="年份時間軸"><span class="now">2030</span><span id="yearlbl" class="yr">2026</span></div>
+    <div id="cmdbar">
+      <button id="mic" title="語音輸入（zh-TW）" aria-label="語音輸入"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <input id="cmd" type="text" placeholder="對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」「最近一年信義區上市公司買了什麼」…" autocomplete="off">
+      <button id="tts" title="語音回覆" aria-pressed="false">🔈</button>
+      <button id="agentmode" title="切換內建 agent / Claude 模式（需 server）" aria-pressed="false">內建</button>
+      <button id="scenes" title="電影式場景">▶ 場景</button>
+      <button id="send">送出</button>
+    </div>
+    <div id="mobilebar"><button id="m-layers">圖層／相機</button><button id="m-insp">面板</button><button id="m-tour">場景</button></div>
+  </div>
+  <div id="scenemenu" class="hidden"></div>
+  <div id="toast" role="status"></div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
