@@ -33,6 +33,7 @@ async function boot() {
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
   const rig = new CameraRig(viewer); rig.bindUserInterrupt(viewer.canvas);
   const sensors = createSensors(scene); const timeline = new Timeline(layers);
+  const overlay = createOverlay(scene, $('#overlay'));
   const state = { selected: null };
   const groundAt = (x, y) => { const win = new Cesium.Cartesian2(x, y); const ray = viewer.camera.getPickRay(win); let p = ray && scene.globe.pick(ray, scene); if (!p) p = viewer.camera.pickEllipsoid(win, scene.globe.ellipsoid); return p ? Cesium.Cartographic.fromCartesian(p) : null; };
 
@@ -50,7 +51,7 @@ async function boot() {
     districtCentroid: name => layers.districtCentroids.get(name) || null,
     visibleLayers: () => ui.visibleLayers(),
     entityByKey(key) { if (layers.byKey.has(key)) return layers.byKey.get(key); for (const [k, e] of layers.byKey) if (k.startsWith(key + ':')) return e; return null; },
-    pulse: (key, ms) => layers.pulse(key, ms),
+    pulse: (key, ms) => { layers.pulse(key, ms); if (typeof ui !== 'undefined') ui.registerPulse(key); },
     flyTo(lon, lat, o = {}) { if (rig.mode === 'orbit' || rig.mode === 'globe') rig.mode = 'city'; rig.flyTo(lon, lat, { range: o.range ?? 1500, pitch: o.pitch ?? -45, heading: o.heading ?? null, duration: o.duration ?? 2.2, done: o.done }); },
     city(lon, lat) { const c = map.center(); rig.city(lon ?? c.lon, lat ?? c.lat); },
     street: (lon, lat) => rig.street(lon, lat),
@@ -58,7 +59,7 @@ async function boot() {
     globe: () => rig.globe(),
   };
 
-  const ui = createUI({ map, data, basemap, layers, timeline, sensors, viewerApi: api, cameraMode: m => {
+  const ui = createUI({ map, data, basemap, layers, timeline, sensors, viewerApi: api, overlay, cameraMode: m => {
     const c = map.center();
     if (m === 'orbit') map.orbit(c.lon, c.lat, Math.min(Math.max(c.height * 0.9, 500), 7000), -35);
     else if (m === 'street') map.street(c.lon, c.lat);
@@ -80,8 +81,9 @@ async function boot() {
 
   /* ---- readout ---- */
   viewer.camera.percentageChanged = 0.02;
-  viewer.camera.changed.addEventListener(() => ui.updateReadout());
+  viewer.camera.changed.addEventListener(() => { ui.updateReadout(); ui.onCameraMove(); });
   viewer.camera.moveEnd.addEventListener(() => ui.updateReadout(true));
+  viewer.canvas.addEventListener('pointerdown', () => ui.onCameraMove(), { passive: true });
   setInterval(() => { if (rig.orbit) ui.updateReadout(); }, 1000);
 
   /* ---- go ---- */
@@ -89,8 +91,18 @@ async function boot() {
   $('#loading').classList.add('done');
   rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 4.5, done: () => ui.updateReadout(true) });
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
-  setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。`); }, 1500);
-  claude.probe().then(h => { if (h.ok) ui.setMcpStatus(`FUNRAISE MCP · server ready · ${h.model}`); });
+  setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
+  claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
   window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig };
+}
+/* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
+function createOverlay(scene, container) {
+  const items = new Set(); const toWin = Cesium.SceneTransforms.worldToWindowCoordinates || Cesium.SceneTransforms.wgs84ToWindowCoordinates;
+  const occ = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, scene.camera.position); const scratch = new Cesium.Cartesian2();
+  scene.postRender.addEventListener(() => {
+    if (!items.size) return; occ.cameraPosition = scene.camera.position;
+    for (const it of items) { const win = toWin(scene, it.pos, scratch); const vis = win && occ.isPointVisible(it.pos) && win.x > -200 && win.y > -200 && win.x < scene.canvas.clientWidth + 200 && win.y < scene.canvas.clientHeight + 200; if (!vis) { it.el.classList.add('behind'); continue; } it.el.classList.remove('behind'); it.el.style.transform = `translate(${win.x.toFixed(1)}px, ${win.y.toFixed(1)}px)`; if (it.onPlace) it.onPlace(win); }
+  });
+  return { add(lon, lat, height, el, onPlace) { const it = { pos: Cesium.Cartesian3.fromDegrees(lon, lat, height || 0), el, onPlace }; container.appendChild(el); items.add(it); return { remove() { items.delete(it); el.remove(); } }; }, get size() { return items.size; } };
 }
 boot().catch(e => { console.error(e); setMsg('啟動失敗：' + (e && e.message || e) + '。需要支援 WebGL 2 的瀏覽器。'); const sp = document.querySelector('#loading .spinner'); if (sp) sp.style.display = 'none'; });

@@ -76,7 +76,7 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 > 建議設備：Chrome，1920×1080 以上，開聲音（旁白用系統 zh-TW 語音）。開場前先開好 `npm run dev`，讓 OSM 建物載完（約 5 秒）。
 
-**0:00 開場（自動）** 地球 → 4.5 秒俯衝進信義計畫區。畫面上 5.7 萬棟真實建物、金色是 A 辦、青色是規劃中、紫色是都更多邊形。
+**0:00 開場（自動）** 地球 → 4.5 秒俯衝進信義計畫區。先按 `D` 切到「沉浸」給第一印象，要看數字再切「標註」。畫面上 5.7 萬棟真實建物、金色是 A 辦、青色是規劃中、紫色是都更多邊形。
 > 一句話：「這是 God's Eye View 的底座，但每一個亮起的東西都是 FUNRAISE MCP 的一筆真實資料。」
 
 **0:30 場景 ① 投資人巡航**（按「▶ 場景」→ 資本流向）
@@ -126,6 +126,37 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 - **語音**：目前用瀏覽器 Web Speech（zh-TW 辨識 + 合成）；GEV 的即時語音（OpenAI Realtime）可換成 Anthropic 語音管線或串流 TTS，見 `docs/06-architecture.md`。
 - **資料是快照**：Claude 模式接上 FUNRAISE MCP 後即為即時；快照仍保留作為離線／展示備援。
 - **下一步**（對應 `docs/07-roadmap.md` Phase 1）：接待中心天眼牆版（大螢幕 + 語音 + 自動場景循環）、Deal/Move Radar 每日推播、選址提案一鍵匯出 PickPeak Solutions。
+
+## 8. 方向 C · 自適應 HUD（PickPeak Design System）
+
+介面 chrome 只用 PickPeak 品牌 token（藍本藍 `#16A4C0` 為選取／啟用／AI；人文橘 `#FCBE83` 為金額、熱度、人為活動；建構灰 `#1E2939` 80% 為夜間面板；思源黑體 + Inter；The Glow 只給 AI 指令膠囊與「決策之心」）。圖層資料色是獨立類別盤，刻意避開選址藍，讓「被選到的東西」永遠一眼可辨（待 DS owner 確認）。
+
+**三種密度，同一套元件**（右上角切換，快捷鍵 `D`，也可以說「沉浸」「標註模式」）：
+
+| 密度 | 畫面 | 適合 |
+|---|---|---|
+| 沉浸 | 只留品牌、鏡、指令膠囊、讀數；左右面板收成 28 px 邊緣把手（滑過暫時展開、點一下釘住）；回答變成地圖上方的字幕 + 來源晶片 | 接待中心天眼牆、語音導覽、電影式場景（場景播放時自動切換） |
+| 平衡（預設） | 左側資料面板 + 收合的圖層欄；**相機一動，面板 3.5 秒內自動淡出**，停下來再浮回 | 日常瀏覽、Mike 的 demo |
+| 標註 | 資料欄全開；**agent 讓物件亮起時自動加編號 ①–⑧**，對應左側「地圖標註」清單（點清單飛過去）；工具呼叫完整展開 + 「來源與工具呼叫」區塊 | 桌機分析、簡報截圖 |
+
+**釘在地圖上**：任何選取物件的面板都有「📌 釘在地圖上」，卡片變成帶引線的地圖標註，跟著物件移動、被地球遮住時自動隱藏；再按一次取消。標註與釘選都是 HTML overlay（`SceneTransforms.worldToWindowCoordinates` 每幀定位），不進 Cesium 場景，所以可以直接沿用 DS 元件。
+
+**來源晶片（Provenance）**：每個回答下方顯示「N 次 MCP 呼叫 · ms · 快照日期／FUNRAISE MCP 即時」，點開看每個工具的參數與耗時。
+
+## 9. FUNRAISE MCP 即時連線與 OAuth（產品邏輯）
+
+`server/index.mjs` 對 `FUNRAISE_MCP_URL`（預設 `https://connector.mcp.funraise.ai/t/…/mcp`）做標準 MCP OAuth 2.1：`/.well-known/oauth-protected-resource` → 授權伺服器 metadata → 動態註冊 client（`token_endpoint_auth_method: none`）→ PKCE S256 → `/api/mcp/callback` 換 token（含 refresh）→ 存在 `server/.mcp-token.json`（已 gitignore）。
+
+規則：**MCP 連不上或未授權時，產品不會壞**——右上角狀態膠囊顯示「FUNRAISE MCP · 點此授權」並在開場 toast 提醒；agent 先用 2026-09-14 快照回答並在來源晶片標「快照」。授權完成（彈出視窗自動關閉）後狀態變 LIVE，並自動切到 Claude 模式，之後的問題即時查 FUNRAISE MCP。
+
+| 狀態 | 膠囊 | 行為 |
+|---|---|---|
+| `live` | 綠點 · LIVE | Claude 模式帶 `mcp_servers`（access token），回答標「FUNRAISE MCP 即時」 |
+| `unauthorized` | 橘點閃爍 · 點此授權 | 點擊開 `/api/mcp/authorize` 彈窗；回答先用快照 |
+| `unreachable` / `error` | 灰點 · 連不上 · 快照 | 點擊重新探測；回答用快照 |
+| `noserver` | 灰點 · 快照（本地） | 未啟動 agent server：內建規則式 agent + 快照 |
+
+`.env` 可選 `FUNRAISE_MCP_TOKEN`（靜態 token 跳過 OAuth）、`FUNRAISE_MCP_CLIENT_ID/SECRET`（預先註冊的 client）、`PUBLIC_URL`（server 對外網址，OAuth redirect 用）。`npm run check` 會探測一次並印出狀態。
 
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生）
 

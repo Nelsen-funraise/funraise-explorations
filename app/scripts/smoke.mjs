@@ -13,7 +13,7 @@ await new Promise(r => setTimeout(r, 800));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY; const browser = await pw.chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy: proxy ? { server: proxy, bypass: 'localhost,127.0.0.1' } : undefined, args: [...(proxy ? [] : ['--no-proxy-server']), '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
-const errors = []; page.on('response', r => { if (r.status() >= 400) errors.push('http ' + r.status() + ' ' + r.url()); }); page.on('pageerror', e => errors.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') { const t = m.text(); if (!/fonts.googleapis|ERR_CONNECTION|net::|favicon|images.pickpeak/.test(t)) errors.push(m.type() + ': ' + t.slice(0, 300)); } });
+const errors = []; page.on('response', r => { if (r.status() >= 400) if (!/favicon/.test(r.url())) errors.push('http ' + r.status() + ' ' + r.url()); }); page.on('pageerror', e => errors.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') { const t = m.text(); if (!/fonts.googleapis|ERR_CONNECTION|net::|favicon|images.pickpeak/.test(t)) errors.push(m.type() + ': ' + t.slice(0, 300)); } });
 const t0 = Date.now();
 try {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
@@ -30,6 +30,12 @@ try {
   console.log('D', JSON.stringify(await say('2028 年南港會長出什麼', 5000))); await page.screenshot({ path: path.join(out, 'shot-5-future.jpg'), type: 'jpeg', quality: 84 });
   await page.evaluate(() => { window.PL.ui.setSensor('thermal'); }); await wait(1500); await page.screenshot({ path: path.join(out, 'shot-6-thermal.jpg'), type: 'jpeg', quality: 84 }); await page.evaluate(() => window.PL.ui.setSensor('normal'));
   console.log('E', JSON.stringify(await say('街景模式看南港軟體園區', 5000))); await page.screenshot({ path: path.join(out, 'shot-7-street.jpg'), type: 'jpeg', quality: 84 });
+  // Direction C: density modes, numbered callouts, pins
+  await page.evaluate(() => window.PL.ui.setDensity('immersive')); await wait(1200); await page.screenshot({ path: path.join(out, 'shot-10-immersive.jpg'), type: 'jpeg', quality: 84 });
+  await page.evaluate(() => window.PL.ui.setDensity('annotated')); console.log('F', JSON.stringify(await say('最近一年信義區上市公司買了什麼', 5000))); await page.screenshot({ path: path.join(out, 'shot-11-annotated.jpg'), type: 'jpeg', quality: 84 });
+  const callouts = await page.evaluate(() => ({ callouts: document.querySelectorAll('#overlay .callout-anchor').length, list: document.querySelector('#callouts') && document.querySelector('#callouts').textContent.slice(0, 80), pinsSection: !!document.querySelector('[data-pin]') })); console.log('callouts', JSON.stringify(callouts));
+  await page.evaluate(() => { const b = window.PL.data.buildings.find(x => /101/.test(x.name)); window.PL.ui.select(b, 'stock'); window.PL.ui.pin(b, 'stock'); window.PL.ui.setDensity('balanced'); window.PL.map.flyTo(b.lon, b.lat, { range: 1400, pitch: -40, duration: 0.2 }); }); await wait(2500); await page.screenshot({ path: path.join(out, 'shot-12-pin.jpg'), type: 'jpeg', quality: 84 });
+  const pinState = await page.evaluate(() => ({ pins: document.querySelectorAll('#overlay .anchor.pin').length, behind: document.querySelectorAll('#overlay .anchor.behind').length, mcp: document.querySelector('#mcpstat span').textContent })); console.log('pin', JSON.stringify(pinState));
   await page.evaluate(() => window.PL.director.play('investor')); await wait(9000); await page.screenshot({ path: path.join(out, 'shot-8-scene.jpg'), type: 'jpeg', quality: 84 });
   const cine = await page.evaluate(() => document.querySelector('#cine-text').textContent); console.log('scene text:', cine);
   await page.evaluate(() => window.PL.director.stop());
