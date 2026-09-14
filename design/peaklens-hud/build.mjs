@@ -68,8 +68,10 @@ const bars = () => `<div style="display:flex;flex-direction:column;gap:6px">${ba
 const timeline = (x, y, w, compact = false) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;display:flex;align-items:center;gap:10px;padding:${compact ? '6px 12px' : '10px 14px'};${panel}"><span style="font-family:${MONO};font-size:10px;color:${T.gray[400]}">2012</span><div style="flex:1;height:4px;border-radius:2px;background:rgba(74,85,101,.5);position:relative"><div style="position:absolute;left:0;top:0;height:100%;width:78%;border-radius:2px;background:linear-gradient(90deg, ${T.blue[700]}, ${T.blue[400]})"></div><div style="position:absolute;left:78%;top:50%;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);background:${T.gray[50]};border:3px solid ${T.blue[500]}"></div></div><span style="font-family:${MONO};font-size:10px;color:${T.gray[400]}">2030</span><span style="font-family:${MONO};font-size:14px;font-weight:600;color:${T.blue[300]}">2026</span></div>`;
 const toolRow = (name, args, res) => `<div style="display:grid;grid-template-columns:8px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(74,85,101,.3);font-family:${MONO};font-size:10.5px"><span style="width:6px;height:6px;border-radius:50%;background:${T.success}"></span><span style="color:${T.gray[200]};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b style="color:${T.gray[50]};font-weight:600">${name}</b> <span style="color:${T.gray[500]}">${args}</span></span><span style="color:${T.gray[400]}">${res}</span></div>`;
 const answer = (text, w = 640, bottom = 90, center = true) => `<div style="position:absolute;${center ? 'left:50%;transform:translateX(-50%);' : ''}bottom:${bottom}px;width:${w}px;padding:12px 16px;${panel};border-left:2px solid ${T.blue[500]}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center">${eyebrow('睿鏡 · 回答', T.blue[300])}${provenance(2, 384)}</div><div style="margin-top:6px;font-size:14px;line-height:1.55;color:${T.gray[100]}">${text}</div></div>`;
-const bg = (img) => `background:${T.gray[950]} url(./${img}) center/cover no-repeat`;
+const bg = (img) => `background:${T.gray[950]}`;
+const mapImg = (img) => `<img src="${img}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">`;
 const frame = (img, inner) => `<div style="position:relative;width:1440px;height:900px;overflow:hidden;${bg(img)};font-family:${FONT}">
+  ${mapImg(img)}
   <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(3,7,18,.55) 0%, rgba(3,7,18,0) 22%, rgba(3,7,18,0) 70%, rgba(3,7,18,.5) 100%)"></div>
   ${inner}
 </div>`;
@@ -93,6 +95,7 @@ const immersive = head('沉浸') + frame('map-xinyi.jpg', `
 // B · 標註：map + persistent data rail; numbered callouts tie map to rail so nothing overlaps.
 const annotated = head('標註') + `<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:${T.gray[950]};font-family:${FONT};display:grid;grid-template-columns:1fr 372px">
   <div style="position:relative;overflow:hidden;${bg('map-nangang.jpg')}">
+    ${mapImg('map-nangang.jpg')}
     <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(3,7,18,.5) 0%, rgba(3,7,18,0) 20%)"></div>
     <div style="position:absolute;left:16px;right:16px;top:12px;display:flex;align-items:center;justify-content:space-between;gap:16px">${brand()}${lensPills(1)}${densityControl(2)}</div>
     ${readout('南港區 · 2028 年 · 規劃中 3 · 建照 9 · 都更 11', '25.054N 121.606E · 2.4 km · -36°', '50%')}
@@ -119,6 +122,7 @@ const annotated = head('標註') + `<div style="position:relative;width:1440px;h
 // C · 自適應（Main）：one system, three densities — a tweak chip switches the state.
 const adaptiveBody = `
 <div style="position:relative;width:1440px;height:900px;overflow:hidden;${bg('map-city.jpg')};font-family:${FONT}">
+  ${mapImg('map-city.jpg')}
   <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(3,7,18,.55) 0%, rgba(3,7,18,0) 22%, rgba(3,7,18,0) 70%, rgba(3,7,18,.5) 100%)"></div>
   <div style="position:absolute;left:16px;right:16px;top:12px;display:flex;align-items:center;justify-content:space-between;gap:16px">${brand()}<sc-if value="{{showLens}}" hint-placeholder-val="{{ true }}">${lensPills(3)}</sc-if><div style="display:flex;align-items:center;gap:10px"><div style="display:flex;align-items:center;gap:2px;padding:2px;border-radius:6px;background:rgba(30,41,57,.8);border:1px solid rgba(74,85,101,.65)"><div style="padding:5px 10px;border-radius:4px;font-size:12px;font-weight:500;line-height:16px;color:{{c0}};background:{{b0}}">沉浸</div><div style="padding:5px 10px;border-radius:4px;font-size:12px;font-weight:500;line-height:16px;color:{{c1}};background:{{b1}}">平衡</div><div style="padding:5px 10px;border-radius:4px;font-size:12px;font-weight:500;line-height:16px;color:{{c2}};background:{{b2}}">標註</div></div><sc-if value="{{showStatus}}" hint-placeholder-val="{{ true }}">${status()}</sc-if></div></div>
   ${readout('台北市 · 商辦 156 · 規劃中 13 · 都更 81 · 法人交易 33 · 公建 25', '25.045N 121.555E · 9.5 km · -56°')}
@@ -177,7 +181,8 @@ const tokens = head('Tokens') + `<div style="position:relative;width:1440px;min-
 </div>` + tail();
 
 // 現況：the app as shipped today (screenshot), for side-by-side comparison
-const current = head('現況') + `<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:${T.gray[950]} url(./current.jpg) center/cover no-repeat;font-family:${FONT}">
+const current = head('現況') + `<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:${T.gray[950]};font-family:${FONT}">
+  ${mapImg('current.jpg')}
   <div style="position:absolute;left:16px;bottom:16px;padding:8px 12px;border-radius:6px;background:rgba(3,7,18,.7);border:1px solid rgba(74,85,101,.6);font-size:12px;color:${T.gray[200]}">v2 現況（2026-09-14）：金色系自訂 HUD，左右面板＋底部對話區固定佔畫面約 45%。</div>
 </div>` + tail();
 
