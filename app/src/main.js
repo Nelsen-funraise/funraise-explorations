@@ -81,9 +81,12 @@ async function boot() {
 
   /* ---- readout ---- */
   viewer.camera.percentageChanged = 0.02;
-  viewer.camera.changed.addEventListener(() => { ui.updateReadout(); ui.onCameraMove(); });
+  viewer.camera.changed.addEventListener(() => ui.updateReadout());
   viewer.camera.moveEnd.addEventListener(() => ui.updateReadout(true));
+  // auto-hide only for the user's own camera gestures (drag / wheel / pinch), not for agent or scene flights
   viewer.canvas.addEventListener('pointerdown', () => ui.onCameraMove(), { passive: true });
+  viewer.canvas.addEventListener('pointermove', e => { if (e.buttons) ui.onCameraMove(); }, { passive: true });
+  viewer.canvas.addEventListener('wheel', () => ui.onCameraMove(), { passive: true });
   setInterval(() => { if (rig.orbit) ui.updateReadout(); }, 1000);
 
   /* ---- go ---- */

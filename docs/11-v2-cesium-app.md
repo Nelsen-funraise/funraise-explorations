@@ -158,10 +158,11 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 `.env` 可選 `FUNRAISE_MCP_TOKEN`（靜態 token 跳過 OAuth）、`FUNRAISE_MCP_CLIENT_ID/SECRET`（預先註冊的 client）、`PUBLIC_URL`（server 對外網址，OAuth redirect 用）。`npm run check` 會探測一次並印出狀態。
 
-## 7. 截圖（無頭 Chromium 冒煙測試自動產生）
+## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 
 | | |
 |---|---|
-| ![overview](assets/v2-overview.jpg) 開場：信義計畫區俯視 | ![renewal](assets/v2-renewal.jpg) 「信義區有哪些都更單元」：多邊形亮起 + 各區件數長條圖 |
-| ![future](assets/v2-future-2028.jpg) 「2028 年南港會長出什麼」：時間軸跳到 2028 | ![street](assets/v2-street.jpg) 街景模式：南港軟體園區（OSM 樓高） |
-| ![thermal](assets/v2-thermal.jpg) 熱感測（GLSL PostProcessStage） | |
+| ![overview](assets/v2-overview.jpg) 平衡模式：PickPeak chrome、讀數膠囊、右側圖層邊緣把手 | ![immersive](assets/v2-immersive.jpg) 沉浸模式：只留鏡、指令膠囊與字幕，面板收成邊緣把手 |
+| ![annotated](assets/v2-annotated.jpg) 標註模式：亮起的交易加編號 ①–③，對應左側「地圖標註」與來源晶片 | ![pin](assets/v2-pin.jpg) 釘在地圖上：台北101 的資料卡帶引線跟著物件 |
+| ![renewal](assets/v2-renewal.jpg) 「信義區有哪些都更單元」 | ![future](assets/v2-future-2028.jpg) 「2028 年南港會長出什麼」 |
+| ![street](assets/v2-street.jpg) 街景：南港軟體園區 | ![thermal](assets/v2-thermal.jpg) 熱感測 |
