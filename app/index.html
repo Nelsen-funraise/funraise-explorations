@@ -22,6 +22,7 @@
     <nav id="lenses" class="lenses" aria-label="視角"></nav>
     <div class="status">
       <div id="density" class="density" role="group" aria-label="HUD 密度"></div>
+      <button id="theme" class="pill" title="切換主題：夜間戰情室 / PickPeak 日間（N）">☀︎ 日間</button>
       <button id="mcpstat" class="down" title="FUNRAISE MCP 連線狀態"><i></i><span>FUNRAISE MCP · 快照</span></button>
       <span id="datastamp"></span><span id="clock" class="mono">--:--:-- TPE</span>
     </div>
@@ -49,6 +50,14 @@
     <div id="provenance" class="sect hidden"></div>
   </aside>
 
+  <div id="gimbal" class="panel" aria-label="相機控制">
+    <div id="compass" title="拖曳旋轉方位 · 點 N 回正北"><svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-opacity=".35"/><g id="compass-rose"><path d="M32 6 L38 32 L32 30 Z" fill="var(--blue-500)"/><path d="M32 58 L26 32 L32 34 Z" fill="currentColor" fill-opacity=".45"/><path d="M6 32 L32 26 L30 32 Z M58 32 L32 38 L34 32 Z" fill="currentColor" fill-opacity=".25"/></g><text x="32" y="17" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor" font-family="Inter, sans-serif">N</text></svg></div>
+    <div class="grows">
+      <div class="gcol"><button id="g-tilt-up" title="抬高視角（↑）">⤒</button><input id="g-tilt" type="range" min="2" max="90" step="1" value="55" aria-label="俯角" title="俯角"><button id="g-tilt-down" title="壓低視角（↓）">⤓</button></div>
+      <div class="gcol"><button id="g-zoom-in" title="拉近（+）">+</button><button id="g-2d" title="正俯視 / 3D 切換">2D</button><button id="g-zoom-out" title="拉遠（−）">−</button></div>
+      <div class="gcol"><button id="g-rot-l" title="左轉（←）">↺</button><button id="g-north" title="回正北（Home）">N</button><button id="g-rot-r" title="右轉（→）">↻</button></div>
+    </div>
+  </div>
   <div id="cinebar" class="panel hidden"><div class="eyebrow" id="cine-title">SCENE</div><div id="cine-text"></div></div>
   <div id="caption" class="panel"><div class="head"><span class="eyebrow">睿鏡 · 回答</span><span id="caption-prov"></span></div><div id="caption-text"></div></div>
 

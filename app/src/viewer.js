@@ -6,6 +6,7 @@ export const BASEMAPS = {
   nlsc_emap: { name: '電子地圖（國土測繪中心）', url: 'https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', credit: '國土測繪中心 通用版電子地圖 (NLSC)', max: 19 },
   esri: { name: '衛星影像（Esri World Imagery）', url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', credit: 'Esri, Maxar, Earthstar Geographics', max: 19 },
   osm: { name: 'OpenStreetMap', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', credit: '© OpenStreetMap contributors', max: 19 },
+  esri_light: { name: '淺灰底圖（Esri Light Gray）', url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', credit: 'Esri, HERE, Garmin, © OpenStreetMap contributors', max: 16, light: true },
 };
 
 export async function createViewer(container, opts = {}) {
@@ -32,8 +33,10 @@ export async function createViewer(container, opts = {}) {
   scene.screenSpaceCameraController.minimumZoomDistance = 40;
   scene.screenSpaceCameraController.maximumZoomDistance = 4.0e6;
   scene.screenSpaceCameraController.enableCollisionDetection = true;
-  scene.screenSpaceCameraController.tiltEventTypes = [Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH, { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }, { eventType: Cesium.CameraEventType.RIGHT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
-  scene.screenSpaceCameraController.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH, Cesium.CameraEventType.RIGHT_DRAG];
+  // Gestures: left-drag pan · right-drag (or middle / ctrl+left) rotate heading + tilt · wheel / pinch zoom — like Google Earth
+  scene.screenSpaceCameraController.tiltEventTypes = [Cesium.CameraEventType.RIGHT_DRAG, Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH, { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+  scene.screenSpaceCameraController.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
+  scene.screenSpaceCameraController.inertiaSpin = 0.85; scene.screenSpaceCameraController.inertiaTranslate = 0.88; scene.screenSpaceCameraController.inertiaZoom = 0.85;
   viewer.cesiumWidget.creditContainer.style.display = 'none';
 
   // global low-res fallback beneath the Taiwan-only NLSC tiles (bundled with Cesium, offline): Natural Earth II
@@ -46,9 +49,18 @@ export async function createViewer(container, opts = {}) {
     base.layer = viewer.imageryLayers.addImageryProvider(provider); base.key = key; applyTint();
   };
   const applyTint = () => {
-    const l = base.layer; if (!l) return;
-    if (base.night) { l.brightness = base.key === 'nlsc_emap' ? 0.62 : 0.6; l.contrast = 1.22; l.saturation = base.key === 'nlsc_emap' ? 0.3 : 0.55; l.hue = 0.08; l.gamma = 1.05; }
+    const l = base.layer; if (!l) return; const def = BASEMAPS[base.key] || {};
+    if (base.night && !def.light) { l.brightness = base.key === 'nlsc_emap' ? 0.62 : 0.6; l.contrast = 1.22; l.saturation = base.key === 'nlsc_emap' ? 0.3 : 0.55; l.hue = 0.08; l.gamma = 1.05; }
+    else if (def.light) { l.brightness = 1.02; l.contrast = 1.0; l.saturation = 0.9; l.hue = 0; l.gamma = 1; }
     else { l.brightness = 1; l.contrast = 1; l.saturation = 1; l.hue = 0; l.gamma = 1; }
+  };
+  const setTheme = (theme) => { // 'dark' 夜間戰情室 · 'light' PickPeak 日間
+    base.theme = theme; const light = theme === 'light';
+    scene.globe.baseColor = Cesium.Color.fromCssColorString(light ? '#E5E7EB' : '#0a1020'); scene.backgroundColor = Cesium.Color.fromCssColorString(light ? '#F3F4F6' : '#04070f');
+    scene.skyAtmosphere.brightnessShift = light ? 0.05 : -0.3; scene.fog.density = light ? 0.00018 : 0.00025; scene.globe.showGroundAtmosphere = true;
+    // Natural Earth II is the offline/fallback ground under the tile basemap: in light theme wash it to a pale canvas so a slow or failed tile layer still reads as PickPeak-light, not green relief.
+    const ne = viewer.imageryLayers.get(0); if (ne && ne !== base.layer) { ne.brightness = light ? 1.6 : 0.55; ne.saturation = light ? 0.22 : 0.6; ne.contrast = light ? 0.85 : 1; ne.alpha = light ? 0.55 : 1; }
+    base.night = !light; applyTint();
   };
   setBasemap(opts.basemap || 'nlsc_photo');
 
@@ -57,5 +69,5 @@ export async function createViewer(container, opts = {}) {
   if (gkey) { try { Cesium.GoogleMaps.defaultApiKey = gkey; google = await Cesium.createGooglePhotorealistic3DTileset(); scene.primitives.add(google); } catch (e) { console.warn('Google 3D Tiles unavailable', e); } }
   if (ionToken) { try { viewer.terrainProvider = await Cesium.createWorldTerrainAsync(); } catch (e) { console.warn('World terrain unavailable', e); } }
 
-  return { viewer, scene, setBasemap, setNight: (on) => { base.night = on; applyTint(); }, get basemapKey() { return base.key; }, google };
+  return { viewer, scene, setBasemap, setNight: (on) => { base.night = on; applyTint(); }, setTheme, get basemapKey() { return base.key; }, get theme() { return base.theme || 'dark'; }, google };
 }

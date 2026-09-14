@@ -8,3 +8,4 @@ app/.env.local
 design/**/*.html
 !design/**/*.dc.html
 app/server/.mcp-token.json
+app/server/.tts-cache/

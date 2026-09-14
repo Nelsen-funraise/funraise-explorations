@@ -10,6 +10,7 @@ import { Agent } from './agent/agent.js';
 import { ClaudeClient } from './agent/claudeClient.js';
 import { SceneDirector } from './scenes.js';
 import { createUI } from './ui.js';
+import { RenewalEnvelope } from './renewal.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -26,20 +27,20 @@ async function boot() {
   setMsg('載入 FUNRAISE 資料快照…');
   const [data, basemap] = await Promise.all([fetchJSON('./data/peaklens.json'), fetchJSON('./data/taipei_basemap.json')]);
 
-  let osm = null;
-  if (!api.google) { try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`)); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); } }
+  let osm = null; let savedTheme = 'light'; try { savedTheme = localStorage.getItem('pl.theme') || 'light'; } catch { /* private mode */ }
+  if (!api.google) { try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`), { palette: savedTheme === 'light' ? 'light' : 'dark' }); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); } }
 
   setMsg('建立 FUNRAISE 圖層…');
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
   const rig = new CameraRig(viewer); rig.bindUserInterrupt(viewer.canvas);
   const sensors = createSensors(scene); const timeline = new Timeline(layers);
-  const overlay = createOverlay(scene, $('#overlay'));
+  const overlay = createOverlay(scene, $('#overlay')); const envelope = new RenewalEnvelope(viewer);
   const state = { selected: null };
   const groundAt = (x, y) => { const win = new Cesium.Cartesian2(x, y); const ray = viewer.camera.getPickRay(win); let p = ray && scene.globe.pick(ray, scene); if (!p) p = viewer.camera.pickEllipsoid(win, scene.globe.ellipsoid); return p ? Cesium.Cartographic.fromCartesian(p) : null; };
 
   /* ---- map facade shared by the rule-based agent, Claude tool executor and the scene director ---- */
   const map = {
-    data, basemap, osm, layerKeys: Object.keys(LAYERS), layerName: k => (LAYERS[k] || { name: k }).name,
+    data, basemap, osm, rig, envelope, layerKeys: Object.keys(LAYERS), layerName: k => (LAYERS[k] || { name: k }).name,
     get year() { return timeline.year; }, setYear: y => timeline.set(y),
     get mode() { return timeline.lapse ? 'timelapse' : rig.mode; },
     get selected() { return state.selected; }, set selected(v) { state.selected = v; },
@@ -75,9 +76,9 @@ async function boot() {
   /* ---- picking ---- */
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
   const pickPL = pos => { try { const p = scene.pick(pos); const id = p && p.id; const prop = id && id.properties && id.properties.pl; return prop ? prop.getValue(viewer.clock.currentTime) : null; } catch { return null; } };
-  handler.setInputAction(m => { const pl = pickPL(m.position); if (pl) { map.pulse(pl.key, 6000); ui.select(pl.item, pl.layer); } else ui.select(null); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  handler.setInputAction(m => { const picked = scene.pick(m.position); if (picked && picked.id && picked.id.cluster) { const ents = picked.id.cluster; let x = 0, y = 0, n = 0; for (const e of ents) { const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; if (pl && pl.item.lat) { x += pl.item.lon; y += pl.item.lat; n++; } } if (n) map.flyTo(x / n, y / n, { range: Math.max(900, 260 * Math.sqrt(n) * 2), pitch: -48 }); return; } const pl = pickPL(m.position); if (pl) { map.pulse(pl.key, 6000); ui.select(pl.item, pl.layer); } else ui.select(null); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   handler.setInputAction(m => { const pl = pickPL(m.position); const it = pl && pl.item; if (it && it.lat) map.flyTo(it.lon, it.lat, { range: pl.layer === 'stock' ? 650 : 1500, pitch: -35 }); else if (it && it._c) map.flyTo(it._c[0], it._c[1], { range: 1200, pitch: -40 }); }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-  let hoverT = 0; handler.setInputAction(m => { const now = performance.now(); if (now - hoverT < 90) return; hoverT = now; viewer.canvas.style.cursor = pickPL(m.endPosition) ? 'pointer' : ''; }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  let hoverT = 0; handler.setInputAction(m => { const now = performance.now(); if (now - hoverT < 90) return; hoverT = now; const picked = scene.pick(m.endPosition); viewer.canvas.style.cursor = (picked && picked.id && (picked.id.cluster || (picked.id.properties && picked.id.properties.pl))) ? 'pointer' : ''; }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
   /* ---- readout ---- */
   viewer.camera.percentageChanged = 0.02;
@@ -90,7 +91,7 @@ async function boot() {
   setInterval(() => { if (rig.orbit) ui.updateReadout(); }, 1000);
 
   /* ---- go ---- */
-  agent.setLens('occupier'); ui.setSensor('normal'); ui.setNight(true);
+  agent.setLens('occupier'); ui.setSensor('normal');
   $('#loading').classList.add('done');
   rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 4.5, done: () => ui.updateReadout(true) });
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');

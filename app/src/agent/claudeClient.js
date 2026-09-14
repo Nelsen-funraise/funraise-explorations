@@ -35,6 +35,8 @@ export class ClaudeClient {
       case 'set_year': { m.setYear(input.year); return { ok: true, year: m.year }; }
       case 'set_sensor': { ui.setSensor(input.sensor || 'normal'); return { ok: true }; }
       case 'set_density': { ui.setDensity(input.density || 'balanced'); return { ok: true, density: ui.density }; }
+      case 'simulate_renewal': { const u = (m.data.urban_renewal || []).find(x => x.id === input.unit_id || (input.name && (x.name || '').includes(input.name))); if (!u) return { ok: false, error: 'unknown unit', available: (ui.simUnits ? ui.simUnits() : []).map(x => ({ id: x.id, name: x.name })) }; const r = ui.simulateRenewal(u, { bonus: input.bonus }); return { ok: true, unit: u.name, site_sqm: Math.round(r.siteArea), parcels: r.parcelCount, zone: r.zoning ? r.zoning.zone_short : null, far: r.far, far_known: r.farKnown, bonus: r.bonus, total_floor_area_sqm: Math.round(r.totalFloorArea), floors: r.floors, height_m: Math.round(r.height), oldest_permit_year: r.oldestYear, difficulty: r.difficulty, assumptions: r.notes }; }
+      case 'set_theme': { ui.setTheme(input.theme || 'light'); return { ok: true, theme: ui.theme }; }
       case 'pin': { const e = m.entityByKey(input.key); if (!e) return { ok: false, error: 'unknown key' }; const pl = e.properties.pl.getValue(); ui.pin(pl.item, pl.layer); return { ok: true }; }
       case 'highlight': { for (const k of input.keys || []) m.pulse(k, input.ms || 8000); return { ok: true, count: (input.keys || []).length }; }
       case 'get_view_state': return this.viewState();

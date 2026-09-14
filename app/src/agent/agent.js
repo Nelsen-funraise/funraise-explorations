@@ -10,8 +10,8 @@ const distM = (a, b) => Math.hypot((a[0] - b[0]) * 111320 * Math.cos(((a[1] + b[
 export const LENSES = {
   investor: { name: '投資人鏡', short: '投資', color: '#FF7A59', layers: ['mops', 'stock', 'heat', 'mrt', 'infra'], who: '壽險／REITs／家族辦公室／私募',
     suggest: ['最近一年信義區上市公司買了什麼', '比較信義基隆商圈和民生敦北商圈的租金', '環繞模式 台北101', '南港最近的資本流向', '切換開發商視角'] },
-  developer: { name: '開發商鏡', short: '開發', color: '#B48CFF', layers: ['renewal', 'zones', 'licenses', 'future', 'mrt', 'infra'], who: '建商／都更實施者／地主整合／建經',
-    suggest: ['信義區有哪些都更單元', '這裡容積率多少', '2028 年南港會長出什麼', '顯示建照', '帶我去臺北機廠'] },
+  developer: { name: '開發商鏡', short: '開發', color: '#B48CFF', layers: ['renewal', 'zones', 'licenses', 'future', 'mrt', 'infra', 'parcels'], who: '建商／都更實施者／地主整合／建經',
+    suggest: ['模擬兒福B1-2及B3-2都更', '信義區有哪些都更單元', '這裡容積率多少', '2028 年南港會長出什麼', '帶我去臺北機廠'] },
   occupier: { name: '企業選址鏡', short: '選址', color: '#F2B84B', layers: ['stock', 'heat', 'mrt', 'future', 'parks'], who: '企業 CFO／總務／人資（PickPeak 核心客群）',
     suggest: ['帶我去內湖科技園區', '信義區有哪些 A 辦', '台北101的租戶是誰', '街景模式看南港軟體園區', '幫我做這棟的 DD memo'] },
   city: { name: '城市治理鏡', short: '城市', color: '#4C8DFF', layers: ['infra', 'moves', 'renewal', 'zones', 'parks', 'mrt'], who: '都發局／地政局／產發局／捷運局／首長戰情室',
@@ -47,10 +47,11 @@ export class Agent {
   async handle(text) {
     if (!text || this.busy) return; this.busy = true; const t = norm(text); this.ui.userTurn(text); const a = this.ui.agentTurn();
     try {
-      if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) return this.finish(a, '我聽得懂：「沉浸／平衡／標註模式」、「釘在地圖上」、「帶我去 ○○」、「切換 投資人／開發商／選址／城市／學研 視角」、「顯示／隱藏 都更／建照／上市公司交易」、「這裡容積率多少」、「2028 年南港會長出什麼」、「最近半年信義區上市公司買了什麼」、「比較 A 商圈和 B 商圈的租金」、「哪些公司遷入中山區」、「環繞／街景／俯視／全台／時光模式」、「夜視／熱感／藍圖」。或按「▶ 場景」看電影式導覽。');
+      if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) return this.finish(a, '我聽得懂：「模擬○○都更」、「沉浸／平衡／標註模式」、「釘在地圖上」、「帶我去 ○○」、「切換 投資人／開發商／選址／城市／學研 視角」、「顯示／隱藏 都更／建照／上市公司交易」、「這裡容積率多少」、「2028 年南港會長出什麼」、「最近半年信義區上市公司買了什麼」、「比較 A 商圈和 B 商圈的租金」、「哪些公司遷入中山區」、「環繞／街景／俯視／全台／時光模式」、「夜視／熱感／藍圖」。或按「▶ 場景」看電影式導覽。');
       if (has(t, /沉浸|immersive|乾淨一點|清爽|只留地圖/)) { this.ui.setDensity('immersive'); return this.finish(a, '切到沉浸模式：只留地圖、鏡與指令；面板收成左右邊緣的把手，回答改用字幕。'); }
       if (has(t, /標註模式|annotated|多一點資料|資料模式|全部展開|分析模式/)) { this.ui.setDensity('annotated'); return this.finish(a, '切到標註模式：資料欄全開，接下來亮起的物件會在地圖上加編號，並對應左側「地圖標註」卡片。'); }
       if (has(t, /平衡模式|balanced|一般模式|預設密度/)) { this.ui.setDensity('balanced'); return this.finish(a, '切回平衡模式。'); }
+      if (has(t, /模擬.*都更|都更.*(模擬|試算|量體|可以蓋|能蓋)|renewal.*sim/)) return this.renewalSim(text, a);
       if (has(t, /^釘|釘在地圖|釘選|pin/)) { const s = this.map.selected; if (!s) return this.finish(a, '先點選一個物件，再說「釘在地圖上」。'); this.ui.pin(s.item, s.layer); return this.finish(a, `已把「${s.item.name || s.item.company_name || s.key}」釘在地圖上，卡片會跟著它移動。`); }
       if (has(t, /夜視|night/)) { this.ui.setSensor('night'); return this.finish(a, '切到夜視感測。'); }
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
@@ -179,6 +180,18 @@ export class Agent {
     await this.call(a, 'dd-memo.find_property_lifecycle', { building_id: b.id }, () => ({ summary: '時序 3 來源', value: 1 })); await this.call(a, 'land-info.taipei_zoning_at_point', { lon: b.lon, lat: b.lat }, () => ({ summary: '1 筆', value: 1 })); await this.call(a, 'key-enterprise.search_key_enterprises', { building_id: b.id }, () => ({ summary: `${((this.d.tenants || {})[b.id] || []).length} 家`, value: 1 })); await this.call(a, 'transcripts.moi_address_lookup', { address: b.rep_address || '' }, () => ({ summary: '建號／地號', value: 1 }));
     this.map.flyTo(b.lon, b.lat, { range: 620, pitch: -32 }); this.map.pulse('stock:' + b.id);
     return this.finish(a, `已為「${b.name}」起草 DD memo 骨架：① 標的與產權（地號／建號／使照 ${b._built || '—'}）② 分區與可建（容積／建蔽）③ 市場（同棟成交、商圈租金）④ 租戶結構 ⑤ 周邊供給與都更 ⑥ 風險。Claude 模式下會由 Claude 依 FUNRAISE MCP 工具結果生成全文，並附每一段的資料來源與期間。`);
+  }
+  async renewalSim(text, a) {
+    const units = this.ui.simUnits ? this.ui.simUnits() : []; const sel = this.map.selected && this.map.selected.layer === 'renewal' ? this.map.selected.item : null;
+    const byName = (this.d.urban_renewal || []).find(u => u.rings && norm(text).includes(norm(u.name).slice(0, 4)) && norm(u.name).length >= 2 && norm(text).includes(norm(u.name)));
+    let unit = byName || sel; if (!unit) { const withData = (this.d.urban_renewal || []).filter(u => units.find(x => x.id === u.id)); const dn = this.districtOfText(text); unit = withData.find(u => !dn || u.district === dn) || withData[0]; }
+    if (!unit) return this.finish(a, '請先點選一個都更單元（紫色多邊形），或說「模擬兒福B1-2都更」。');
+    const pdata = units.find(x => x.id === unit.id);
+    await this.call(a, 'urban-renewal.get_urban_renewal', { id: unit.id }, () => ({ summary: `${fmtInt(unit.area_sqm)} m²`, value: unit }));
+    if (pdata) { await this.call(a, 'land-info.find_taipei_land_at_point ×' + (pdata.sample_points || pdata.parcels.length), { unit: unit.name }, () => ({ summary: `${pdata.parcels.length} 筆地號`, value: pdata.parcels })); await this.call(a, 'land-info.taipei_zoning_at_point', { lon: +pdata.centroid[0].toFixed(5), lat: +pdata.centroid[1].toFixed(5) }, () => ({ summary: pdata.zoning && pdata.zoning[0] ? (pdata.zoning[0].zone_short || pdata.zoning[0].zone_code) : '—', value: pdata.zoning })); await this.call(a, 'land-info.taipei_bldg_overlay_at_point', { unit: unit.name }, () => ({ summary: `${(pdata.permits || []).length} 張建照套繪`, value: pdata.permits })); }
+    const r = this.ui.simulateRenewal(unit); this.ui.setLayer('parcels', true);
+    const ping = n => fmtInt(n / 3.3058);
+    return this.finish(a, `${unit.name}（${unit.district}，${unit.category}）：基地 ${ping(r.siteArea)} 坪、${r.parcelCount} 筆地號${r.zoning ? `，${r.zoning.zone_short || r.zoning.zone_code}` : ''}，容積率 ${Math.round(r.far * 100)}%${r.farKnown ? '' : '（特定區／假設值）'}。以 ${Math.round(r.bonus * 100)}% 都更獎勵估算：總樓地板約 ${ping(r.totalFloorArea)} 坪、${r.floors} 層、${fmtInt(r.height)} m；現況最舊建照 ${r.oldestYear || '—'}（屋齡約 ${r.age ?? '—'} 年）。整合難度：${r.difficulty}。拉動面板上的獎勵滑桿可即時改量體。\n來源：FUNRAISE MCP land-info（地籤圖 / 使用分區管制 / 建照套繪）· 都更圖層 · 假設值已列於面板`);
   }
   async brief(a) {
     const c = this.map.countInView(); const dn = this.currentDistrict(); const cam = this.map.center(); await this.call(a, 'get_current_view_state', { lon: +cam.lon.toFixed(4), lat: +cam.lat.toFixed(4), range_m: Math.round(cam.height) }, () => ({ summary: dn || '—', value: c }));
