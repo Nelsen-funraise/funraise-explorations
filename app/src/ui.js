@@ -135,10 +135,16 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   ui.setOverlay = (k, on) => { if (!OVERLAYS[k]) return false; viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits(); if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); } return true; };
   ui.overlays = () => viewerApi.overlays;
   /* ---- render quality ---- */
-  const qbox = $('#quality'); const QUALITY = { ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR' };
-  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
-  ui.setQuality = (q) => { const cur = viewerApi.setQuality(q); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); return cur; };
-  ui.syncQuality = () => { const cur = viewerApi.quality; qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); };
+  const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR' };
+  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { facade: '夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）', ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
+  ui.setQuality = (q) => { const cur = viewerApi.setQuality(q); if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); return cur; };
+  ui.syncQuality = () => { const cur = viewerApi.quality; if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); };
+  /* ---- measure / draw-site tools ---- */
+  ui.bindMeasure = (measure) => { const mtBox = $('#measuretools'); if (!mtBox) return; const BTNS = [['distance', '📏 量距離', '點擊加點、雙擊完成；右鍵退一步，Esc 取消'], ['area', '⬠ 量面積', '畫多邊形量 m²／坪／周長'], ['site', '🏗 畫基地→模擬', '手繪一塊基地，完成後直接跑容積量體試算']];
+    const paint = () => mtBox.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.tool === measure.active));
+    for (const [id, label, title] of BTNS) { const b = el('button', null, label); b.dataset.tool = id; b.title = title; b.setAttribute('aria-pressed', 'false'); b.onclick = () => { if (measure.active === id) measure.cancel(); else measure.start(id); paint(); }; mtBox.appendChild(b); }
+    const clr = el('button', null, '✕ 清除'); clr.title = '清除所有量測與手繪基地'; clr.onclick = () => { measure.clear(); paint(); }; mtBox.appendChild(clr);
+    ui.startTool = (mode) => { measure.start(mode); paint(); }; ui.stopTool = () => { measure.cancel(); paint(); }; document.addEventListener('keydown', e => { if (e.key === 'Escape') setTimeout(paint, 0); }); };
   ui.updateCredits = () => { const c = $('#credits'); if (c) c.textContent = '圖資：' + viewerApi.credits().join(' · '); };
   ui.setNight = on => { night = !!on; viewerApi.setNight(night); nb.setAttribute('aria-pressed', night); nb.textContent = night ? '🌙 夜' : '☀️ 日'; };
   ui.cycleBasemap = () => { const ks = Object.keys(BASEMAPS); ui.setBasemap(ks[(ks.indexOf(viewerApi.basemapKey) + 1) % ks.length]); };

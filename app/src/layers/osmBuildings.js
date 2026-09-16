@@ -1,5 +1,6 @@
 // OSM building footprints → batched extruded primitives (keyless 3D city). Data: public/data/osm_buildings_taipei.json
 import * as Cesium from 'cesium';
+import { FACADE_VERTEX_FORMAT, facadeAppearance, plainAppearance, facadeAttributes } from './facade.js';
 
 // Two building palettes: 夜間戰情室 (dark glassy gradient) and PickPeak 日間 (soft white → cyan-tinted, taller = more saturated).
 export const PALETTES = {
@@ -7,7 +8,8 @@ export const PALETTES = {
   light: (t) => new Cesium.Color((236 - 96 * t) / 255, (240 - 36 * t) / 255, (244 - 12 * t) / 255, 1),
 };
 
-export async function loadOsmBuildings(viewer, url, onProgress, { palette: initialPalette = 'dark' } = {}) {
+export async function loadOsmBuildings(viewer, url, onProgress, { palette: initialPalette = 'dark', facade: initialFacade = false } = {}) {
+  let facade = !!initialFacade;
   const res = await fetch(url); if (!res.ok) throw new Error('osm buildings fetch failed ' + res.status);
   const data = await res.json(); const { origin, scale } = data.meta; const [ox, oy] = origin;
   const buildings = data.b; const types = data.types || []; const index = []; // centroid index for matching FUNRAISE buildings to footprints
@@ -18,18 +20,19 @@ export async function loadOsmBuildings(viewer, url, onProgress, { palette: initi
     const instances = [];
     for (let i = c; i < Math.min(c + CHUNK, buildings.length); i++) {
       const b = buildings[i]; const hm = (b[0] || 100) / 10; const flat = b[2]; if (!flat || flat.length < 8) continue;
-      const degs = new Array(flat.length); let cx = 0, cy = 0; const n = flat.length / 2;
-      for (let k = 0; k < flat.length; k += 2) { const lon = ox + flat[k] / scale, lat = oy + flat[k + 1] / scale; degs[k] = lon; degs[k + 1] = lat; cx += lon; cy += lat; }
+      const degs = new Array(flat.length); let cx = 0, cy = 0; const n = flat.length / 2; let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (let k = 0; k < flat.length; k += 2) { const lon = ox + flat[k] / scale, lat = oy + flat[k + 1] / scale; degs[k] = lon; degs[k + 1] = lat; cx += lon; cy += lat; if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon; if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat; }
+      const bw = Math.max(3, (maxLon - minLon) * 111320 * Math.cos(cy / n * Math.PI / 180)), bh = Math.max(3, (maxLat - minLat) * 110540);
       index.push({ i, lon: cx / n, lat: cy / n, h: hm, name: b[3] || null, type: types[b[1]] || 'yes', ring: degs });
       try {
         instances.push(new Cesium.GeometryInstance({
-          geometry: Cesium.PolygonGeometry.fromPositions({ positions: Cesium.Cartesian3.fromDegreesArray(degs), extrudedHeight: hm, height: 0, vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT }),
-          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(colorFor(hm)) }, id: 'osm:' + i,
+          geometry: Cesium.PolygonGeometry.fromPositions({ positions: Cesium.Cartesian3.fromDegreesArray(degs), extrudedHeight: hm, height: 0, vertexFormat: FACADE_VERTEX_FORMAT }),
+          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(colorFor(hm)), ...facadeAttributes({ hm, cx: cx / n, cy: cy / n, bw, bh }) }, id: 'osm:' + i,
         }));
       } catch (e) { /* skip degenerate */ }
     }
     if (instances.length) {
-      const p = new Cesium.Primitive({ geometryInstances: instances, appearance: new Cesium.PerInstanceColorAppearance({ translucent: false, closed: true, flat: false }), asynchronous: true, allowPicking: false, releaseGeometryInstances: true });
+      const p = new Cesium.Primitive({ geometryInstances: instances, appearance: initialFacade ? facadeAppearance() : plainAppearance(), asynchronous: true, allowPicking: false, releaseGeometryInstances: true });
       viewer.scene.primitives.add(p); primitives.push(p);
     }
     onProgress && onProgress(Math.min(1, (c + CHUNK) / buildings.length));
@@ -78,5 +81,6 @@ export async function loadOsmBuildings(viewer, url, onProgress, { palette: initi
     runRecolor(); return focusedInfo();
   };
   const unfocus = () => { if (!focusState) return; focusState = null; runRecolor(); };
-  return { count: index.length, primitives, nearest, setShow: (on) => primitives.forEach(p => { p.show = on; }), setPalette, get palette() { return palette; }, landmarks: index.filter(x => x.name && x.h >= 60), focus, unfocus, get focused() { return focusedInfo(); } };
+  const setFacade = (on) => { on = !!on; if (on === facade) return facade; facade = on; for (const p of primitives) p.appearance = on ? facadeAppearance() : plainAppearance(); return facade; };
+  return { count: index.length, primitives, nearest, setFacade, get facade() { return facade; }, setShow: (on) => primitives.forEach(p => { p.show = on; }), setPalette, get palette() { return palette; }, landmarks: index.filter(x => x.name && x.h >= 60), focus, unfocus, get focused() { return focusedInfo(); } };
 }

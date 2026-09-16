@@ -13,6 +13,7 @@ import { MrtNetwork, IsochroneLayer } from './analysis/isochrone.js';
 import { playIntro } from './intro.js';
 import { createPresenter } from './presenter.js';
 import { createFloorWalk } from './tools/floorwalk.js';
+import { createMeasure } from './tools/measure.js';
 import { createUI } from './ui.js';
 import { createHover } from './hover.js';
 import { createGround } from './layers/ground.js';
@@ -39,7 +40,7 @@ async function boot() {
   const [data, basemap] = await Promise.all([fetchJSON('./data/peaklens.json'), fetchJSON('./data/taipei_basemap.json')]);
 
   let osm = null; let savedTheme = 'light'; try { savedTheme = localStorage.getItem('pl.theme') || 'light'; } catch { /* private mode */ }
-  if (!api.google) { try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`), { palette: savedTheme === 'light' ? 'light' : 'dark' }); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); } }
+  if (!api.google) { try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`), { palette: savedTheme === 'light' ? 'light' : 'dark', facade: savedTheme !== 'light' }); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); } }
 
   setMsg('建立 FUNRAISE 圖層…');
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
@@ -98,14 +99,16 @@ async function boot() {
   const claude = new ClaudeClient(map, ui, agent);
   const director = new SceneDirector({ map, ui, agent, data, timeline });
   ui.attach({ agent, claude, director });
+  const measure = createMeasure({ viewer, onSite: site => { const unit = { id: 'draw:' + Date.now(), name: '手繪基地', area_sqm: site.areaSqm, rings: [site.ring], _c: site.centroid }; ui.simulateRenewal(unit); ui.toast(`手繪基地 ${Math.round(site.areaPing).toLocaleString('zh-TW')} 坪 → 容積量體試算`); }, onStatus: () => {} });
+  map.measure = measure; measure.setTheme(ui.theme); { const orig = ui.setTheme; ui.setTheme = (...a) => { const r = orig(...a); measure.setTheme(ui.theme); return r; }; } ui.bindMeasure && ui.bindMeasure(measure);
   const presenter = createPresenter({ ui, director, scenes: SCENES, viewer }); ui.presenter = presenter; const presenterBtn = $('#presenter'); if (presenterBtn) presenterBtn.onclick = () => { presenter.toggle(); presenterBtn.setAttribute('aria-pressed', presenter.active); };
   { const orig = agent.setLens.bind(agent); agent.setLens = id => { orig(id); ui.syncUrl(); }; }
 
   /* ---- picking ---- */
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
   const pickPL = pos => { try { const p = scene.pick(pos); const id = p && p.id; const prop = id && id.properties && id.properties.pl; return prop ? prop.getValue(viewer.clock.currentTime) : null; } catch { return null; } };
-  handler.setInputAction(m => { const picked = scene.pick(m.position); if (picked && picked.id && picked.id.cluster) { const ents = picked.id.cluster; let x = 0, y = 0, n = 0; for (const e of ents) { const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; if (pl && pl.item.lat) { x += pl.item.lon; y += pl.item.lat; n++; } } if (n) map.flyTo(x / n, y / n, { range: Math.max(900, 260 * Math.sqrt(n) * 2), pitch: -48 }); return; } const pl = pickPL(m.position); if (pl) { map.pulse(pl.key, 6000); ui.select(pl.item, pl.layer); } else ui.select(null); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-  handler.setInputAction(m => { const pl = pickPL(m.position); const it = pl && pl.item; if (it && it.lat) map.flyTo(it.lon, it.lat, { range: pl.layer === 'stock' ? 650 : 1500, pitch: -35 }); else if (it && it._c) map.flyTo(it._c[0], it._c[1], { range: 1200, pitch: -40 }); }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+  handler.setInputAction(m => { if (viewer.canvas.dataset.tool) return; const picked = scene.pick(m.position); if (picked && picked.id && picked.id.cluster) { const ents = picked.id.cluster; let x = 0, y = 0, n = 0; for (const e of ents) { const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; if (pl && pl.item.lat) { x += pl.item.lon; y += pl.item.lat; n++; } } if (n) map.flyTo(x / n, y / n, { range: Math.max(900, 260 * Math.sqrt(n) * 2), pitch: -48 }); return; } const pl = pickPL(m.position); if (pl) { map.pulse(pl.key, 6000); ui.select(pl.item, pl.layer); } else ui.select(null); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  handler.setInputAction(m => { if (viewer.canvas.dataset.tool) return; const pl = pickPL(m.position); const it = pl && pl.item; if (it && it.lat) map.flyTo(it.lon, it.lat, { range: pl.layer === 'stock' ? 650 : 1500, pitch: -35 }); else if (it && it._c) map.flyTo(it._c[0], it._c[1], { range: 1200, pitch: -40 }); }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   let hoverT = 0; handler.setInputAction(m => { const now = performance.now(); if (now - hoverT < 90) return; hoverT = now; const picked = scene.pick(m.endPosition); const hit = picked && picked.id && (picked.id.cluster || (picked.id.properties && picked.id.properties.pl)); viewer.canvas.style.cursor = hit ? 'pointer' : ''; hover.update(hit ? picked : null, m.endPosition); }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
   /* ---- readout ---- */
@@ -131,7 +134,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, presenter, floorWalk, viewerApi: api };
+  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, presenter, floorWalk, measure, viewerApi: api };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

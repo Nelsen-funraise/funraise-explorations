@@ -75,6 +75,7 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
+      if (has(t, /(\d+)\s*分(鐘)?.*(捷運|通勤).*(可到|能到|到哪|範圍|去哪)|等時圈|通勤圈|捲運圈|捷運圈/)) return this.isochrone(text, a);
       if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {
         if (/取消|關掉|離開|退出|解除/.test(t)) { this.ui.focus(null, null, false); return this.finish(a, '已取消對焦，城市恢復。'); }
         const sel = this.map.selected; const byName = (this.d.buildings || []).find(b => b.name && t.includes(b.name.replace(/大樓$/, ''))) || null;
@@ -130,8 +131,8 @@ export class Agent {
         const fm = text.match(/(\d+)\s*[樓F]/i); const floor = fm ? +fm[1] : null; this.map.floorWalk.enter({ lon: b.lon, lat: b.lat, name: b.name, floors: b.floor_above || 20, floor });
         return this.finish(a, `站上${b.name || ''}${floor ? ` ${floor} 樓` : ''}向外看：拖曳看四周、滾輪換樓層、W/S 前進、A/D 轉向、Esc 離開。這是租戶最在意卻沒人做的視角——看得到捷運站還是看到牆。`);
       }
+      if (has(t, /量.*(距離|多遠)|測距|量.*面積|畫.*基地|自訂基地|手繪/)) { const mode = /畫.*基地|自訂基地|手繪/.test(t) ? 'site' : /面積/.test(t) ? 'area' : 'distance'; if (!this.ui.startTool) return this.finish(a, '量測工具尚未載入。'); this.ui.startTool(mode); return this.finish(a, `已切到「${{ distance: '量距離', area: '量面積', site: '畫基地' }[mode]}」：在地圖上點擊加點、雙擊完成、右鍵退一步、Esc 取消${mode === 'site' ? '；完成後直接用手繪範圍跑容積量體試算（法定容積用 225% 假設，可在面板改獎勵）' : ''}。`); }
       if (has(t, /展示模式|簡報模式|presenter|上台/)) { const willEnter = !(this.ui.presenter && this.ui.presenter.active); this.ui.presenter && this.ui.presenter.toggle(); return this.finish(a, willEnter ? '進入展示模式：←→ 切換場景、空白鍵播放或停止、Esc 離開。' : '離開展示模式。'); }
-      if (has(t, /(\d+)\s*分(鐘)?.*(捷運|通勤).*(可到|能到|到哪|範圍|去哪)|等時圈|通勤圈|捲運圈|捷運圈/)) return this.isochrone(text, a);
       if (has(t, /簡報|總結|摘要|現在看到|這裡有什麼|brief|summary|狀況/)) return this.brief(a);
       const p = this.resolvePlace(text); if (p) return this.goto(p, a);
       await this.finish(a, `這個原型還聽不懂「${text}」。試試：${LENSES[this.lens].suggest.slice(0, 3).map(s => '「' + s + '」').join('、')}，或說「幫助」。`);

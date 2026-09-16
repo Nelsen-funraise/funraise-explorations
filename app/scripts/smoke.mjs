@@ -13,6 +13,7 @@ await new Promise(r => setTimeout(r, 800));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY; const browser = await pw.chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', proxy: proxy ? { server: proxy, bypass: 'localhost,127.0.0.1' } : undefined, args: [...(proxy ? [] : ['--no-proxy-server']), '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-dev-shm-usage'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
+page.setDefaultTimeout(120000); // SwiftShader frames can take many seconds when animations are running
 const errors = []; page.on('response', r => { if (r.status() >= 400) if (!/favicon/.test(r.url())) errors.push('http ' + r.status() + ' ' + r.url()); }); page.on('pageerror', e => errors.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') { const t = m.text(); if (!/fonts.googleapis|ERR_CONNECTION|net::|favicon|images.pickpeak/.test(t)) errors.push(m.type() + ': ' + t.slice(0, 300)); } });
 const t0 = Date.now();
 try {
@@ -64,9 +65,9 @@ try {
   await page.evaluate(() => { const b = window.PL.data.buildings.find(x => /101/.test(x.name)); window.PL.ui.select(b, 'stock'); window.PL.ui.focus(b, 'stock', true); window.PL.map.flyTo(b.lon, b.lat, { range: 700, pitch: -40, heading: 300, duration: 0.2 }); }); await wait(5000); await page.screenshot({ path: path.join(out, 'shot-22-focus.jpg'), type: 'jpeg', quality: 84 });
   console.log('focus', JSON.stringify(await page.evaluate(() => ({ active: !!window.PL.focus.active, osm: !!window.PL.osm.focused, body: document.body.className.includes('focusing') }))));
   await page.evaluate(() => window.PL.ui.focus(null, null, false)); await wait(1500);
-  console.log('H', JSON.stringify(await say('播放企業遷徙動線', 2500))); await wait(1200); await page.screenshot({ path: path.join(out, 'shot-23-trips.jpg'), type: 'jpeg', quality: 84 });
+  console.log('H', JSON.stringify(await say('播放企業遷徙動線', 1500))); await page.evaluate(() => { window.PL.trips.clear(); window.PL.trips.play({ year: 2026, max: 6, durationMs: 9000, staggerMs: 300 }); }); await wait(2500); await page.screenshot({ path: path.join(out, 'shot-23-trips.jpg'), type: 'jpeg', quality: 84 });
   console.log('trips', JSON.stringify(await page.evaluate(() => ({ playing: window.PL.trips && window.PL.trips.playing, entities: window.PL.viewer.dataSources.getByName('trips').length ? window.PL.viewer.dataSources.getByName('trips')[0].entities.values.length : null }))));
-  await wait(4000);
+  await page.evaluate(() => window.PL.trips.clear()); await wait(800);
   await page.mouse.move(5, 5); await page.evaluate(() => { window.PL.ui.setSun(null); window.PL.ui.setOverlay('landsect', true); window.PL.ui.setOverlay('publicland', true); }); await wait(2500); await page.screenshot({ path: path.join(out, 'shot-20-overlays.jpg'), type: 'jpeg', quality: 84 });
   console.log('overlays', JSON.stringify(await page.evaluate(() => ({ on: window.PL.ui.overlays(), imagery: window.PL.viewer.imageryLayers.length, credits: document.querySelector('#credits').textContent.slice(0, 120), ground: window.PL.ground && window.PL.ground.counts, rivers: !!(window.PL.ground && window.PL.ground.rivers), quality: window.PL.viewerApi.quality }))));
   await page.evaluate(() => { window.PL.ui.setOverlay('landsect', false); window.PL.ui.setOverlay('publicland', false); window.PL.ui.setTheme('dark'); window.PL.map.flyTo(121.51, 25.07, { range: 5200, pitch: -48, heading: 135, duration: 0.2 }); }); await wait(4000); await page.screenshot({ path: path.join(out, 'shot-21-night-rivers.jpg'), type: 'jpeg', quality: 84 });

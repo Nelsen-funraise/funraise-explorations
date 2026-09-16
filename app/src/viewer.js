@@ -70,7 +70,7 @@ export async function createViewer(container, opts = {}) {
   };
   const credits = () => [(BASEMAPS[base.key] || {}).credit, ...[...base.overlays.keys()].map(k => OVERLAYS[k].credit), 'OpenStreetMap 建物 © OpenStreetMap contributors', 'Natural Earth II'].filter(Boolean);
   // Post-processing quality: ambient occlusion (depth in the white 日間 city), bloom (glow for the 夜間 city), HDR + ACES tonemapping.
-  const quality = { ao: false, bloom: false, hdr: false };
+  const quality = { ao: false, bloom: false, hdr: false, facade: false };
   const setQuality = (q = {}) => {
     Object.assign(quality, q); const pp = scene.postProcessStages;
     try { pp.ambientOcclusion.enabled = !!quality.ao && Cesium.PostProcessStageLibrary.isAmbientOcclusionSupported(scene); if (pp.ambientOcclusion.enabled) Object.assign(pp.ambientOcclusion.uniforms, { intensity: 2.4, bias: 0.12, lengthCap: 0.26, stepSize: 1.6, blurStepSize: 0.86 }); } catch { /* unsupported */ }
@@ -92,7 +92,7 @@ export async function createViewer(container, opts = {}) {
     // Natural Earth II is the offline/fallback ground under the tile basemap: in light theme wash it to a pale canvas so a slow or failed tile layer still reads as PickPeak-light, not green relief.
     const ne = viewer.imageryLayers.get(0); if (ne && ne !== base.layer) { ne.brightness = light ? 1.6 : 0.55; ne.saturation = light ? 0.22 : 0.6; ne.contrast = light ? 0.85 : 1; ne.alpha = light ? 0.55 : 1; }
     base.night = !light; applyTint();
-    if (!quality.pinned) setQuality({ ao: false, bloom: !light });
+    if (!quality.pinned) setQuality({ ao: false, bloom: !light, facade: !light });
   };
   setBasemap(opts.basemap || 'nlsc_photo');
 
