@@ -46,9 +46,9 @@ async function boot() {
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
   let ground = null; try { ground = createGround(viewer, basemap); } catch (e) { console.warn('ground layer unavailable', e); }
   let trips = null; try { trips = new TripsLayer(viewer, data, layers); } catch (e) { console.warn('trips layer unavailable', e); }
-  let floorWalk = null; try { floorWalk = createFloorWalk({ viewer, rig, osm, layers }); } catch (e) { console.warn('floor walk unavailable', e); }
   let isochrone = null; try { isochrone = new IsochroneLayer(viewer, new MrtNetwork(basemap), { theme: savedTheme === 'light' ? 'light' : 'dark' }); } catch (e) { console.warn('isochrone unavailable', e); }
   const rig = new CameraRig(viewer); rig.bindUserInterrupt(viewer.canvas);
+  let floorWalk = null; try { floorWalk = createFloorWalk({ viewer, rig, osm, layers }); } catch (e) { console.warn('floor walk unavailable', e); }
   const sensors = createSensors(scene); const timeline = new Timeline(layers);
   const overlay = createOverlay(scene, $('#overlay')); const envelope = new RenewalEnvelope(viewer);
   const lighting = createLighting(viewer, osm); const hover = createHover($('#stage')); const focus = createFocus({ viewer, osm, layers });

@@ -50,9 +50,10 @@ export class Agent {
     return this.finish(a, `${info.origin.name} 出發，${maxMin} 分鐘捷運等時圈：可達 ${info.stations} 站（${bands || '無'}）。最遠：${info.farthest ? `${info.farthest.name} · ${info.farthest.minutes} 分` : '—'}。走到站 ${Math.round(info.origin.walkM || 0)} m 以 80 m/分計、每站 0.7 分停靠、轉乘 +4 分；路線是實際捷運路網（內建計算，不用外部 API）。說「清除等時圈」收起。`);
   }
   async tripsPlay(text, a) {
-    const y = this.yearsFromText(text) || this.year; if (!this.map.trips) return this.finish(a, '企業遷徙動線尚未載入。');
-    this.ui.setLayer('moves', true); const summary = await this.map.trips.play({ year: y });
-    if (!summary.fired) return this.finish(a, `${y} 年沒有符合的企業遷徙紀錄可播放動線${y !== 2026 ? '（目前快照只有 2026 年 7 月的異動；把時間軸拉到 2026 再說一次）' : ''}。`);
+    const yt = this.yearsFromText(text); if (!this.map.trips) return this.finish(a, '企業遷徙動線尚未載入。');
+    this.ui.setLayer('moves', true); let summary = await this.map.trips.play({ year: yt }); let y = yt || this.year; // no year in the question → all moves in the snapshot
+    if (!summary.fired && !yt) { summary = await this.map.trips.play({ year: null }); y = null; }
+    if (!summary.fired) return this.finish(a, `${y || ''} 年沒有符合的企業遷徙紀錄可播放動線（目前快照只有 2026 年 7 月的異動）。`);
     const top = Object.entries(summary.byDistrict).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([d, n]) => `${d} ${n} 家`).join('、');
     const gain = summary.netFlow.filter(f => f.net > 0).slice(0, 2).map(f => `${f.district}（+${f.net}）`).join('、'); const lose = summary.netFlow.filter(f => f.net < 0).slice(0, 2).map(f => `${f.district}（${f.net}）`).join('、');
     const lines = [`播放企業遷徙動線：${summary.fired} 條弧線由原址飛向新址，落地依序亮起公司名稱。`, `落地最多：${top}。`]; if (gain) lines.push(`淨遷入：${gain}${lose ? `；淨遷出：${lose}` : ''}。`);
@@ -75,7 +76,7 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
-      if (has(t, /(\d+)\s*分(鐘)?.*(捷運|通勤).*(可到|能到|到哪|範圍|去哪)|等時圈|通勤圈|捲運圈|捷運圈/)) return this.isochrone(text, a);
+      if (has(t, /等時圈|通勤圈|捷運圈|生活圈|((捷運|通勤|步行|走路).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) return this.isochrone(text, a);
       if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {
         if (/取消|關掉|離開|退出|解除/.test(t)) { this.ui.focus(null, null, false); return this.finish(a, '已取消對焦，城市恢復。'); }
         const sel = this.map.selected; const byName = (this.d.buildings || []).find(b => b.name && t.includes(b.name.replace(/大樓$/, ''))) || null;

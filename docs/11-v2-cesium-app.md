@@ -274,4 +274,9 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 | ![street](assets/v2-street.jpg) 街景：南港軟體園區 | ![thermal](assets/v2-thermal.jpg) 熱感測 |
 | ![light clusters](assets/v2-light-clusters.jpg) PickPeak 日間主題：淺色底圖 + 白色量體，建物聚合成青色「N 棟」泡泡 | ![light xinyi](assets/v2-light-xinyi.jpg) 日間主題拉近信義計畫區：icon 標註（交易／執照／基建）與資料卡 |
 | ![timelapse](assets/v2-timelapse.jpg) 時光機：年份 HUD、當年新增量體長高 + 脈衝 | ![renewal sim](assets/v2-renewal-sim.jpg) 智慧都更模擬：地號拼成基地 → 容積量體 + 獎勵滑桿 |
-| ![dark scene](assets/v2-scene-dark.jpg) 夜間戰情室主題（保留）：投資人鏡場景，正射影像 + 玻璃量體 | |
+| ![dark scene](assets/v2-scene-dark.jpg) 夜間戰情室主題（保留）：投資人鏡場景，正射影像 + 玻璃量體 | ![night facade](assets/v2-night-facade.jpg) 夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）+ 泛光 |
+| ![night street](assets/v2-night-street.jpg) 街景尺度的夜景：窗格、未來供給幽靈量體 | ![night rivers](assets/v2-night-rivers.jpg) 夜間的河川水面（波紋材質）與道路光帶，CARTO／Esri 深色底圖 |
+| ![golden](assets/v2-golden-shadows.jpg) 日照 17:00：真實太陽位置，量體與都更模擬同時投影 | ![hover](assets/v2-hover.jpg) Hover 小卡：滑過即讀 |
+| ![focus](assets/v2-focus.jpg) 對焦／X-ray：其餘量體退色，只留台北101 與周邊脈絡 | ![measure](assets/v2-measure-area.jpg) 量面積：m²／坪／周長，畫基地可直接跑容積量體 |
+| ![isochrone](assets/v2-isochrone.jpg) 捷運 20 分鐘等時圈（內建路網計算） | ![trips](assets/v2-trips.jpg) 企業遷徙動線：弧線飛行、落地漣漪與公司名 |
+| ![presenter](assets/v2-presenter.jpg) 展示模式：只留字幕與場景進度 | ![overlays](assets/v2-overlays.jpg) 國土測繪中心疊圖：段籍界 + 公有土地 |
