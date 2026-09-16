@@ -55,14 +55,14 @@ try {
   let hov = null; for (const [dx, dy] of [[0, 0], [0, -60], [0, -140], [30, -100], [-30, -100], [0, 40]]) { await page.mouse.move(720 + dx, 450 + dy); await wait(350); hov = await page.evaluate(() => { const c = document.querySelector('#hovercard'); return { visible: !c.classList.contains('hidden'), text: c.textContent.slice(0, 90) }; }); if (hov.visible) break; }
   console.log('hover', JSON.stringify(hov)); await page.screenshot({ path: path.join(out, 'shot-18-hover.jpg'), type: 'jpeg', quality: 84 });
   const shareUrl = await page.evaluate(() => window.PL.ui.shareView()); console.log('share', shareUrl.slice(shareUrl.indexOf('#'), shareUrl.indexOf('#') + 120));
-  { const p2 = await browser.newPage({ viewport: { width: 1200, height: 760 } }); const t2 = Date.now(); await p2.goto(shareUrl, { waitUntil: 'domcontentloaded' }); await p2.waitForSelector('#loading.done', { timeout: 240000 }); await wait(3000);
-    console.log('deeplink', JSON.stringify(await p2.evaluate(() => ({ theme: window.PL.ui.theme, density: window.PL.ui.density, sun: window.PL.ui.sunHour, lens: window.PL.agent.lens, year: window.PL.map.year, heading: Math.round(window.PL.map.heading), pitch: Math.round(window.PL.map.pitch), h: Math.round(window.PL.rig.lonlat[2]) }))), 'in', Date.now() - t2, 'ms'); await p2.screenshot({ path: path.join(out, 'shot-19-deeplink.jpg'), type: 'jpeg', quality: 80 }); await p2.close(); }
   await page.mouse.move(5, 5); await page.evaluate(() => { window.PL.ui.setSun(null); window.PL.ui.setTheme('dark'); }); await wait(2500);
   await page.evaluate(() => window.PL.director.play('investor')); await wait(9000); await page.screenshot({ path: path.join(out, 'shot-8-scene.jpg'), type: 'jpeg', quality: 84 });
   const cine = await page.evaluate(() => document.querySelector('#cine-text').textContent); console.log('scene text:', cine);
   await page.evaluate(() => window.PL.director.stop());
   await page.evaluate(() => window.PL.map.globe()); await wait(4000); await page.screenshot({ path: path.join(out, 'shot-9-globe.jpg'), type: 'jpeg', quality: 84 });
   const health = await page.evaluate(() => fetch('/api/health').then(r => r.json())); console.log('health', JSON.stringify(health));
+  { const t2 = Date.now(); await page.goto(shareUrl, { waitUntil: 'domcontentloaded', timeout: 120000 }); await page.waitForSelector('#loading.done', { timeout: 240000 }); await wait(3500);
+    console.log('deeplink', JSON.stringify(await page.evaluate(() => ({ theme: window.PL.ui.theme, density: window.PL.ui.density, sun: window.PL.ui.sunHour, lens: window.PL.agent.lens, year: window.PL.map.year, heading: Math.round(window.PL.map.heading), pitch: Math.round(window.PL.map.pitch), h: Math.round(window.PL.rig.lonlat[2]), hash: location.hash.slice(0, 40) }))), 'in', Date.now() - t2, 'ms'); await page.screenshot({ path: path.join(out, 'shot-19-deeplink.jpg'), type: 'jpeg', quality: 80 }); }
 } catch (e) { console.error('SMOKE FAILED', e); errors.push('fatal: ' + e.message); await page.screenshot({ path: path.join(out, 'shot-fail.jpg'), type: 'jpeg', quality: 84 }).catch(() => {}); }
 console.log('errors:', errors.length); for (const e of [...new Set(errors)].slice(0, 25)) console.log('  -', e);
 await browser.close(); server.kill();

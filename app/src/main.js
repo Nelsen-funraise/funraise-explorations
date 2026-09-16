@@ -40,6 +40,7 @@ async function boot() {
   const sensors = createSensors(scene); const timeline = new Timeline(layers);
   const overlay = createOverlay(scene, $('#overlay')); const envelope = new RenewalEnvelope(viewer);
   const lighting = createLighting(viewer, osm); const hover = createHover($('#stage'));
+  const st = readState(); // deep link (#v=…)? read it now, before any UI init can rewrite the hash
   const state = { selected: null };
   const groundAt = (x, y) => { const win = new Cesium.Cartesian2(x, y); const ray = viewer.camera.getPickRay(win); let p = ray && scene.globe.pick(ray, scene); if (!p) p = viewer.camera.pickEllipsoid(win, scene.globe.ellipsoid); return p ? Cesium.Cartographic.fromCartesian(p) : null; };
 
@@ -73,7 +74,7 @@ async function boot() {
     else if (m === 'city') map.city(c.lon, c.lat);
     else if (m === 'timelapse' && (rig.mode !== 'city' || c.height < 3000)) map.flyTo(HOME.lon, HOME.lat, { range: 10000, pitch: -55, heading: 20 });
   } });
-  ui.syncUrl = () => { try { writeState({ map, ui, agent }); } catch { /* ignore */ } };
+  let booted = false; ui.syncUrl = () => { if (!booted) return; try { writeState({ map, ui, agent }); } catch { /* ignore */ } };
   ui.shareView = async () => { const url = writeState({ map, ui, agent }); const ok = await copyLink(url); ui.toast(ok ? '已複製這個視角的連結（含鏡、年份、主題、圖層）' : '瀏覽器不允許存取剪貼簿，連結已放在網址列'); return url; };
   $('#share').onclick = () => ui.shareView();
   createSunControl({ ui, lighting, stage: $('#stage'), onChange: () => ui.syncUrl() });
@@ -104,10 +105,10 @@ async function boot() {
   /* ---- go ---- */
   agent.setLens('occupier'); ui.setSensor('normal');
   $('#loading').classList.add('done');
-  const st = readState(); // deep link? restore the shared view instead of the intro flight
   if (st) { if (st.lens) agent.setLens(st.lens); if (st.year) timeline.set(st.year); if (st.t) ui.setTheme(st.t, true); if (st.d) ui.setDensity(st.d, true); if (st.layers) for (const k of map.layerKeys) ui.setLayer(k, st.layers.includes(k)); if (st.sun != null) ui.setSun(st.sun, true); }
   if (st && st.view) { applyView(viewer, st.view); ui.updateReadout(true); } else rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 4.5, done: () => ui.updateReadout(true) });
   if (st && st.scene) setTimeout(() => director.play(st.scene), 1200);
+  booted = true;
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
