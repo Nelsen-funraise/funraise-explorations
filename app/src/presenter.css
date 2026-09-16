@@ -1,0 +1,77 @@
+/* presenter.css — 展示模式 Presenter Mode. Hides authoring/HUD chrome, blows the caption/cinebar
+   up into a lower-third, adds a small scene-progress readout, and auto-hides the cursor when
+   idle. Reuses the PickPeak tokens defined in style.css (loaded first). */
+
+/* ---- hide authoring/HUD chrome while presenting ---- */
+body.presenting #cmdbar,
+body.presenting #suggest,
+body.presenting #timeline,
+body.presenting #transcript,
+body.presenting #mobilebar,
+body.presenting #gimbal,
+body.presenting #edge-l,
+body.presenting #edge-r,
+body.presenting #mcpstat,
+body.presenting #datastamp,
+body.presenting #clock,
+body.presenting #readout,
+body.presenting #rail,
+body.presenting #inspector {
+  display: none !important;
+}
+
+/* ---- caption / cinebar become a big lower-third for projector legibility ---- */
+body.presenting #cinebar,
+body.presenting #caption {
+  bottom: 64px;
+  max-width: min(920px, calc(100vw - 48px));
+  padding: 18px 26px;
+  background: var(--panel-solid);
+  border-color: var(--line-2);
+  box-shadow: 0 24px 64px -16px rgba(3, 7, 18, .55);
+}
+body.presenting #cine-text,
+body.presenting #caption-text {
+  font-size: 20px;
+  line-height: 1.6;
+  -webkit-line-clamp: 4;
+}
+body.presenting #cine-title,
+body.presenting #caption .head .eyebrow {
+  font-size: 12px;
+}
+
+/* ---- scene progress indicator, bottom-right (where the gimbal normally sits) ---- */
+#presenter-progress {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 7;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  backdrop-filter: var(--blur);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#presenter-progress .n { color: var(--blue-300); font-weight: 600; }
+body.theme-light #presenter-progress .n { color: var(--blue-700); }
+#presenter-progress:empty { display: none; }
+
+/* ---- cursor auto-hide after pointer idle ---- */
+body.presenting.cursor-idle,
+body.presenting.cursor-idle * {
+  cursor: none !important;
+}
+
+@media (max-width: 640px) {
+  body.presenting #cine-text,
+  body.presenting #caption-text { font-size: 17px; }
+}

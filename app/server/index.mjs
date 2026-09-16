@@ -142,6 +142,15 @@ const CAMERA_TOOLS = [
   { name: 'simulate_renewal', description: '智慧都更模擬：對一個都更單元套用地號、使用分區容積率／建蔽率與建照套繪，畫出可建量體並回傳基準容積、獎勵容積、總樓地板、樓層、屋齡與整合難度。使用者說「模擬○○都更」「這個單元可以蓋多高」時使用；unit_id 或 name 其一。', input_schema: { type: 'object', properties: { unit_id: { type: 'string' }, name: { type: 'string', description: '都更單元名稱關鍵字，例如「兒福B1-2」' }, bonus: { type: 'number', description: '容積獎勵比例 0–0.5，預設 0.3' } } } },
   { name: 'set_theme', description: '切換主題：light（PickPeak 日間）或 dark（夜間戰情室）。', input_schema: { type: 'object', properties: { theme: { type: 'string', enum: ['light', 'dark'] } }, required: ['theme'] } },
   { name: 'set_sun', description: '日照與陰影：設定台北當地時刻（hour 5.5–19.5，例如 17 = 黃金時刻）或 preset（dawn/morning/noon/golden/dusk/off）；sweep=true 播放一天的陰影變化。開啟後所有建物與都更量體會投影。', input_schema: { type: 'object', properties: { hour: { type: 'number' }, preset: { type: 'string', enum: ['dawn', 'morning', 'noon', 'golden', 'dusk', 'off'] }, sweep: { type: 'boolean' } } } },
+  { name: 'floor_view', description: '樓層視角：第一人稱走進一棟大樓的第幾層向外看。給 key（stock:<building_id>）或 lon/lat＋floors；floor 省略自動挑約 12 樓；exit:true 離開。', input_schema: { type: 'object', properties: { key: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, floors: { type: 'integer' }, floor: { type: 'integer' }, heading: { type: 'number' }, exit: { type: 'boolean' } } } },
+  { name: 'show_isochrone', description: '畫出從一個點出發、N 分鐘內搭捷運可到的等時圈（走到站＋每站停靠＋轉乘罰時，內建捷運路網計算，不需外部 API）：範圓圈、可達站、實際路線。用於「從○○搭捷運 20 分鐘能到哪」「等時圈」「通勤圈」。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名或站名（沒有座標時用它解析）' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, maxMin: { type: 'integer', minimum: 5, maximum: 60 } } } },
+  { name: 'clear_isochrone', description: '收起等時圈。', input_schema: { type: 'object', properties: {} } },
+  { name: 'presenter', description: '展示模式（投影用）：隱藏編輯 HUD、放大字幕、←→ 切場景。on 省略則切換。', input_schema: { type: 'object', properties: { on: { type: 'boolean' } } } },
+  { name: 'play_trips', description: '播放「企業遷徙動線」動畫：公司登記地址異動的弧線（原址→新址）依序飛行，落地有漣漪與公司名稱。可指定 year（預設目前時間軸年份；快照只有 2026 的異動）。', input_schema: { type: 'object', properties: { year: { type: 'integer', minimum: 2012, maximum: 2030 } } } },
+  { name: 'focus', description: '對焦／X-ray：只保留一棟大樓與周邊脈絡可讀，其餘量體與標註淡出。給 key（同 highlight）或 lon/lat；off:true 離開對焦。', input_schema: { type: 'object', properties: { key: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, radius_m: { type: 'number' }, off: { type: 'boolean' } } } },
+  { name: 'set_overlay', description: '疊加／移除國土測繪中心 WMTS 疊圖：landsect（段籍界）、buildx（分棟建物框）、publicland（公有土地）、liquefaction（土壤液化潛勢）、road（道路路網）。', input_schema: { type: 'object', properties: { overlay: { type: 'string', enum: ['landsect', 'buildx', 'publicland', 'liquefaction', 'road'] }, on: { type: 'boolean' } }, required: ['overlay'] } },
+  { name: 'set_basemap', description: '切換底圖：nlsc_photo（正射影像；時間軸 2014–2025 會自動換該年航照）、nlsc_emap、esri（衛星）、esri_light、carto_light（Positron）、carto_dark（Dark Matter）、esri_dark。', input_schema: { type: 'object', properties: { key: { type: 'string', enum: ['nlsc_photo', 'nlsc_emap', 'esri', 'esri_light', 'carto_light', 'carto_dark', 'esri_dark'] } }, required: ['key'] } },
+  { name: 'set_quality', description: '畫質開關：ao（環境光遮蔽）、bloom（泛光）、hdr。', input_schema: { type: 'object', properties: { ao: { type: 'boolean' }, bloom: { type: 'boolean' }, hdr: { type: 'boolean' } } } },
   { name: 'share_view', description: '把目前視角（相機、鏡、年份、主題、圖層、日照）做成可分享連結並複製到剪貼簿，回傳 URL。', input_schema: { type: 'object', properties: {} } },
   { name: 'pin', description: '把一個物件的資料卡釘在地圖上（帶引線的標註，跟著物件移動）。key 同 highlight。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
   { name: 'get_view_state', description: '取得目前畫面狀態：相機中心、行政區、年份、鏡、密度、可見圖層、選取物件、視野內各圖層數量。', input_schema: { type: 'object', properties: {} } },
@@ -157,6 +166,7 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 3. 回答簡潔：3 句內講結論與數字，最後一行用「來源：<工具>·<資料期間>」標註。沒有資料就明說，不要編造。
 4. 台北市行政區、商圈與捷運站名用正體中文；金額用「億／萬」；面積用坪並附 m²。
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
+6. 專用工具：等時圈／通勤圈／幾分鐘能到 → show_isochrone；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
 
 function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
@@ -181,7 +191,7 @@ export async function runAgent({ messages, view }) {
 
 /* ---------------- static (dist/) ---------------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.ktx2': 'image/ktx2', '.woff2': 'font/woff2', '.woff': 'font/woff', '.xml': 'application/xml', '.map': 'application/json', '.webp': 'image/webp', '.czml': 'application/json', '.txt': 'text/plain', '.md': 'text/markdown' };
-const DIST = path.join(root, 'dist');
+const DIST = env.PEAKLENS_DIST || path.join(root, 'dist'); // PEAKLENS_DIST lets tests serve a private build
 function serveStatic(req, res) {
   if (!fs.existsSync(path.join(DIST, 'index.html'))) return json(res, 404, { error: 'no dist/ build yet — run `npm run build`, or use `npm run dev` (Vite proxies /api here)' });
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p === '/' || p === '') p = '/index.html';

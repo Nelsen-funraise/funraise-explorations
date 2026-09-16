@@ -8,10 +8,17 @@ import { createSensors } from './sensors.js';
 import { Timeline } from './time.js';
 import { Agent } from './agent/agent.js';
 import { ClaudeClient } from './agent/claudeClient.js';
-import { SceneDirector } from './scenes.js';
+import { SceneDirector, SCENES } from './scenes.js';
+import { MrtNetwork, IsochroneLayer } from './analysis/isochrone.js';
+import { playIntro } from './intro.js';
+import { createPresenter } from './presenter.js';
+import { createFloorWalk } from './tools/floorwalk.js';
 import { createUI } from './ui.js';
 import { createHover } from './hover.js';
+import { createGround } from './layers/ground.js';
+import { TripsLayer } from './layers/trips.js';
 import { createLighting } from './fx/lighting.js';
+import { createFocus } from './fx/focus.js';
 import { createSunControl } from './ui/sun.js';
 import { readState, writeState, applyView, copyLink } from './share.js';
 import { RenewalEnvelope } from './renewal.js';
@@ -36,17 +43,23 @@ async function boot() {
 
   setMsg('建立 FUNRAISE 圖層…');
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
+  let ground = null; try { ground = createGround(viewer, basemap); } catch (e) { console.warn('ground layer unavailable', e); }
+  let trips = null; try { trips = new TripsLayer(viewer, data, layers); } catch (e) { console.warn('trips layer unavailable', e); }
+  let floorWalk = null; try { floorWalk = createFloorWalk({ viewer, rig, osm, layers }); } catch (e) { console.warn('floor walk unavailable', e); }
+  let isochrone = null; try { isochrone = new IsochroneLayer(viewer, new MrtNetwork(basemap), { theme: savedTheme === 'light' ? 'light' : 'dark' }); } catch (e) { console.warn('isochrone unavailable', e); }
   const rig = new CameraRig(viewer); rig.bindUserInterrupt(viewer.canvas);
   const sensors = createSensors(scene); const timeline = new Timeline(layers);
   const overlay = createOverlay(scene, $('#overlay')); const envelope = new RenewalEnvelope(viewer);
-  const lighting = createLighting(viewer, osm); const hover = createHover($('#stage'));
+  const lighting = createLighting(viewer, osm); const hover = createHover($('#stage')); const focus = createFocus({ viewer, osm, layers });
   const st = readState(); // deep link (#v=…)? read it now, before any UI init can rewrite the hash
   const state = { selected: null };
   const groundAt = (x, y) => { const win = new Cesium.Cartesian2(x, y); const ray = viewer.camera.getPickRay(win); let p = ray && scene.globe.pick(ray, scene); if (!p) p = viewer.camera.pickEllipsoid(win, scene.globe.ellipsoid); return p ? Cesium.Cartographic.fromCartesian(p) : null; };
 
   /* ---- map facade shared by the rule-based agent, Claude tool executor and the scene director ---- */
   const map = {
-    data, basemap, osm, rig, envelope, lighting, layerKeys: Object.keys(LAYERS), layerName: k => (LAYERS[k] || { name: k }).name,
+    data, basemap, osm, rig, envelope, lighting, ground, focus, trips, isochrone, floorWalk,
+    showIsochrone: (o) => isochrone ? isochrone.show(o) : null, clearIsochrone: () => isochrone && isochrone.clear(), get isochroneActive() { return !!(isochrone && isochrone.active); },
+    layerKeys: Object.keys(LAYERS), layerName: k => (LAYERS[k] || { name: k }).name,
     get year() { return timeline.year; }, setYear: y => timeline.set(y),
     get mode() { return timeline.lapse ? 'timelapse' : rig.mode; },
     get selected() { return state.selected; }, set selected(v) { state.selected = v; },
@@ -79,10 +92,13 @@ async function boot() {
   $('#share').onclick = () => ui.shareView();
   createSunControl({ ui, lighting, stage: $('#stage'), onChange: () => ui.syncUrl() });
   for (const fn of ['setTheme', 'setDensity', 'setLayer']) { const orig = ui[fn]; ui[fn] = (...a) => { const r = orig(...a); ui.syncUrl(); return r; }; }
+  timeline.onChange(y => { if (api.setYear(y)) ui.updateCredits && ui.updateCredits(); if (trips) trips.setYear(y); });
+  if (trips) { trips.setTheme(ui.theme); const origTheme = ui.setTheme; ui.setTheme = (...a) => { const r = origTheme(...a); trips.setTheme(ui.theme); return r; }; } // 歷年正射影像跟著時間軸換底圖（2014–2025）
   const agent = new Agent(map, data, ui);
   const claude = new ClaudeClient(map, ui, agent);
   const director = new SceneDirector({ map, ui, agent, data, timeline });
   ui.attach({ agent, claude, director });
+  const presenter = createPresenter({ ui, director, scenes: SCENES, viewer }); ui.presenter = presenter; const presenterBtn = $('#presenter'); if (presenterBtn) presenterBtn.onclick = () => { presenter.toggle(); presenterBtn.setAttribute('aria-pressed', presenter.active); };
   { const orig = agent.setLens.bind(agent); agent.setLens = id => { orig(id); ui.syncUrl(); }; }
 
   /* ---- picking ---- */
@@ -106,13 +122,16 @@ async function boot() {
   agent.setLens('occupier'); ui.setSensor('normal');
   $('#loading').classList.add('done');
   if (st) { if (st.lens) agent.setLens(st.lens); if (st.year) timeline.set(st.year); if (st.t) ui.setTheme(st.t, true); if (st.d) ui.setDensity(st.d, true); if (st.layers) for (const k of map.layerKeys) ui.setLayer(k, st.layers.includes(k)); if (st.sun != null) ui.setSun(st.sun, true); }
-  if (st && st.view) { applyView(viewer, st.view); ui.updateReadout(true); } else rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 4.5, done: () => ui.updateReadout(true) });
+  const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (st && st.view) { applyView(viewer, st.view); ui.updateReadout(true); }
+  else if (reduce) rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 1.2, done: () => ui.updateReadout(true) });
+  else playIntro({ viewer, rig, home: HOME, onDone: () => ui.updateReadout(true) }); // 開場定軌鏡頭（任意鍵略過）
   if (st && st.scene) setTimeout(() => director.play(st.scene), 1200);
   booted = true;
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover };
+  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, presenter, floorWalk, viewerApi: api };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

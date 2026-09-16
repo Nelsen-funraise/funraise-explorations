@@ -176,6 +176,20 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 **分享視角**：右上「⤴ 分享」把相機、鏡、年份、主題、密度、圖層、日照時刻編進網址 `#v=…` 並複製；貼給同事打開就是同一個畫面，`#scene=investor` 還能直接播場景。網址列會隨操作即時同步（不寫入歷史）。Claude 工具 `share_view`。
 
+**底圖、疊圖與畫質（2026-09-16）**：底圖新增 CARTO Positron／Dark Matter 與 Esri Dark Gray（皆免金鑰；CARTO 建議之後申請免費 key 防日後收緊），移除 OpenStreetMap 原始圖磚（其使用政策禁止應用程式流量，實測回 `x-blocked`）。時間軸拉到 2014–2025 時，國土測繪中心正射影像自動換成**該年度航照**（`PHOTO2014`–`PHOTO2025`），做時空對比。右欄「疊圖」可疊國土測繪中心 WMTS：段籍界（地段）、分棟建物框、公有土地、土壤液化潛勢、道路路網（都免金鑰，街廓尺度才顯示的會提示）。「畫質」可開環境光遮蔽（日間預設開，白色量體更有立體感）、泛光（夜間預設開）、HDR。河川改用有波紋的水面材質（依河名給 35–380 m 寬的帶狀水體），夜間主題的道路以暖色光帶呈現。右欄底部列出所有圖資出處。
+
+**對焦／X-ray**：資料卡上的「🔦 對焦」（或說「對焦台北101」）讓其餘 5.7 萬棟量體退成低對比、320 m 外的標註淡出，只留這棟、兩圈地面光環、屋頂輪廓光邊與周邊脈絡（捷運站保留）；主題切換時自動重算退色。「取消對焦」恢復。Claude 工具 `focus`。
+
+**企業遷徙動線**：說「播放企業遷徙動線」（或問某區的企業遷入）時，82 筆公司登記地址異動化成 deck.gl 風格的弧線：橘色光點沿弧線飛行、拖尾、落地漣漪、公司名浮出再淡去；時間軸年份對到異動年份也會自動觸發。原址不明的以估算方向示意並在回答中註明。Claude 工具 `play_trips`。
+
+**捷運等時圈**：資料卡「🚇 捷運 20 分圈」或說「從南港軟體園區搭捷運 20 分鐘能到哪」——用內建的捷運路網（把 6 條線的 OSM 線段合成可路由的圖、站點以圖 Voronoi 找相鄰站、真實沿線距離）跑 Dijkstra：走到站 80 m/分、每站停靠 0.7 分、轉乘 +4 分；畫出 8 分鐘步行圈、可達站（10／20／30 分三色）、實際走過的路線與擴散波前。不用任何外部 API。Claude 工具 `show_isochrone`。
+
+**開場定軌鏡頭**：首次載入從外太空三段緩動降到信義計畫區 3/4 視角，配品牌標題卡，任意鍵略過；有分享連結時直接還原視角不播開場。
+
+**展示模式**：右上「🖥 展示」或按 `P`：隱藏編輯用 HUD、字幕放大成下三分之一、右下顯示「場景 n／5」、游標閒置 2.5 秒自動隱藏；←→ 切換場景、空白鍵播放／停止、Esc 離開。Claude 工具 `presenter`。
+
+**樓層視角**：商辦資料卡「👁 站上 12 樓看出去」或說「站上台北101的 20 樓看出去」——相機走進足跡邊緣朝最近捷運站的方向，第一人稱：拖曳看四周、滾輪換樓層、W/S 前進、A/D 轉向、右側樓層滑桿與方位帶（顯示面對的捷運站與行政區）。Claude 工具 `floor_view`。
+
 ## 11. 智慧都更模擬（first cut）與地號資料
 
 **做了什麼**：用 FUNRAISE MCP 的 `land-info` 工具，對 6 個政府主導都更單元（信義 兒福B1-2及B3-2、逸仙二小段、兒福B1-1；大安 忠孝懷生、敦南安和；中山 長安市民）在單元多邊形內做格點取樣 → `find_taipei_land_at_point` 反查地號與地籤 polygon → `taipei_zoning_at_point` 帶回使用分區與法定容積率／建蔽率 → `taipei_bldg_overlay_at_point` 帶回建照套繪（民國年 → 屋齡）。共 17 筆地號、7 張建照，存於 `app/data/raw/parcels.json`，併入快照。
@@ -203,6 +217,48 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 | 國土測繪中心 3D 建物（全臺 LOD1） | 同上流程 | 無貼圖，高度來自建物模型；適合全國尺度 | 搭配 OSM 補台北以外縣市 |
 | 自拍攝影測量（接待中心案場、重點街廓） | 無人機拍攝 → RealityCapture/Metashape → Cesium ion → 3D Tiles | 每案數萬～數十萬；最真實 | 建商天眼牆的獨賣素材 |
 | 加地形 | `VITE_CESIUM_ION_TOKEN`（Cesium World Terrain，ion Community 僅非商業） | 商用需 ion 付費方案 | 台北盆地平坦，優先度低 |
+
+## 13. 免費資料源盤點與申請清單（Phase 7 研究，2026-09-16 實測）
+
+以下每個端點都在本次 session 用 `curl` 實際打過（含 tile magic bytes）；標 UNVERIFIED 者是沙盒網路擋住，非資料源失效。
+
+### 13.1 不用申請、已接或可直接接
+
+| 來源 | 內容 | 狀態 | PeakLens 用法 |
+|---|---|---|---|
+| NLSC WMTS `PHOTO2` / `EMAP` | 正射影像／電子地圖 | 已接 | 底圖 |
+| NLSC WMTS `PHOTO2014`–`PHOTO2025` | 12 年歷年航照 | 已接 | 時間軸 2014–2025 自動換年份 |
+| NLSC WMTS `LANDSECT` `BUILDX` `LAND_OPENDATA` `SoilLiquefaction` `ROAD` | 段籍界／分棟建物框／公有土地／土壤液化／道路 | 已接 | 右欄疊圖 |
+| NLSC WMTS `LUIMAP` `Village` `TOWN` `MOI_HILLSHADE` `GeoSensitive` | 國土利用調查／村里界／陰影圖／地質敏感 | 200 | 候選疊圖（未接） |
+| CARTO Positron／Dark Matter、Esri Light／Dark Gray | 淺／深色設計底圖 | 200 | 底圖（已接） |
+| 內政部實價登錄批次 ZIP（`plvr.land.moi.gov.tw/DownloadSeason?season=115S1&type=zip`） | 季度買賣／租賃實價 | 200，14 MB | 成交均價熱力圖（候選；FUNRAISE MCP 已有實價工具，可先用 MCP） |
+| 內政部村里界圖 SHP（data.gov.tw/dataset/7438） | 全國里界向量 | 200 | 里級人口 choropleth 的幾何 |
+| data.taipei 各里人口、各區人口戶數 | 人口統計 | 200 | 人口熱區 |
+| YouBike 2.0 即時 JSON（`tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json`） | 站點即時車位 | 200 | 即時圖層（候選） |
+| Overture Maps buildings PMTiles（2026-08-19 release） | 全球建物 footprint＋高度 | 200/206 | 補強／校正 OSM 建物高度 |
+| OSM Overpass（kumi.systems 鏡像）、Wikidata SPARQL、Wikimedia Commons API | 水體／POI／地標資料與照片 | 200 | 地標卡補照片、河流多邊形 |
+| OSRM／Valhalla 公開示範站 | 路徑、等時圈 | 200 | 等時圈備援（非正式 SLA） |
+| 建築技術規則 §39-1（冬至日一小時有效日照） | 法規 | 已核對 | 「日照檢核」功能依據；Cesium 自算太陽位置，不需 API |
+
+### 13.2 需要申請（都免費）— 建議依序
+
+| 順序 | 服務 | 申請處 | 額度／等待 | `.env`（server 端） | 解鎖功能 |
+|---|---|---|---|---|---|
+| 1 | Anthropic API | console.anthropic.com | 依方案 | `ANTHROPIC_API_KEY` | Claude 模式（真正的 agent，接 FUNRAISE MCP 即時查） |
+| 2 | 交通部 TDX | tdx.transportdata.tw 會員中心「應用管理」 | 免費，即時～短暫審核 | `TDX_CLIENT_ID` / `TDX_CLIENT_SECRET` | 捷運各站進出人次（人流圖層）、公車、停車 |
+| 3 | OpenRouteService | openrouteservice.org/dev | 免費，即時，約 2,000 次/日 | `ORS_API_KEY` | 真實路網的步行／開車等時圈（捷運等時圈不需要它） |
+| 4 | 中央氣象署開放資料 | opendata.cwa.gov.tw/user/authkey | 免費，即時 | `CWA_API_KEY` | 現在天氣 HUD、天空色調 |
+| 5 | 環境部資料開放平臺 | data.moenv.gov.tw | 免費，即時 | `MOENV_AQI_API_KEY` | 台北測站 AQI 角標 |
+| 6 | Mapillary | mapillary.com/dashboard/developers | 免費，即時 | `MAPILLARY_ACCESS_TOKEN` | 選定建物的街景縮圖 |
+| 7 | CARTO 免費 key | carto.com/basemaps | 免費，5M tiles/月，可商用 | `CARTO_API_KEY` | Positron／Dark Matter 長期穩定（目前無 key 也能跑） |
+| 8 | TGOS 門牌坐標 API | api.tgos.tw | 免費，需審核 | `TGOS_API_KEY` | 地址轉坐標（補無座標紀錄） |
+| 9 | Google Maps Platform（Map Tiles API） | console.cloud.google.com（需綁帳單） | 有免費額度，金額 UNVERIFIED | `VITE_GOOGLE_MAPS_API_KEY` | 相片級 3D Tiles（程式已就位） |
+| 10 | Cesium ion | cesium.com/ion/signup | Community 版限非商業／評估；商用 $149/月 | `VITE_CESIUM_ION_TOKEN` | World Terrain、Cesium OSM Buildings |
+
+**最值得人工探路**：國土測繪中心「多維度國家空間資訊服務平臺」（3dmaps.nlsc.gov.tw）宣稱提供全國 500 多萬棟 LOD1 3D 建物的 OGC 3D Tiles／I3S 服務、免登入；沙盒無法驗證憑證鏈，請用一般瀏覽器開 devtools 找 tileset.json 端點——若可用，可直接取代手工擠出的 OSM 量體。臺北市也有「自動化 3D 建物近似模型」開放資料（KMZ/COLLADA），可自建 3D Tiles。
+
+所有金鑰一律放 server 端 `.env`，由 `server/index.mjs` 代理（同 Fish Audio 模式）；不要放 `VITE_*` 進前端 bundle（Google／ion 除外，那兩者本身就是前端金鑰）。
+
 
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 

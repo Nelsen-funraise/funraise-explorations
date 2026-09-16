@@ -7,7 +7,7 @@
 **本機開啟**：`prototype/dist/index.html`（單一 HTML，不需伺服器；語音辨識需 Chrome／Edge 並允許麥克風）
 
 ## 🆕 v2 · 睿鏡真實 3D 版（`app/`，CesiumJS）
-God's Eye View 同款底座：**57,458 棟 OpenStreetMap 3D 建物 × 國土測繪中心正射影像**，疊上 FUNRAISE MCP 快照的 11 個圖層（商辦以真實足跡擠出、都更真實多邊形、企業遷徙弧線、規劃案隨時間軸長高），真 3D 相機（環繞／街景／俯視／全台）、GLSL 感測、5 段有旁白的電影式場景、規則式 agent 與 **Claude 模式**（官方 SDK + FUNRAISE MCP connector，**OAuth 授權自動導引、未授權時退回快照**）。HUD 套用 **PickPeak Design System**：日間／夜間雙主題、三種密度（沉浸／平衡／標註）、PickPeak 風格「N 棟」聚合圓與圖層 icon、面板自動淡出、地圖編號標註、卡片釘選、右鍵旋轉俯仰 + 方向盤。**Fish Audio 語音**（Nelsen／Eunice／台灣腔女生，場景旁白預錄、等講完再換句）。**智慧都更模擬**：地號 + 使用分區容積 + 建照套繪 → 可建量體與獎勵滑桿。不需要任何 API key 就能跑。 另有 **日照陰影**（真實太陽位置、播放一天）、**hover 資料小卡**、**可分享的視角連結**。
+God's Eye View 同款底座：**57,458 棟 OpenStreetMap 3D 建物 × 國土測繪中心正射影像**，疊上 FUNRAISE MCP 快照的 11 個圖層（商辦以真實足跡擠出、都更真實多邊形、企業遷徙弧線、規劃案隨時間軸長高），真 3D 相機（環繞／街景／俯視／全台）、GLSL 感測、5 段有旁白的電影式場景、規則式 agent 與 **Claude 模式**（官方 SDK + FUNRAISE MCP connector，**OAuth 授權自動導引、未授權時退回快照**）。HUD 套用 **PickPeak Design System**：日間／夜間雙主題、三種密度（沉浸／平衡／標註）、PickPeak 風格「N 棟」聚合圓與圖層 icon、面板自動淡出、地圖編號標註、卡片釘選、右鍵旋轉俯仰 + 方向盤。**Fish Audio 語音**（Nelsen／Eunice／台灣腔女生，場景旁白預錄、等講完再換句）。**智慧都更模擬**：地號 + 使用分區容積 + 建照套繪 → 可建量體與獎勵滑桿。不需要任何 API key 就能跑。 另有 **日照陰影**（真實太陽位置、播放一天）、**hover 資料小卡**、**可分享的視角連結**。 底圖可換 CARTO／Esri 深淺色設計底圖，時間軸 2014–2025 自動換國土測繪中心該年航照；右欄可疊段籍界、建物框、公有土地、土壤液化等免金鑰疊圖；河川為波紋水面、夜間道路光帶。
 
 ```bash
 cd app && npm ci && npm run dev        # http://localhost:5173

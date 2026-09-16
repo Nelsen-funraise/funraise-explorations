@@ -2,7 +2,7 @@
 // timeline, inspector, pins & numbered callouts, transcript with provenance, caption, voice, scenes, FUNRAISE MCP status/authorize.
 import { LAYERS, fmtInt, fmtMoney } from './layers/funraise.js';
 import { LENSES } from './agent/agent.js';
-import { BASEMAPS } from './viewer.js';
+import { BASEMAPS, OVERLAYS } from './viewer.js';
 import { SCENES } from './scenes.js';
 import { createSpeech } from './speech.js';
 import { simulateRenewal, ASSUMPTIONS } from './renewal.js';
@@ -108,7 +108,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- theme: 夜間戰情室 (dark) · PickPeak 日間 (light) ---- */
   const themeBtn = $('#theme');
-  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.osm && map.osm.setPalette) map.osm.setPalette(t); themeBtn.textContent = t === 'light' ? '☾ 夜間' : '☀︎ 日間'; themeBtn.title = t === 'light' ? '切到夜間戰情室主題（N）' : '切到 PickPeak 日間主題（N）'; if (t === 'light' && !(BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('esri_light'); if (t === 'dark' && (BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('nlsc_photo'); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
+  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); themeBtn.textContent = t === 'light' ? '☾ 夜間' : '☀︎ 日間'; themeBtn.title = t === 'light' ? '切到夜間戰情室主題（N）' : '切到 PickPeak 日間主題（N）'; if (t === 'light' && !(BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('esri_light'); if (t === 'dark' && (BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('nlsc_photo'); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
   themeBtn.onclick = () => ui.setTheme(ui.theme === 'light' ? 'dark' : 'light');
 
   /* ---- camera gimbal ---- */
@@ -126,9 +126,20 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- basemaps & night ---- */
   const bbox = $('#basemaps'); let night = true;
-  for (const [k, B] of Object.entries(BASEMAPS)) { const b = el('button', null, k === 'osm' ? 'OSM' : B.name.split('（')[0]); b.dataset.base = k; b.title = B.name; b.setAttribute('aria-pressed', k === viewerApi.basemapKey); b.onclick = () => ui.setBasemap(k); bbox.appendChild(b); }
+  for (const [k, B] of Object.entries(BASEMAPS)) { const b = el('button', null, B.name.split('（')[0]); b.dataset.base = k; b.title = B.name; b.setAttribute('aria-pressed', k === viewerApi.basemapKey); b.onclick = () => ui.setBasemap(k); bbox.appendChild(b); }
   const nb = el('button', null, '🌙 夜'); nb.title = '夜間色調／日間影像'; nb.setAttribute('aria-pressed', 'true'); nb.onclick = () => ui.setNight(!night); bbox.appendChild(nb);
-  ui.setBasemap = k => { viewerApi.setBasemap(k); bbox.querySelectorAll('[data-base]').forEach(b => b.setAttribute('aria-pressed', b.dataset.base === k)); };
+  ui.setBasemap = k => { viewerApi.setBasemap(k); bbox.querySelectorAll('[data-base]').forEach(b => b.setAttribute('aria-pressed', b.dataset.base === k)); ui.updateCredits(); };
+  /* ---- NLSC overlays (段籍界／建物框／公有地／液化／道路) ---- */
+  const obox = $('#overlays');
+  for (const [k, O] of Object.entries(OVERLAYS)) { const b = el('button', null, O.name); b.dataset.overlay = k; b.title = `${O.name} · 國土測繪中心 WMTS ${O.layer}`; b.setAttribute('aria-pressed', 'false'); b.onclick = () => ui.setOverlay(k, b.getAttribute('aria-pressed') !== 'true'); obox.appendChild(b); }
+  ui.setOverlay = (k, on) => { if (!OVERLAYS[k]) return false; viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits(); if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); } return true; };
+  ui.overlays = () => viewerApi.overlays;
+  /* ---- render quality ---- */
+  const qbox = $('#quality'); const QUALITY = { ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR' };
+  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
+  ui.setQuality = (q) => { const cur = viewerApi.setQuality(q); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); return cur; };
+  ui.syncQuality = () => { const cur = viewerApi.quality; qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); };
+  ui.updateCredits = () => { const c = $('#credits'); if (c) c.textContent = '圖資：' + viewerApi.credits().join(' · '); };
   ui.setNight = on => { night = !!on; viewerApi.setNight(night); nb.setAttribute('aria-pressed', night); nb.textContent = night ? '🌙 夜' : '☀️ 日'; };
   ui.cycleBasemap = () => { const ks = Object.keys(BASEMAPS); ui.setBasemap(ks[(ks.indexOf(viewerApi.basemapKey) + 1) % ks.length]); };
 
@@ -174,7 +185,9 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   const row = (k, v, warm) => v == null || v === '' || v === 'null' ? '' : `<div class="row${warm ? ' warm' : ''}"><span class="k">${k}</span><span class="v">${v}</span></div>`;
   const precision = p => p === 'area_centroid' ? '約略（區域中心）' : p === 'address' ? '地址定位' : p === 'exact' ? '精確' : p;
   const keyOf = (item, layer) => (KEY_OF[layer] || (it => layer + ':' + it.id))(item);
-  ui.select = (item, layer) => { map.selected = item ? { key: keyOf(item, layer), item, layer } : null; renderSelection(item, layer); if (item && innerWidth < 820) document.body.classList.add('show-inspector'); };
+  ui.select = (item, layer) => { map.selected = item ? { key: keyOf(item, layer), item, layer } : null; renderSelection(item, layer); if (item && innerWidth < 820) document.body.classList.add('show-inspector'); if (!item && map.focus && map.focus.active) map.focus.exit(); };
+  ui.isochrone = (item, layer, maxMin = 20) => { if (!map.showIsochrone) return null; const p = itemPos(item); if (!p) return null; ui.setLayer('mrt', true); const info = map.showIsochrone({ lon: p[0], lat: p[1], name: item.name || item.company_name || '這裡', maxMin }); if (info && info.bounds) { const [w, s, e, n] = info.bounds; const span = Math.hypot((e - w) * 111320 * Math.cos(((s + n) / 2) * Math.PI / 180), (n - s) * 110540); map.flyTo((w + e) / 2, (s + n) / 2, { range: Math.max(1600, span * 0.9), pitch: -55 }); } if (info) toast(`${info.origin.name} · ${maxMin} 分鐘捷運圈：可達 ${info.stations} 站${info.farthest ? `，最遠 ${info.farthest.name} ${info.farthest.minutes} 分` : ''}`); return info; };
+  ui.focus = (item, layer, on = true) => { if (!map.focus) return false; if (!on) { map.focus.exit(); if (map.selected) renderSelection(map.selected.item, map.selected.layer); return true; } const p = itemPos(item); if (!p) return false; map.focus.enter({ lon: p[0], lat: p[1], key: keyOf(item, layer) }); if (map.selected) renderSelection(map.selected.item, map.selected.layer); return true; };
   const summaryRows = (it, layer) => {
     if (layer === 'stock') return row('等級', it.grade ? it.grade + ' 級' : null) + row('樓層', `${it.floor_above || '?'}F / B${it.floor_below || '?'}`) + row('實價租金', it.actual_rent_avg_ntd_per_ping ? `均 ${fmtInt(it.actual_rent_avg_ntd_per_ping)} 元/坪/月` : null, true) + row('捷運', it.mrt && it.mrt[0] ? `${it.mrt[0].station_name || it.mrt[0].station} ${it.mrt[0].distance} m` : null);
     if (layer === 'future') return row('開發商', it.developer) + row('完工', it.completion_date) + row('樓層', `${it.floors_above || '?'}F / B${it.floors_below || '?'}`);
@@ -205,8 +218,9 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     if (layer === 'heat') { const mp = it.market_price || {}; h += `<div class="meta">${escapeHtml(it.pp_insight || it.description || '')}</div><div class="kpis">${kpiHtml(fmtInt(mp.actual_rent_avg) + '<small>元/坪/月</small>', '平均租金 · YoY ' + ((mp.actual_rent_yoy || 0) * 100).toFixed(1) + '%', mp.actual_rent_yoy >= 0 ? 'up' : 'down')}${kpiHtml(fmtInt((mp.actual_sale_avg || 0) / 1e4) + '<small>萬/坪</small>', '平均售價 · YoY ' + ((mp.actual_sale_yoy || 0) * 100).toFixed(1) + '%', mp.actual_sale_yoy >= 0 ? 'up' : 'down')}${kpiHtml(fmtInt((it.company_stats || {}).total || it.company_total || 0), '企業數 · 成長 ' + (((it.company_stats || {}).growth_rate ?? it.company_growth_rate ?? 0) * 100).toFixed(0) + '%')}${kpiHtml((it.building_stats || []).filter(b => b.grade === 'A').map(b => b.count)[0] ?? '—', 'A 辦棟數')}</div>`; const ser = it.rent_series || []; if (ser.length >= 3) h += sparkSVG('租金季線（元/坪/月）', ser.map(s => ({ t: `${s.year}Q${s.quarter}`, v: s.value }))); }
     if (layer === 'parcels') h += `<div class="rows">${row('地段', `${it.town} ${it.section1} 段（${it.sectcode}）`)}${row('地號', it.landcode)}${row('面積', it.area_sqm ? `${fmtInt(it.area_sqm)} m²（${fmtInt(it.area_sqm / 3.3058)} 坪）` : null)}${row('所屬單元', it.unit_name)}</div><div class="chips"><button class="chip brand" data-say="模擬 ${escapeHtml(it.unit_name || '')} 都更">🏗 模擬這個單元</button></div>`;
     if (layer === 'mrt') h += `<div class="rows">${row('路線', (it.lines || []).join('、'))}</div><div class="chips"><button class="chip" data-say="帶我去${escapeHtml(it.name)}">500m 內商辦</button></div>`;
-    if (itemPos(it)) h += `<div class="chips" style="margin-top:4px"><button class="chip brand" data-pin="1">📌 釘在地圖上</button></div>`;
-    sel.innerHTML = h; sel.querySelectorAll('[data-say]').forEach(b => b.onclick = () => say(b.dataset.say)); const pb = sel.querySelector('[data-pin]'); if (pb) pb.onclick = () => ui.pin(it, layer); const sb2 = sel.querySelector('[data-sim]'); if (sb2) sb2.onclick = () => ui.simulateRenewal(it);
+    const focused = map.focus && map.focus.active && map.focus.active.key === keyOf(it, layer);
+    if (itemPos(it)) h += `<div class="chips" style="margin-top:4px"><button class="chip brand" data-pin="1">📌 釘在地圖上</button><button class="chip${focused ? ' brand' : ''}" data-focus="1" title="對焦：其餘量體與標註淡出，只留這棟與周邊 320 m">🔦 ${focused ? '取消對焦' : '對焦'}</button><button class="chip" data-iso="1" title="用內建捷運路網算 20 分鐘可達的站（不需外部 API）">🚇 捷運 20 分圈</button>${layer === 'stock' && map.floorWalk ? `<button class="chip" data-floorwalk="1" title="第一人稱：走進這棟的樓層向外看（拖曳看四周、滾輪換樓層、W/S 前進）">👁 站上 ${Math.min(12, it.floor_above || 1)} 樓看出去</button>` : ''}</div>`;
+    sel.innerHTML = h; sel.querySelectorAll('[data-say]').forEach(b => b.onclick = () => say(b.dataset.say)); const fwb = sel.querySelector('[data-floorwalk]'); if (fwb) fwb.onclick = () => map.floorWalk.enter({ lon: it.lon, lat: it.lat, name: it.name, floors: it.floor_above }); const ib = sel.querySelector('[data-iso]'); if (ib) ib.onclick = () => ui.isochrone(it, layer, 20); const fb = sel.querySelector('[data-focus]'); if (fb) fb.onclick = () => ui.focus(it, layer, !(map.focus && map.focus.active && map.focus.active.key === keyOf(it, layer))); const pb = sel.querySelector('[data-pin]'); if (pb) pb.onclick = () => ui.pin(it, layer); const sb2 = sel.querySelector('[data-sim]'); if (sb2) sb2.onclick = () => ui.simulateRenewal(it);
   }
 
   /* ---- overlay: pins (Direction C「釘在地圖上」) & numbered callouts (annotated) ---- */
@@ -328,10 +342,10 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   addEventListener('keydown', e => {
     if (e.target === cmd || e.metaKey || e.ctrlKey || e.altKey) { if (e.key === 'Escape') cmd.blur(); return; }
     const k = e.key.toLowerCase();
-    if (k === '/') { e.preventDefault(); cmd.focus(); } else if (k === 'escape') { if (director && director.playing) director.stop(); menu.classList.add('hidden'); vmenu.classList.add('hidden'); ui.select(null); }
+    if (k === '/') { e.preventDefault(); cmd.focus(); } else if (k === 'escape') { if (director && director.playing) director.stop(); menu.classList.add('hidden'); vmenu.classList.add('hidden'); ui.select(null); if (map.clearIsochrone) map.clearIsochrone(); }
     else if (k === 'd') ui.cycleDensity(); else if (k === '1') ui.setSensor('normal'); else if (k === '2') ui.setSensor('night'); else if (k === '3') ui.setSensor('thermal'); else if (k === '4') ui.setSensor('blueprint');
     else if (k === 'o') ui.userMode('orbit'); else if (k === 's') ui.userMode('street'); else if (k === 'c') ui.userMode('city'); else if (k === 'g') ui.userMode('globe'); else if (k === 't') ui.userMode('timelapse');
-    else if (k === 'l') { const ids = Object.keys(LENSES); agent && agent.setLens(ids[(ids.indexOf(agent.lens) + 1) % ids.length]); } else if (k === 'n') ui.setTheme(ui.theme === 'light' ? 'dark' : 'light'); else if (k === 'b') ui.cycleBasemap(); else if (k === 'p') sb.click();
+    else if (k === 'l') { const ids = Object.keys(LENSES); agent && agent.setLens(ids[(ids.indexOf(agent.lens) + 1) % ids.length]); } else if (k === 'n') ui.setTheme(ui.theme === 'light' ? 'dark' : 'light'); else if (k === 'b') ui.cycleBasemap(); else if (k === 'p') { if (ui.presenter) { ui.presenter.toggle(); const pb = $('#presenter'); if (pb) pb.setAttribute('aria-pressed', ui.presenter.active); } else sb.click(); }
     else if (k === 'arrowleft') { e.preventDefault(); map.rig.rotateBy(e.shiftKey ? -45 : -15); } else if (k === 'arrowright') { e.preventDefault(); map.rig.rotateBy(e.shiftKey ? 45 : 15); }
     else if (k === 'arrowup') { e.preventDefault(); map.rig.tiltBy(e.shiftKey ? 20 : 8); } else if (k === 'arrowdown') { e.preventDefault(); map.rig.tiltBy(e.shiftKey ? -20 : -8); }
     else if (k === '+' || k === '=') map.rig.zoomBy(0.6); else if (k === '-' || k === '_') map.rig.zoomBy(1.6); else if (k === 'home') map.rig.north();
