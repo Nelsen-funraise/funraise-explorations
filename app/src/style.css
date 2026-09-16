@@ -310,7 +310,19 @@ body.moving:not(.d-annotated) #inspector:hover,body.moving:not(.d-annotated) #ra
 #g-2d[aria-pressed="true"]{background:var(--blue-500);color:var(--gray-950);border-color:transparent}
 body.d-immersive #gimbal{opacity:.55} body.d-immersive #gimbal:hover{opacity:1}
 body.moving:not(.d-annotated) #gimbal{opacity:1}
-#theme{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
+#theme,#sun,#share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
+#sun[aria-pressed="true"]{border-color:var(--warm);color:var(--warm)}
+#sunmenu{position:absolute;right:16px;top:58px;width:340px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;z-index:20}
+#sunmenu .chips{display:flex;flex-wrap:wrap;gap:6px}
+#sunmenu .chip[aria-pressed="true"]{background:var(--blue-500);color:#fff;border-color:transparent}
+#sunmenu .sunrow{display:flex;align-items:center;gap:10px}
+#sunmenu input[type=range]{flex:1;accent-color:var(--warm);min-width:0}
+#sunmenu .mono{font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap}
+#sunmenu .hint{font-size:11px;color:var(--ink-3);line-height:1.35}
+#hovercard{position:absolute;left:0;top:0;padding:8px 11px 7px;max-width:280px;pointer-events:none;z-index:30;font-size:12px;will-change:transform}
+#hovercard h5{margin:2px 0 3px;font-size:13px;font-weight:600;color:var(--ink)}
+#hovercard .l{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+#hovercard .hint{margin-top:4px;font-size:10px;color:var(--ink-3)}
 
 /* ---- LIGHT THEME · PickPeak 日間 ---- */
 body.theme-light{
@@ -322,7 +334,7 @@ body.theme-light{
   --panel-shadow:0 0 10px -1px rgba(3,7,18,.08), 0 8px 24px -16px rgba(3,7,18,.18);
 }
 body.theme-light{background:var(--bg);color:var(--ink)}
-body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
+body.theme-light #sunmenu,body.theme-light #hovercard,body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
 body.theme-light #vignette,body.theme-light #scan{display:none}
 body.theme-light #topbar{background:linear-gradient(to bottom, rgba(255,255,255,.85), rgba(255,255,255,0))}
 body.theme-light .brand .name{color:var(--gray-900)} body.theme-light .brand .name em{color:var(--blue-600)}

@@ -1,0 +1,4 @@
+/* 對焦／X-ray 模式：加強既有 #vignette（見 style.css），不改動它在 body.theme-light 下 display:none 的既有規則——
+   只在 #vignette 實際顯示時（夜間戰情室主題）加深，PickPeak 日間主題維持原本「無暗角」的乾淨觀感。 */
+#vignette { transition: background 0.4s ease; }
+body.focusing #vignette { background: radial-gradient(ellipse at 50% 58%, rgba(0, 0, 0, 0) 44%, rgba(3, 7, 18, 0.72) 100%); }

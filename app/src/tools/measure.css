@@ -1,0 +1,29 @@
+/* 睿鏡 PeakLens — 量測與畫基地工具：canvas 十字準星 + 浮動提示 pill。顏色沿用 style.css 的語意 tokens（--panel/--line/--ink/--mono），
+   隨 body.theme-light 自動變色，不需要在這裡另外處理主題。 */
+
+/* while a tool is active, main.js sets viewer.canvas.dataset.tool = mode — cross-hair over the globe, not the whole page */
+#cesiumContainer canvas[data-tool] { cursor: crosshair; }
+
+/* live instruction + readout pill, centered just above the command bar */
+#toolhint {
+  position: absolute;
+  left: 50%;
+  bottom: 110px;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-family: var(--mono, "SF Mono", ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--ink, #F3F4F6);
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transition: opacity .15s;
+}
+
+@media (max-width: 640px) {
+  #toolhint { bottom: 128px; font-size: 11px; max-width: calc(100vw - 24px); }
+}

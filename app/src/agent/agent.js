@@ -41,6 +41,25 @@ export class Agent {
     return bld || tryList(this.d.future_dev, 'future', 600, -32) || tryList(this.d.industrial_parks, 'parks', 2400) || tryList(this.d.public_infras, 'infra', 1800) || tryList(this.d.development_zones, 'zones', 1800) || tryList(this.d.business_areas, 'heat', 2600)
       || tryList(this.map.basemap.mrt_stations, 'mrt', 1100) || (() => { const dn = this.districtOfText(text); const c = this.districtCentroid(dn); return c ? { name: dn, lon: c[0], lat: c[1], range: 6500, kind: 'district' } : null; })();
   }
+  isochrone(text, a) {
+    if (/清除|關掉|取消|移除/.test(text)) { this.map.clearIsochrone && this.map.clearIsochrone(); return this.finish(a, '等時圈已清除。'); }
+    const m = text.match(/(\d+)\s*分/); const maxMin = Math.min(60, Math.max(5, m ? +m[1] : 20)); const p = this.resolvePlace(text) || (this.map.selected && this.map.selected.item && this.map.selected.item.lat != null ? { name: this.map.selected.item.name, lon: this.map.selected.item.lon, lat: this.map.selected.item.lat } : { name: '目前位置', ...this.map.center() });
+    if (!this.map.showIsochrone) return this.finish(a, '等時圈模組尚未載入。'); this.ui.setLayer('mrt', true); const info = this.map.showIsochrone({ lon: p.lon, lat: p.lat, name: p.name, maxMin }); if (!info) return this.finish(a, '算不出等時圈。');
+    if (info.bounds) { const [w, s, e, n] = info.bounds; this.map.flyTo((w + e) / 2, (s + n) / 2, { range: Math.max(1600, distM([w, s], [e, n]) * 0.9), pitch: -55 }); } else this.map.flyTo(p.lon, p.lat, { range: 2600, pitch: -55 });
+    const bands = Object.entries(info.byBand).filter(([, v]) => v).map(([k, v]) => `${k} 分內 ${v} 站`).join('、');
+    return this.finish(a, `${info.origin.name} 出發，${maxMin} 分鐘捷運等時圈：可達 ${info.stations} 站（${bands || '無'}）。最遠：${info.farthest ? `${info.farthest.name} · ${info.farthest.minutes} 分` : '—'}。走到站 ${Math.round(info.origin.walkM || 0)} m 以 80 m/分計、每站 0.7 分停靠、轉乘 +4 分；路線是實際捷運路網（內建計算，不用外部 API）。說「清除等時圈」收起。`);
+  }
+  async tripsPlay(text, a) {
+    const yt = this.yearsFromText(text); if (!this.map.trips) return this.finish(a, '企業遷徙動線尚未載入。');
+    this.ui.setLayer('moves', true); let summary = await this.map.trips.play({ year: yt }); let y = yt || this.year; // no year in the question → all moves in the snapshot
+    if (!summary.fired && !yt) { summary = await this.map.trips.play({ year: null }); y = null; }
+    if (!summary.fired) return this.finish(a, `${y || ''} 年沒有符合的企業遷徙紀錄可播放動線（目前快照只有 2026 年 7 月的異動）。`);
+    const top = Object.entries(summary.byDistrict).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([d, n]) => `${d} ${n} 家`).join('、');
+    const gain = summary.netFlow.filter(f => f.net > 0).slice(0, 2).map(f => `${f.district}（+${f.net}）`).join('、'); const lose = summary.netFlow.filter(f => f.net < 0).slice(0, 2).map(f => `${f.district}（${f.net}）`).join('、');
+    const lines = [`播放企業遷徙動線：${summary.fired} 條弧線由原址飛向新址，落地依序亮起公司名稱。`, `落地最多：${top}。`]; if (gain) lines.push(`淨遷入：${gain}${lose ? `；淨遷出：${lose}` : ''}。`);
+    if (summary.approxOrigin) lines.push(`其中 ${summary.approxOrigin} 家原始地址不明，弧線起點為估算方向，僅供示意。`); lines.push('來源：經濟部公司登記（FUNRAISE 異動比對）。');
+    return this.finish(a, lines.join('\n'));
+  }
   yearsFromText(text) { const m = text.match(/(20\d{2})/); if (m) return +m[1]; const r = text.match(/(1[0-2]\d)年/); return r ? +r[1] + 1911 : null; }
   monthsFromText(text) { if (/半年/.test(text)) return 6; if (/一年|12個月|十二個月|過去一年|最近一年/.test(text)) return 12; if (/兩年|2年/.test(text)) return 24; const m = text.match(/(\d+)\s*個月/); return m ? +m[1] : null; }
   async call(turn, tool, params, fn) { const card = this.ui.toolStart(turn, tool, params); await sleep(rnd(160, 520)); const res = fn(); this.ui.toolDone(card, res.summary); return res.value; }
@@ -57,6 +76,34 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
+      if (has(t, /等時圈|通勤圈|捷運圈|生活圈|((捷運|通勤|步行|走路).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) return this.isochrone(text, a);
+      if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {
+        if (/取消|關掉|離開|退出|解除/.test(t)) { this.ui.focus(null, null, false); return this.finish(a, '已取消對焦，城市恢復。'); }
+        const sel = this.map.selected; const byName = (this.d.buildings || []).find(b => b.name && t.includes(b.name.replace(/大樓$/, ''))) || null;
+        const item = byName || (sel && sel.item); const layer = byName ? 'stock' : (sel && sel.layer);
+        if (!item || item.lat == null) return this.finish(a, '先點選一棟大樓，或說「對焦台北101」。對焦後其餘量體淡出，只留這棟與周邊 320 m 的脈絡（捷運站、鄰近商辦、交易）。');
+        this.ui.select(item, layer); this.ui.focus(item, layer, true); this.map.flyTo(item.lon, item.lat, { range: 620, pitch: -38 });
+        return this.finish(a, `對焦「${item.name || item.company_name}」：其餘 5.7 萬棟量體與標註淡出，只留這棟與 320 m 內的脈絡。說「取消對焦」恢復。`);
+      }
+      if (has(t, /段籍|地段界|地籍界|建物框|公有土地|公有地|液化|道路路網|疊圖|overlay/i)) {
+        const K = [['landsect', /段籍|地段|地籍/], ['buildx', /建物框|分棟/], ['publicland', /公有/], ['liquefaction', /液化/], ['road', /道路/]]; const hit = K.filter(([, re]) => re.test(t)).map(([k]) => k); const off = /關|移除|拿掉|取消|隱藏/.test(t);
+        if (!hit.length) { return this.finish(a, '可疊的國土測繪中心圖層：段籍界（地段）、分棟建物框、公有土地、土壤液化潛勢、道路路網。說「疊上段籍界」或「顯示公有土地」即可。'); }
+        for (const k of hit) this.ui.setOverlay(k, !off); const names = { landsect: '段籍界', buildx: '分棟建物框', publicland: '公有土地', liquefaction: '土壤液化潛勢', road: '道路路網' };
+        return this.finish(a, `${off ? '移除' : '疊上'}${hit.map(k => names[k]).join('、')}${off ? '' : '（國土測繪中心 WMTS，免金鑰）。段籍界與建物框要拉近到街廓尺度才會出現；公有土地是整合開發最先看的一層。'}`);
+      }
+      if (has(t, /底圖|basemap|正射|衛星|電子地圖|deep ?dark|dark ?matter|positron|carto/i)) {
+        const key = /衛星/.test(t) ? 'esri' : /電子地圖/.test(t) ? 'nlsc_emap' : /正射|航照/.test(t) ? 'nlsc_photo' : /dark ?matter|carto.*深|深色.*carto/i.test(t) ? 'carto_dark' : /深灰|esri.*深|深色/.test(t) ? 'esri_dark' : /positron|carto/i.test(t) ? 'carto_light' : /淺|白|灰/.test(t) ? 'esri_light' : null;
+        if (key) { this.ui.setBasemap(key); return this.finish(a, `底圖切到 ${key.replace('_', ' ')}。時間軸拉到 2014–2025 時，正射影像會換成該年度的國土測繪中心航照（時空對比）。`); }
+      }
+      if (has(t, /環境光|AO|泛光|bloom|HDR|畫質|色調映射/i)) { const on = !/關|取消|off/i.test(t); const q = {}; if (/環境光|AO/i.test(t)) q.ao = on; if (/泛光|bloom/i.test(t)) q.bloom = on; if (/HDR|色調/i.test(t)) q.hdr = on; if (!Object.keys(q).length) q.ao = on; const cur = this.ui.setQuality(q); return this.finish(a, `畫質：環境光遮蔽 ${cur.ao ? '開' : '關'} · 泛光 ${cur.bloom ? '開' : '關'} · HDR ${cur.hdr ? '開' : '關'}。`); }
+      if (has(t, /分享|複製.*連結|這個視角的連結|share/i)) { this.ui.shareView && this.ui.shareView(); return this.finish(a, '已把這個視角（相機、鏡、年份、主題、圖層）做成連結並複製；貼給同事打開就是同一個畫面。'); }
+      if (has(t, /日照|陰影|影子|黃金時刻|golden|夕陽|正午|清晨|暮色|太陽/)) {
+        if (has(t, /關|平光|取消|off/i)) { this.ui.setSun(null); return this.finish(a, '日照關閉，回到平光。'); }
+        if (has(t, /一天|播放|掃過|整天|sweep/i)) { this.ui.sweepSun(); return this.finish(a, '播放一天：太陽從 06:30 走到 18:15，看陰影掃過街廓——哪些基地下午還有光、哪些被高樓遮住。'); }
+        const hm = t.match(/(\d{1,2})\s*[:：點時]\s*(\d{2})?/); const preset = /清晨|日出|dawn/i.test(t) ? 6.5 : /上午|早上|morning/i.test(t) ? 9 : /正午|中午|noon/i.test(t) ? 12 : /暮色|傍晚|dusk|日落/i.test(t) ? 18.25 : /黃金|golden|夕陽/i.test(t) ? 17 : null;
+        const h = hm ? Math.min(19.5, Math.max(5.5, +hm[1] + (hm[2] ? +hm[2] / 60 : 0))) : (preset ?? 17); const set = this.ui.setSun(h); const alt = this.map.lighting && this.map.lighting.sunAltitude();
+        return this.finish(a, `切到 ${String(Math.floor(set)).padStart(2, '0')}:${String(Math.round((set % 1) * 60)).padStart(2, '0')} 的日照${alt != null ? `（太陽高度約 ${alt}°）` : ''}：每棟量體都投影到鄰地，拉開「都更模擬」可直接看新量體的陰影落在哪。想看整天變化就說「播放一天的陰影」。`);
+      }
       if (has(t, /日間|白天|關掉夜間|日景/)) { this.ui.setNight(false); return this.finish(a, '切到日間影像。'); }
       if (has(t, /夜間|夜景|夜色/)) { this.ui.setNight(true); return this.finish(a, '切到夜間色調。'); }
       if (has(t, /環繞|orbit|繞一圈|轉一圈/)) { const p = this.resolvePlace(text); const c = p || this.map.center(); this.map.orbit(c.lon, c.lat, p && p.kind === 'stock' ? 700 : (p ? Math.min(p.range || 1400, 2200) : 1400)); this.ui.setMode('orbit'); return this.finish(a, `進入環繞模式${p ? '，鎖定 ' + p.name : ''}。拖曳可隨時接手。`); }
@@ -73,10 +120,20 @@ export class Agent {
       if (has(t, /上市|上櫃|法人|買了|賣了|資產交易|mops|取得|處分|資本流/)) return this.deals(text, a);
       if (has(t, /都更|更新單元|危老/)) return this.renewal(text, a);
       if (has(t, /比較|比一比|vs|對比|排名|排行/)) return this.compare(text, a);
+      if (has(t, /動線|播放.*遷徙|重播.*遷徙|遷徙.*動畫|migration/)) return this.tripsPlay(text, a);
       if (has(t, /遷入|遷徙|搬進|搬到|企業流動|增資|新設/)) return this.moves(text, a);
       if (has(t, /租戶|誰在|哪些公司在|進駐/)) return this.tenants(text, a);
       if (has(t, /歷史|成交紀錄|實價|成交價|租金紀錄/)) return this.history(text, a);
       if (has(t, /dd|盡職|生命週期|memo|備忘/)) return this.dd(text, a);
+      if (has(t, /站在|站上|從\s*(\d+)\s*[樓F].*看|第\s*(\d+)\s*樓.*(視野|看出去)|樓層視角/)) {
+        if (/離開|退出|結束/.test(t) && this.map.floorWalk) { this.map.floorWalk.exit(); return this.finish(a, '離開樓層視角。'); }
+        const sel = this.map.selected && this.map.selected.item && this.map.selected.item.lat ? this.map.selected.item : null; const p = this.resolvePlace(text); const b = (p && p.kind === 'stock' && p.item) || (this.d.buildings || []).find(x => x.name && t.includes(x.name.replace(/大樓$/, ''))) || sel;
+        if (!b || b.lat == null || !this.map.floorWalk) return this.finish(a, '先點選或說出一棟大樓，例如「站上台北101的12樓看出去」。');
+        const fm = text.match(/(\d+)\s*[樓F]/i); const floor = fm ? +fm[1] : null; this.map.floorWalk.enter({ lon: b.lon, lat: b.lat, name: b.name, floors: b.floor_above || 20, floor });
+        return this.finish(a, `站上${b.name || ''}${floor ? ` ${floor} 樓` : ''}向外看：拖曳看四周、滾輪換樓層、W/S 前進、A/D 轉向、Esc 離開。這是租戶最在意卻沒人做的視角——看得到捷運站還是看到牆。`);
+      }
+      if (has(t, /量.*(距離|多遠)|測距|量.*面積|畫.*基地|自訂基地|手繪/)) { const mode = /畫.*基地|自訂基地|手繪/.test(t) ? 'site' : /面積/.test(t) ? 'area' : 'distance'; if (!this.ui.startTool) return this.finish(a, '量測工具尚未載入。'); this.ui.startTool(mode); return this.finish(a, `已切到「${{ distance: '量距離', area: '量面積', site: '畫基地' }[mode]}」：在地圖上點擊加點、雙擊完成、右鍵退一步、Esc 取消${mode === 'site' ? '；完成後直接用手繪範圍跑容積量體試算（法定容積用 225% 假設，可在面板改獎勵）' : ''}。`); }
+      if (has(t, /展示模式|簡報模式|presenter|上台/)) { const willEnter = !(this.ui.presenter && this.ui.presenter.active); this.ui.presenter && this.ui.presenter.toggle(); return this.finish(a, willEnter ? '進入展示模式：←→ 切換場景、空白鍵播放或停止、Esc 離開。' : '離開展示模式。'); }
       if (has(t, /簡報|總結|摘要|現在看到|這裡有什麼|brief|summary|狀況/)) return this.brief(a);
       const p = this.resolvePlace(text); if (p) return this.goto(p, a);
       await this.finish(a, `這個原型還聽不懂「${text}」。試試：${LENSES[this.lens].suggest.slice(0, 3).map(s => '「' + s + '」').join('、')}，或說「幫助」。`);
@@ -152,7 +209,7 @@ export class Agent {
     const dn = this.districtOfText(text) || '信義區'; const list = (this.d.registry_moves || []).filter(m => m.lat && (m.district === dn || (m.after || '').includes(dn.replace('區', '')))); const caps = this.d.capital_increases || [];
     await this.call(a, 'company-registry.search_registry_changes', { city: '臺北市', district: dn, change_types: ['address'], limit: 50 }, () => ({ summary: `${list.length} 筆跨區`, value: list }));
     if (caps.length) await this.call(a, 'company-registry.search_registry_changes', { city: '臺北市', change_types: ['capital'], direction: 'increase', min_delta: 1e8 }, () => ({ summary: `${caps.length} 筆增資`, value: caps }));
-    this.ui.setLayer('moves', true); const c = this.districtCentroid(dn); if (c) this.map.flyTo(c[0], c[1], { range: 7500, pitch: -42 }); list.forEach(m => this.map.pulse('move:' + m.uniform_number, 9000));
+    this.ui.setLayer('moves', true); if (this.map.trips) this.map.trips.play({ year: this.year, max: 10 }); const c = this.districtCentroid(dn); if (c) this.map.flyTo(c[0], c[1], { range: 7500, pitch: -42 }); list.forEach(m => this.map.pulse('move:' + m.uniform_number, 9000));
     const cross = list.filter(m => m.move_scope === 'cross_city').length; const lines = [`2026 年 7 月有 ${list.length} 家公司把登記地址遷入${dn}（其中 ${cross} 家來自其他縣市），弧線由原址飛向新址。`];
     list.slice(0, 5).forEach(m => lines.push(`· ${m.company_name}｜${m.date}｜${(m.before || '').replace(/^臺北市|^台北市/, '').slice(0, 10)} → ${(m.after || '').replace(/^臺北市|^台北市/, '').slice(0, 14)}`));
     if (caps.length) lines.push(`另有 ${caps.length} 家額定資本額增加 ≥ 1 億的公司（增資＋搬遷 = 擴租訊號，可推給商仲與生態系夥伴）。`); lines.push('來源：經濟部公司登記（FUNRAISE 異動比對）· 額定資本額非實收');

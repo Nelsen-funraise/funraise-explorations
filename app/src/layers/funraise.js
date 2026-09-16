@@ -19,6 +19,8 @@ export const LAYERS = {
 };
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const MRT_COLOR = { '文湖線': '#C48C31', '淡水信義線': '#E3002C', '松山新店線': '#008659', '中和新蘂線': '#F8B61C', '中和新蘆線': '#F8B61C', '板南線': '#0070BD', '環狀線': '#FFDB00' };
+const heatDisc = (() => { let url = null; return () => { if (url) return url; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.4, 'rgba(255,255,255,0.42)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 256, 256); url = c.toDataURL('image/png'); return url; }; })();
+const heatTint = (hot, light) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha(0.18 + hot * 0.14) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha(0.3 + hot * 0.12);
 const yearOf = s => { if (!s) return null; const m = String(s).match(/(\d{4})/); if (m) return +m[1]; const r = String(s).match(/^(\d{3})/); return r ? +r[1] + 1911 : null; };
 const FONT = '500 13px "Inter", "Noto Sans TC", sans-serif', MONO = '600 11px "SF Mono", ui-monospace, Menlo, monospace';
 const label = (text, opts = {}) => ({ text, font: opts.font || FONT, fillColor: C(opts.color || '#F3F4F6'), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, opts.dy ?? -14), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, opts.far || 3500), scale: opts.scale || 1, showBackground: !!opts.bg, backgroundColor: C('#030712', .65), backgroundPadding: new Cesium.Cartesian2(6, 3) });
@@ -38,7 +40,8 @@ export class FunraiseLayers {
   setVisible(k, on) { if (this.ds[k]) { this.ds[k].show = on; this.vis[k] = on; if (k === 'stock') this.ds.markers.show = on; } }
   /* Density budget (Direction C): scale label reach and hide low-importance labels when immersive. */
   setTheme(theme) { // light: darker text on white halo + white-disc icons (PickPeak); dark: original glow colours on dark halo
-    const light = theme === 'light'; const DARK_INK = { stock: '#9A4B12', heat: '#9A4B12', mops: '#B45309', moves: '#B45309', future: '#0F6A85', licenses: '#0F6A85', infra: '#0F6A85', renewal: '#6D28D9', zones: '#6D28D9', parks: '#047857', mrt: '#374151' };
+    const light = theme === 'light'; for (const d of this._heatDiscs || []) d.ellipse.material.color = heatTint(d._hot, light);
+    const DARK_INK = { stock: '#9A4B12', heat: '#9A4B12', mops: '#B45309', moves: '#B45309', future: '#0F6A85', licenses: '#0F6A85', infra: '#0F6A85', renewal: '#6D28D9', zones: '#6D28D9', parks: '#047857', mrt: '#374151' };
     const ICON_INK = { stock: '#0C83A2', heat: '#BA5C2D', mops: '#DE7020', moves: '#BA5C2D', future: '#0F6A85', licenses: '#0C83A2', infra: '#0F6A85', renewal: '#6D28D9', zones: '#6D28D9', parks: '#047857', mrt: '#374151' };
     for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) {
       const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null;
@@ -66,7 +69,7 @@ export class FunraiseLayers {
       const show = new Cesium.CallbackProperty(() => built == null || built <= this.year, false);
       const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(col, this.isHot(key) ? 0.98 : (grade === 'A' ? 0.82 : 0.62)), false));
       const common = { show, properties: null };
-      if (foot) this.add('stock', key, b, { ...common, polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(foot.ring)), height: 0, extrudedHeight: h, material: mat, outline: true, outlineColor: C(col, .95), outlineWidth: 1 } });
+      if (foot) this.add('stock', key, b, { ...common, polygon: { shadows: Cesium.ShadowMode.ENABLED, hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(foot.ring)), height: 0, extrudedHeight: h, material: mat, outline: true, outlineColor: C(col, .95), outlineWidth: 1 } });
       else { const side = Math.max(18, Math.min(60, Math.sqrt((b.total_floor_area || 6000) / Math.max(1, floors + (b.floor_below || 0))) * 1.2)); this.add('stock', key, b, { ...common, position: Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h / 2), box: { dimensions: new Cesium.Cartesian3(side, side, h), material: mat, outline: true, outlineColor: C(col, .95) } }); }
       this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.stock && (built == null || built <= this.year), false), position: Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h + 6), label: label(b.name, { color: grade === 'A' || grade === 'P' ? '#FFDAA0' : grade === 'F' ? '#B9F0C9' : '#F3E5CF', far: grade === 'A' || grade === 'P' ? 2600 : 1400, dy: -6 }), properties: { pl: { layer: 'stock', key, item: b } } });
     }
@@ -109,7 +112,7 @@ export class FunraiseLayers {
       const pos = new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(f.lon, f.lat, h * prog() / 2), false);
       const dims = new Cesium.CallbackProperty(() => new Cesium.Cartesian3(side, side, h * prog()), false);
       const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#93DCE6', this.year >= done ? 0.78 : (this.isHot(key) ? 0.45 : 0.2)), false));
-      this.add('future', key, f, { position: pos, box: { dimensions: dims, material: mat, outline: true, outlineColor: C('#BBEAF0', .9) } });
+      this.add('future', key, f, { position: pos, box: { shadows: Cesium.ShadowMode.ENABLED, dimensions: dims, material: mat, outline: true, outlineColor: C('#BBEAF0', .9) } });
       this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.future, false), position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(f.lon, f.lat, h * prog() + 8), false), label: label(new Cesium.CallbackProperty(() => `${f.name} · ${this.year >= done ? '完工' : done}`, false), { color: '#BBEAF0', far: 4500, font: MONO }), properties: { pl: { layer: 'future', key, item: f } } });
     }
   }
@@ -177,7 +180,7 @@ export class FunraiseLayers {
   /* ---- 商圈行情 ---- */
   buildHeat() {
     for (const a of this.d.business_areas || []) { if (!a.lat) continue; const key = 'heat:' + a.id; const mp = a.market_price || {}; const rent = mp.actual_rent_avg || 1500; const hot = Math.max(0, Math.min(1, (rent - 1200) / 1600)); const col = `rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`;
-      [[700, .05], [480, .09], [260, .15]].forEach(([r, al], i) => this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.2 + i * 0.1, material: Cesium.Color.fromCssColorString(col).withAlpha(al + hot * 0.06) }, properties: { pl: { layer: 'heat', key, item: a } } }));
+      const r = 520 + hot * 260; const disc = this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.2, material: new Cesium.ImageMaterialProperty({ image: heatDisc(), transparent: true, color: heatTint(hot, false) }) }, properties: { pl: { layer: 'heat', key, item: a } } }); disc._hot = hot; (this._heatDiscs = this._heatDiscs || []).push(disc); void col;
       this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 40), billboard: BB('coin', '#FCBE83', 26, 30000), properties: { pl: { layer: 'heat', key, item: a } } });
       this.add('heat', key, a, { position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 40), label: label(`${(a.name || '').replace(/^台北市/, '')}\n租 ${fmtInt(rent)}/坪 · 售 ${fmtInt((mp.actual_sale_avg || 0) / 1e4)} 萬/坪`, { color: '#FCBE83', far: 16000, bg: true, dy: -18 }) }); }
   }
