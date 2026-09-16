@@ -57,6 +57,14 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
+      if (has(t, /分享|複製.*連結|這個視角的連結|share/i)) { this.ui.shareView && this.ui.shareView(); return this.finish(a, '已把這個視角（相機、鏡、年份、主題、圖層）做成連結並複製；貼給同事打開就是同一個畫面。'); }
+      if (has(t, /日照|陰影|影子|黃金時刻|golden|夕陽|正午|清晨|暮色|太陽/)) {
+        if (has(t, /關|平光|取消|off/i)) { this.ui.setSun(null); return this.finish(a, '日照關閉，回到平光。'); }
+        if (has(t, /一天|播放|掃過|整天|sweep/i)) { this.ui.sweepSun(); return this.finish(a, '播放一天：太陽從 06:30 走到 18:15，看陰影掃過街廓——哪些基地下午還有光、哪些被高樓遮住。'); }
+        const hm = t.match(/(\d{1,2})\s*[:：點時]\s*(\d{2})?/); const preset = /清晨|日出|dawn/i.test(t) ? 6.5 : /上午|早上|morning/i.test(t) ? 9 : /正午|中午|noon/i.test(t) ? 12 : /暮色|傍晚|dusk|日落/i.test(t) ? 18.25 : /黃金|golden|夕陽/i.test(t) ? 17 : null;
+        const h = hm ? Math.min(19.5, Math.max(5.5, +hm[1] + (hm[2] ? +hm[2] / 60 : 0))) : (preset ?? 17); const set = this.ui.setSun(h); const alt = this.map.lighting && this.map.lighting.sunAltitude();
+        return this.finish(a, `切到 ${String(Math.floor(set)).padStart(2, '0')}:${String(Math.round((set % 1) * 60)).padStart(2, '0')} 的日照${alt != null ? `（太陽高度約 ${alt}°）` : ''}：每棟量體都投影到鄰地，拉開「都更模擬」可直接看新量體的陰影落在哪。想看整天變化就說「播放一天的陰影」。`);
+      }
       if (has(t, /日間|白天|關掉夜間|日景/)) { this.ui.setNight(false); return this.finish(a, '切到日間影像。'); }
       if (has(t, /夜間|夜景|夜色/)) { this.ui.setNight(true); return this.finish(a, '切到夜間色調。'); }
       if (has(t, /環繞|orbit|繞一圈|轉一圈/)) { const p = this.resolvePlace(text); const c = p || this.map.center(); this.map.orbit(c.lon, c.lat, p && p.kind === 'stock' ? 700 : (p ? Math.min(p.range || 1400, 2200) : 1400)); this.ui.setMode('orbit'); return this.finish(a, `進入環繞模式${p ? '，鎖定 ' + p.name : ''}。拖曳可隨時接手。`); }
