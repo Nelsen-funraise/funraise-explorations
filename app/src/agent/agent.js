@@ -41,6 +41,15 @@ export class Agent {
     return bld || tryList(this.d.future_dev, 'future', 600, -32) || tryList(this.d.industrial_parks, 'parks', 2400) || tryList(this.d.public_infras, 'infra', 1800) || tryList(this.d.development_zones, 'zones', 1800) || tryList(this.d.business_areas, 'heat', 2600)
       || tryList(this.map.basemap.mrt_stations, 'mrt', 1100) || (() => { const dn = this.districtOfText(text); const c = this.districtCentroid(dn); return c ? { name: dn, lon: c[0], lat: c[1], range: 6500, kind: 'district' } : null; })();
   }
+  async walkshed(text, a) {
+    if (/清除|關掉|取消|移除/.test(text)) { this.map.clearWalkshed && this.map.clearWalkshed(); return this.finish(a, '生活圈已清除。'); }
+    const profile = /騎車|腳踏車|單車|cycling/.test(text) ? 'cycling-regular' : /開車|driving/.test(text) ? 'driving-car' : 'foot-walking'; const m = text.match(/(\d+)\s*分/); const maxMin = Math.min(60, Math.max(3, m ? +m[1] : 15)); const minutes = [...new Set([Math.round(maxMin / 3), Math.round(maxMin * 2 / 3), maxMin].map(x => Math.max(1, x)))];
+    const p = this.resolvePlace(text) || (this.map.selected && this.map.selected.item && this.map.selected.item.lat != null ? { name: this.map.selected.item.name, lon: this.map.selected.item.lon, lat: this.map.selected.item.lat } : { name: '目前位置', ...this.map.center() });
+    if (!this.map.showWalkshed) return this.finish(a, '生活圈模組尚未載入。'); const info = await this.map.showWalkshed({ lon: p.lon, lat: p.lat, name: p.name, profile, minutes }); if (!info) return this.finish(a, '算不出生活圈。');
+    if (info.bounds) { const [w, s, e, n] = info.bounds; this.map.flyTo((w + e) / 2, (s + n) / 2, { range: Math.max(1200, distM([w, s], [e, n]) * 0.9), pitch: -55 }); }
+    const label = profile === 'foot-walking' ? '步行' : profile === 'cycling-regular' ? '騎車' : '開車';
+    return this.finish(a, `${info.origin.name} 出發，${label} ${maxMin} 分生活圈：面積約 ${info.areasKm2.map(x => x.toFixed(2)).join(' / ')} km²${info.source === 'estimate' ? '（server 沒有 ORS_API_KEY，用固定速度估算，非真實路網）' : '（OpenRouteService 真實路網）'}。說「清除生活圈」收起。`);
+  }
   isochrone(text, a) {
     if (/清除|關掉|取消|移除/.test(text)) { this.map.clearIsochrone && this.map.clearIsochrone(); return this.finish(a, '等時圈已清除。'); }
     const m = text.match(/(\d+)\s*分/); const maxMin = Math.min(60, Math.max(5, m ? +m[1] : 20)); const p = this.resolvePlace(text) || (this.map.selected && this.map.selected.item && this.map.selected.item.lat != null ? { name: this.map.selected.item.name, lon: this.map.selected.item.lon, lat: this.map.selected.item.lat } : { name: '目前位置', ...this.map.center() });
@@ -76,7 +85,10 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
-      if (has(t, /等時圈|通勤圈|捷運圈|生活圈|((捷運|通勤|步行|走路).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) return this.isochrone(text, a);
+      if (/YouBike|ubike|共享單車/i.test(t) || (/腳踏車|單車/.test(t) && /站|柱|借|還|即時/.test(t))) { const on = !/關|隱藏|取消|off/i.test(t); if (this.ui.setYouBike) { this.ui.setYouBike(on); return this.finish(a, `${on ? '顯示' : '隱藏'} YouBike 2.0 即時站點：點大小是可借車數，藍色 ≥5 台、橘色 1–4 台、灰色 0 台；拉近 1.2 km 內看到可借／可還。來源：臺北市資料大平臺即時 JSON（server 代理）。`); } }
+      if (/天氣|下雨|氣溫|空氣品質|AQI|空污|幾度/i.test(t)) { const d = this.map.envBadge && this.map.envBadge.data; if (!d || (!d.weather && !d.aqi)) return this.finish(a, '目前沒有即時天氣／空氣品質：server 未啟動或尚未在 /setup 貼上中央氣象署／環境部金鑰。'); const bits = []; if (d.weather) bits.push(`台北現在${d.weather.desc || ''}，${d.weather.temp ?? '—'}°，濕度 ${d.weather.humidity ?? '—'}%${d.weather.pop != null ? `，降雨機率 ${d.weather.pop}%` : ''}${d.weather.minT != null ? `，今日 ${d.weather.minT}–${d.weather.maxT}°` : ''}`); if (d.aqi) bits.push(`AQI ${d.aqi.value ?? '—'}（${d.aqi.status || '—'}，${d.aqi.site || ''}測站${d.aqi.pm25 != null ? `，PM2.5 ${d.aqi.pm25}` : ''}）`); return this.finish(a, bits.join('；') + '。\n來源：中央氣象署／環境部即時開放資料'); }
+      if (has(t, /(走路|步行|騎車|腳踏車|單車|開車).*\d*\s*分|步行圈|生活圈|walkshed/)) return this.walkshed(text, a);
+      if (has(t, /等時圈|通勤圈|捷運圈|((捷運|通勤).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) return this.isochrone(text, a);
       if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {
         if (/取消|關掉|離開|退出|解除/.test(t)) { this.ui.focus(null, null, false); return this.finish(a, '已取消對焦，城市恢復。'); }
         const sel = this.map.selected; const byName = (this.d.buildings || []).find(b => b.name && t.includes(b.name.replace(/大樓$/, ''))) || null;

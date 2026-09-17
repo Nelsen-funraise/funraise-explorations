@@ -15,6 +15,7 @@ const LINES = {
   zones: it => [it.category, it.status],
   mrt: it => [Array.isArray(it.lines) && it.lines.join('・')],
   parcels: it => [(it.landcode || it.land_no) && `地號 ${it.landcode || it.land_no}`, (it.area_sqm || it.area) && `${fmtInt(it.area_sqm || it.area)} m²`, it.zoning || it.zone],
+  youbike: it => [it.bikes + ' 可借', it.docks + ' 可還', it.total + ' 柱'],
 };
 const titleOf = it => it.name || it.company_name || it.property_name || it.license_number || it.landcode || it.land_no || '—';
 
@@ -23,7 +24,7 @@ export function createHover(stage) {
   let cur = null;
   const render = (pl, cluster) => {
     if (cluster) { card.innerHTML = `<div class="eyebrow" style="color:${LAYERS.stock.color}">商辦存量</div><h5>${cluster.length} 棟商辦</h5><div class="l">點一下放大 · 雙擊飛進去</div>`; return; }
-    const L = LAYERS[pl.layer] || { name: pl.layer, color: '#93DCE6' }; const parts = ((LINES[pl.layer] || (() => []))(pl.item) || []).filter(Boolean).map(esc);
+    const L = LAYERS[pl.layer] || { youbike: { name: 'YouBike 即時', color: '#16A4C0' } }[pl.layer] || { name: pl.layer, color: '#93DCE6' }; const parts = ((LINES[pl.layer] || (() => []))(pl.item) || []).filter(Boolean).map(esc);
     card.innerHTML = `<div class="eyebrow" style="color:${L.color}">${esc(L.name)}</div><h5>${esc(titleOf(pl.item))}</h5>${parts.length ? `<div class="l">${parts.join(' · ')}</div>` : ''}<div class="hint">點選看資料卡 · 雙擊飛過去</div>`;
   };
   return {

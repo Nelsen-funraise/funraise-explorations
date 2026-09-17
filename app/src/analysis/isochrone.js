@@ -32,6 +32,9 @@
  * - 轉乘（同一站、換一條線）固定加 4 分鐘。
  * - 從任意一點走到最近車站：distM / 80 (m/min)，即 4.8km/h 的步行速度。
  *   （IsochroneLayer 用這個時間當 Dijkstra 的起始 offset，即 `reach()` 的 `opts.startMinutes`。）
+ * - 可選：呼叫 `MrtNetwork#setTravelTimes(hops)` 灌入真實站間秒數（例如 TDX S2STravelTime）後，
+ *   個別邊的搭乘時間會改用真實秒數，其餘邏輯（轉乘 4 分、步行時速）不變；沒呼叫這個方法時，
+ *   一切照舊用上面這條距離估算式，見該方法的 JSDoc。
  *
  * `MrtNetwork` 本身是純 JS（無 Cesium 依賴，可以直接在 Node 下 `import` 測試）；只有
  * `IsochroneLayer` 需要 Cesium 來畫圖。
@@ -58,6 +61,11 @@
 
 import * as Cesium from 'cesium';
 
+/* >>> PURE HELPERS (no Cesium) — everything down to the MrtNetwork class close is plain JS with no
+   Cesium dependency (see module JSDoc above). isochrone.test.mjs extracts this exact block by these
+   markers and evals it in an isolated Function scope, the same trick src/tools/measure.test.mjs uses,
+   because plain Node cannot `import` this file (it statically imports 'cesium', which pulls in a
+   @zip.js/zip.js subpath Node's resolver rejects — confirmed empirically in this project). */
 /* ---------------- 共用幾何 / 時間模型 ---------------- */
 const R_EARTH = 6371000;
 const toRad = d => d * Math.PI / 180;
@@ -183,8 +191,8 @@ export class MrtNetwork {
       const shortcut = stations.some(o => o.name !== aName && o.name !== bName && pointToPolylineDist(o.lon, o.lat, full) <= SHORTCUT_TOL_M);
       if (shortcut) continue;
       const minutes = hopMinutes(distM);
-      this.adj.get(aName).push({ to: bName, distM, minutes, line: line.name, path: full });
-      this.adj.get(bName).push({ to: aName, distM, minutes, line: line.name, path: full.slice().reverse() });
+      this.adj.get(aName).push({ to: bName, distM, minutes, _heurMinutes: minutes, line: line.name, path: full });
+      this.adj.get(bName).push({ to: aName, distM, minutes, _heurMinutes: minutes, line: line.name, path: full.slice().reverse() });
     }
     // 8) 連通性修復：極少數路段（實測僅淡水信義線的大安↔大安森林公園一帶）因為原始資料在該
     //    小段有近乎平行的複線幾何，兩條並行鏈各自形成 Voronoi 邊界，導致這兩站之間反而沒切出
@@ -205,8 +213,8 @@ export class MrtNetwork {
         }
         if (!best) break;
         const a = stations[best.i], bS = stations[best.j], d = best.d, minutes = hopMinutes(d);
-        this.adj.get(a.name).push({ to: bS.name, distM: d, minutes, line: line.name, path: [[a.lon, a.lat], [bS.lon, bS.lat]] });
-        this.adj.get(bS.name).push({ to: a.name, distM: d, minutes, line: line.name, path: [[bS.lon, bS.lat], [a.lon, a.lat]] });
+        this.adj.get(a.name).push({ to: bS.name, distM: d, minutes, _heurMinutes: minutes, line: line.name, path: [[a.lon, a.lat], [bS.lon, bS.lat]] });
+        this.adj.get(bS.name).push({ to: a.name, distM: d, minutes, _heurMinutes: minutes, line: line.name, path: [[bS.lon, bS.lat], [a.lon, a.lat]] });
         cuf.union(best.i, best.j);
       }
     }
@@ -289,7 +297,54 @@ export class MrtNetwork {
    * @returns {Array<{name:string,lon:number,lat:number,minutes:number,transfers:number,line:string|null}>}
    */
   reach(fromStationName, maxMin, opts) { return this.reachDetailed(fromStationName, maxMin, opts).stations; }
+
+  /**
+   * 灌入「真實」站間搭乘秒數（例如 TDX Rail/Metro/S2STravelTime），取代／覆蓋 hopMinutes() 距離估算出的
+   * `e.minutes`。每條邊各自判斷：對到真實時間就用真實時間，對不到就維持 hopMinutes() 的估算——完全沒呼叫
+   * 這個方法時，行為與呼叫前一模一樣（`e.minutes` 從未被動過）。
+   *
+   * 站名比對前先正規化：臺→台、去掉結尾的「站」字（我們的底圖站名可能沒有「站」字尾，TDX 名稱可能用
+   * 「臺」而不是「台」，兩邊未必一致）。只提供單一方向的秒數時，另一個方向沿用同一組秒數（同一段軌道
+   * 對開的實際耗時差異，相對於分鐘級的時間模型可以忽略）；若兩個方向都有資料，各自的方向各自生效。
+   *
+   * @param {Array<{from:string, to:string, runSec:number, stopSec?:number, line?:string}>} hops
+   *   例如 server /api/tdx/s2s 回傳的 `{ hops }`；缺 from/to/runSec 或非數字的 runSec 會被整筆忽略。
+   * @returns {{matched:number, total:number, tableSize:number}} 與 matchReport() 相同的摘要，方便呼叫端立即知道灌表結果。
+   */
+  setTravelTimes(hops) {
+    const norm = s => String(s || '').trim().replace(/臺/g, '台').replace(/站$/, '');
+    const table = new Map(); // `${normFrom}>${normTo}` → 分鐘（已經是 (runSec+stopSec)/60）
+    for (const h of Array.isArray(hops) ? hops : []) {
+      if (!h) continue;
+      const from = norm(h.from), to = norm(h.to);
+      if (!from || !to || from === to) continue;
+      const runSec = Number(h.runSec); if (!Number.isFinite(runSec) || runSec <= 0) continue;
+      const stopSec = Number(h.stopSec); const minutes = Math.max(0.1, (runSec + (Number.isFinite(stopSec) ? stopSec : 0)) / 60);
+      table.set(`${from}>${to}`, minutes); // 明確方向：後面若重複出現同一方向，以最後一筆為準
+    }
+    for (const [k, v] of [...table]) { const [a, b] = k.split('>'); const rk = `${b}>${a}`; if (!table.has(rk)) table.set(rk, v); } // 缺的那個方向沿用同一組秒數
+    this._travelTimeTable = table;
+
+    const normOf = new Map(); for (const name of this.stations.keys()) normOf.set(name, norm(name));
+    for (const [name, edges] of this.adj) {
+      const nf = normOf.get(name) ?? norm(name);
+      for (const e of edges) {
+        const real = table.get(`${nf}>${normOf.get(e.to) ?? norm(e.to)}`);
+        if (real != null) { e.minutes = real; e._realTime = true; }
+        else { e.minutes = e._heurMinutes != null ? e._heurMinutes : e.minutes; e._realTime = false; }
+      }
+    }
+    return this.matchReport();
+  }
+
+  /** 上次 setTravelTimes() 灌到多少條邊、路網總邊數是多少，給 console 顯示用。從未呼叫過 setTravelTimes() 時 tableSize 為 0。 */
+  matchReport() {
+    let total = 0, matched = 0;
+    for (const edges of this.adj.values()) for (const e of edges) { total++; if (e._realTime) matched++; }
+    return { matched, total, tableSize: this._travelTimeTable ? this._travelTimeTable.size : 0 };
+  }
 }
+/* <<< END PURE HELPERS (no Cesium) */
 
 /* ---------------- 繪圖（Cesium） ---------------- */
 // 與 src/layers/funraise.js 的 MRT_COLOR 同一套官方配色（避免修改該檔案，這裡自己留一份小對照表）

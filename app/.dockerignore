@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+server/.mcp-token.json
+server/.tts-cache
+server/.cache

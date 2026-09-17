@@ -1,8 +1,8 @@
 // Claude mode: send the conversation + view state to server/index.mjs (/api/agent) and execute the camera/layer tool calls it returns.
-const API = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+import { apiFetch } from '../api.js';
 export class ClaudeClient {
   constructor(map, ui, agent) { this.map = map; this.ui = ui; this.agent = agent; this.history = []; this.available = null; }
-  async probe(force) { try { const r = await fetch(API + '/api/health' + (force ? '?force=1' : '')); const j = await r.json(); this.available = !!j.ok; return j; } catch { this.available = false; return { ok: false, mcp: { status: 'noserver' } }; } }
+  async probe(force) { try { const r = await apiFetch('/api/health' + (force ? '?force=1' : '')); const j = await r.json(); this.available = !!j.ok; return j; } catch { this.available = false; return { ok: false, mcp: { status: 'noserver' } }; } }
   viewState() { const c = this.map.center(); const d = this.map.districtAtCamera(); return { lon: +c.lon.toFixed(5), lat: +c.lat.toFixed(5), height_m: Math.round(c.height), district: d ? d.name : null, year: this.map.year, lens: this.agent.lens, visible_layers: this.map.visibleLayers(), density: this.ui.density, selected: this.map.selected ? { layer: this.map.selected.layer, name: this.map.selected.item.name || this.map.selected.item.company_name, id: this.map.selected.item.id } : null, in_view: this.map.countInView() };
   }
   async handle(text) {
@@ -10,8 +10,8 @@ export class ClaudeClient {
     let rounds = 0; let messages = this.history.slice(-12);
     try {
       while (rounds++ < 6) {
-        const card = this.ui.toolStart(turn, 'claude.messages', { model: 'server', turn: rounds });
-        const res = await fetch(API + '/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages, view: this.viewState() }) });
+        const card = this.ui.toolStart(turn, (this.ui.mcp && this.ui.mcp.provider ? this.ui.mcp.provider : 'llm') + '.turn', { model: (this.ui.mcp && this.ui.mcp.model) || 'server', turn: rounds });
+        const res = await apiFetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages, view: this.viewState() }) });
         if (!res.ok) { this.ui.toolDone(card, 'HTTP ' + res.status); throw new Error('agent server ' + res.status); }
         const data = await res.json(); this.ui.source = data.source === 'live' ? 'LIVE' : '快照'; this.ui.toolDone(card, `${data.stop_reason} · ${data.source || ''} · ${data.usage ? data.usage.output_tokens + ' tok' : ''}`);
         for (const b of data.content) { if (b.type === 'mcp_tool_use') this.ui.toolDone(this.ui.toolStart(turn, 'funraise.' + b.name, b.input), 'via MCP'); }
@@ -23,7 +23,7 @@ export class ClaudeClient {
         const results = []; for (const tu of toolUses) { const card2 = this.ui.toolStart(turn, tu.name, tu.input); const out = await this.execute(tu.name, tu.input); this.ui.toolDone(card2, out.summary || 'ok'); results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) }); }
         messages = [...messages, { role: 'user', content: results }];
       }
-    } catch (e) { await this.ui.type(turn, `Claude 模式無法使用（${e.message}）。請啟動 server：\`npm run server\`（.env 需 ANTHROPIC_API_KEY；FUNRAISE MCP 用右上角按鈕授權）。已切回內建 agent，繼續用快照資料。`); this.ui.setAgentMode(false); }
+    } catch (e) { await this.ui.type(turn, `AI 模式無法使用（${e.message}）。請啟動 server：\`npm run server\`，再開 http://localhost:8790/setup 貼上 OpenAI（或 Anthropic）金鑰；FUNRAISE MCP 用右上角按鈕授權。已切回內建 agent，繼續用快照資料。`); this.ui.setAgentMode(false); }
   }
   async execute(name, input) {
     const m = this.map, ui = this.ui;
@@ -42,6 +42,10 @@ export class ClaudeClient {
       case 'start_tool': { if (!ui.startTool) return { ok: false, error: 'measure tool not wired' }; if (input.mode === 'off') { ui.stopTool(); return { ok: true, mode: null }; } ui.startTool(input.mode); return { ok: true, mode: input.mode }; }
       case 'floor_view': { if (!m.floorWalk) return { ok: false, error: 'unavailable' }; if (input.exit) { m.floorWalk.exit(); return { ok: true, active: false }; } let { lon, lat, name, floors } = input; if (input.key) { const e = m.entityByKey(input.key); if (!e) return { ok: false, error: 'unknown key' }; const pl = e.properties.pl.getValue(); lon = pl.item.lon; lat = pl.item.lat; name = name || pl.item.name; floors = floors || pl.item.floor_above; } if (lon == null || lat == null) return { ok: false, error: 'need key or lon/lat' }; m.floorWalk.enter({ lon, lat, name, floors: floors || 20, floor: input.floor ?? null, heading: input.heading ?? null }); return { ok: true, ...m.floorWalk.state }; }
       case 'show_isochrone': { const p = input.place ? this.agent.resolvePlace(input.place) : null; const lon = input.lon ?? (p && p.lon), lat = input.lat ?? (p && p.lat); if (lon == null) return { ok: false, error: 'unknown place' }; ui.setLayer('mrt', true); const info = m.showIsochrone({ lon, lat, name: input.name || (p && p.name), maxMin: input.maxMin || 20 }); if (info && info.bounds) { const [w, s, e, n] = info.bounds; m.flyTo((w + e) / 2, (s + n) / 2, { range: 4000, pitch: -55 }); } return { ok: true, ...info }; }
+      case 'set_live_layer': { if (input.layer === 'youbike' && ui.setYouBike) ui.setYouBike(!!input.on); return { ok: true, layer: input.layer, on: !!input.on }; }
+      case 'get_environment': { const d = m.envBadge ? await m.envBadge.refresh() : null; return d ? { ok: true, ...d } : { ok: false, error: 'env unavailable (server or keys missing)' }; }
+      case 'show_walkshed': { const p = input.place ? this.agent.resolvePlace(input.place) : null; const lon = input.lon ?? (p && p.lon), lat = input.lat ?? (p && p.lat); if (lon == null) return { ok: false, error: 'unknown place' }; const info = await m.showWalkshed({ lon, lat, name: input.name || (p && p.name), profile: input.profile || 'foot-walking', minutes: input.minutes && input.minutes.length ? input.minutes : [5, 10, 15] }); if (info && info.bounds) { const [w, s, e, n] = info.bounds; m.flyTo((w + e) / 2, (s + n) / 2, { range: 3000, pitch: -55 }); } return { ok: true, ...info }; }
+      case 'clear_walkshed': { m.clearWalkshed(); return { ok: true }; }
       case 'clear_isochrone': { m.clearIsochrone(); return { ok: true }; }
       case 'presenter': { const p = ui.presenter; if (!p) return { ok: false }; if (input.on === false) p.exit(); else if (input.on === true) p.enter(); else p.toggle(); return { ok: true, active: p.active }; }
       case 'play_trips': { if (!m.trips) return { ok: false, error: 'trips layer unavailable' }; ui.setLayer('moves', true); const summary = await m.trips.play({ year: input.year ?? m.year }); return { ok: true, ...summary }; }

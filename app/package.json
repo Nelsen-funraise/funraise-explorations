@@ -10,7 +10,9 @@
     "check": "node server/index.mjs --check",
     "data:build": "node data/build.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "tts:prerender": "node scripts/prerender-tts.mjs"
+    "tts:prerender": "node scripts/prerender-tts.mjs",
+    "start": "npm run build && node server/index.mjs",
+    "setup": "node -e \"import('node:child_process').then(c=>c.exec(process.platform==='darwin'?'open http://localhost:8790/setup':'xdg-open http://localhost:8790/setup'))\""
   },
   "keywords": [
     "cesium",

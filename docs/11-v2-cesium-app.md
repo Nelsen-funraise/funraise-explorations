@@ -194,6 +194,10 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 **夜景窗燈（程序化立面）**：夜間主題預設開，「畫質」可關。5.7 萬棟量體的立面用著色器長出 3.3 m 樓層 × 3.6 m 開間的窗格，約四成暖色燈光、街面假 AO、屋頂維持素面；樓高與足跡尺寸以每棟的 batch-table 屬性傳入，與調色盤無關，所以對焦退色、主題切換都不受影響。
 
+**步行／騎車／開車生活圈（OpenRouteService）**：資料卡「🚶 步行 15 分圈」或說「這裡走路 15 分鐘能到哪」「騎車 10 分鐘範圍」——server 帶 `ORS_API_KEY` 呼叫 OpenRouteService 真實路網等時圈（含 MultiPolygon 與洞），三段帶狀著色、面積 km²；server 沒金鑰或掛掉時自動退回固定速度（步行 80、騎車 250、開車 500 m/分）的估算圈並標示「估算」。Claude／OpenAI 工具 `show_walkshed`。
+
+**即時資料（需 server 與金鑰）**：右上角多一顆「☁ 28° · AQI 42 良好」角標——中央氣象署現在天氣與 36 小時預報、環境部最近測站 AQI，每 10 分鐘更新，下雨或 AQI ≥ 100 時大氣會略微變灰；圖層欄多「YouBike 即時」（點大小＝可借車數，藍 ≥5、橘 1–4、灰 0，1.2 km 內看可借／可還）；若 server 有交通部 TDX 金鑰，捷運等時圈的站間時間會換成 TDX 的真實行車＋停靠秒數（主控台會印出配對到幾條邊）。對城市說「現在天氣」「空氣品質」「顯示 YouBike」也行。工具 `get_environment`、`set_live_layer`。
+
 ## 11. 智慧都更模擬（first cut）與地號資料
 
 **做了什麼**：用 FUNRAISE MCP 的 `land-info` 工具，對 6 個政府主導都更單元（信義 兒福B1-2及B3-2、逸仙二小段、兒福B1-1；大安 忠孝懷生、敦南安和；中山 長安市民）在單元多邊形內做格點取樣 → `find_taipei_land_at_point` 反查地號與地籤 polygon → `taipei_zoning_at_point` 帶回使用分區與法定容積率／建蔽率 → `taipei_bldg_overlay_at_point` 帶回建照套繪（民國年 → 屋齡）。共 17 筆地號、7 張建照，存於 `app/data/raw/parcels.json`，併入快照。
@@ -263,6 +267,47 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 所有金鑰一律放 server 端 `.env`，由 `server/index.mjs` 代理（同 Fish Audio 模式）；不要放 `VITE_*` 進前端 bundle（Google／ion 除外，那兩者本身就是前端金鑰）。
 
+
+## 14. 金鑰怎麼放：本機 `/setup` 頁（2026-09-17）
+
+線上的 GitHub Pages 版是純靜態站，任何需要金鑰的功能都由**你電腦上的 server** 代理；金鑰只寫進 `app/.env`（已 gitignore）。
+
+```bash
+git clone https://github.com/Nelsen-funraise/funraise-explorations && cd funraise-explorations/app
+npm install && npm run build
+npm run server              # http://localhost:8790
+```
+開 **http://localhost:8790/setup**：分組貼上金鑰 → 「儲存到 .env」→ 每一把旁邊有「測試」（真的打一次 API 回 ✓／✗）。這一頁只接受來自 localhost 的連線，其他 host 一律 403。
+
+| 群組 | 變數 | 生效方式 |
+|---|---|---|
+| AI agent | `OPENAI_API_KEY`（預設用它）、`OPENAI_MODEL`（預設 gpt-4.1，可填 gpt-5）、`ANTHROPIC_API_KEY`（可選）、`LLM_PROVIDER` | 存檔即生效；`/api/health` 會顯示 provider／model |
+| 語音 | `FISH_API_KEY` | 存檔即生效 |
+| 即時資料 | `CWA_API_KEY`、`MOENV_AQI_API_KEY`、`TDX_CLIENT_ID`／`TDX_CLIENT_SECRET` | 存檔即生效（天氣／AQI 角標、YouBike、捷運真實站間時間） |
+| 分析 | `ORS_API_KEY`、`MAPILLARY_ACCESS_TOKEN` | 存檔即生效（步行／開車等時圈） |
+| 前端金鑰 | `VITE_CESIUM_ION_TOKEN`、`VITE_GOOGLE_MAPS_API_KEY` | 存檔後按「重新 build」（或 `npm run build`）；要讓 Pages 線上版也有，到 repo Settings → Secrets and variables → Actions 新增同名 secret，workflow 會在 build 時帶入 |
+
+**OpenAI 模式怎麼運作**：server 走 OpenAI Responses API，把畫面工具（fly_to、set_sun、show_isochrone…）當 function tools，FUNRAISE MCP 用 OpenAI 的 hosted `mcp` tool 直接接 connector（帶你在右上角授權取得的 OAuth token）。前端迴圈不變：模型回傳的畫面工具由瀏覽器執行後回填。兩把金鑰都有時預設 OpenAI，`LLM_PROVIDER=anthropic` 可切回 Claude。
+
+## 15. 在哪裡跑：Mac 本機 vs. 純網頁 vs. 自架 server（評估）
+
+| 方案 | 能用的功能 | 需要什麼 | 適合 |
+|---|---|---|---|
+| **純網頁（GitHub Pages）** | 所有免金鑰功能：3D 城市、夜景窗燈、日照、等時圈、對焦、樓層視角、量測、場景與預錄語音、快照資料 | 什麼都不用，網址直接分享 | 到處分享、隨手 demo |
+| **Mac 本機**（雙擊 `app/PeakLens.command`） | 上面全部 + OpenAI 對話、FUNRAISE MCP 即時查詢、Fish 即時語音、天氣／AQI／YouBike／捷運真實時間、ORS 步行圈 | Node 22（`brew install node`）；金鑰貼在 `/setup` | 自己用、面對面 demo |
+| **自架 server + Pages 前端**（`app/Dockerfile`） | 全部功能，而且網址可以分享 | 一個容器主機（Cloud Run／Render／Fly，免費層即可）；在主機環境變數放金鑰與 `PEAKLENS_ACCESS_CODE`；repo variable `PEAKLENS_API_BASE` 指向主機網址 | 分享給投資人／同事，不用他們裝任何東西 |
+
+**為什麼純網頁跑不動有金鑰的功能**：金鑰放進靜態網頁等於公開；所以所有金鑰只住在 server 的環境變數，前端透過 `/api/*` 代理。要「網頁能跑而且能分享」，就走第三種：server 放雲端，前端仍是 Pages。
+
+**分享安全**：server 設 `PEAKLENS_ACCESS_CODE=<任意口令>` 後，所有 `/api/*` 都要帶口令；前端第一次被拒會跳出一次輸入框並記住。另有每 IP 速率限制（agent 30 次／分、語音 60 次／分）避免被刷爆 OpenAI 額度。`ALLOWED_ORIGIN` 可限定只接受 Pages 網域。
+
+**自架步驟（以 Cloud Run 為例）**
+1. `cd app && gcloud run deploy peaklens --source . --region asia-east1 --allow-unauthenticated --set-env-vars OPENAI_API_KEY=…,FISH_API_KEY=…,CWA_API_KEY=…,MOENV_AQI_API_KEY=…,TDX_CLIENT_ID=…,TDX_CLIENT_SECRET=…,ORS_API_KEY=…,PEAKLENS_ACCESS_CODE=…,PUBLIC_URL=https://<服務網址>`（Render／Fly 用同一個 Dockerfile，環境變數在它們的介面設）。
+2. repo Settings → Secrets and variables → Actions → Variables：`PEAKLENS_API_BASE = https://<服務網址>`；Secrets：`VITE_CESIUM_ION_TOKEN`（要地形才需要）。
+3. 重跑 Pages workflow（或推一個 commit）。Pages 前端會把 `/api/*` 打到雲端 server；FUNRAISE MCP 授權按鈕會彈出 OAuth 視窗，回呼到 `PUBLIC_URL/api/mcp/callback`（動態註冊，不用預先登記）。
+4. 分享網址 + 存取碼。
+
+**Mac 本機步驟**：`git clone …`，Finder 進 `app/`，雙擊 `PeakLens.command`（第一次會 `npm install` + build，之後直接啟動並開 `/setup`）。或終端機：`cd app && npm install && npm start`。
 
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 

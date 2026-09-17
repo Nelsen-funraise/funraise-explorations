@@ -15,7 +15,7 @@ const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(m >= 100000 ? 0 : 1) + ' km'
 const KEY_OF = { stock: it => 'stock:' + it.id, future: it => 'future:' + it.id, renewal: it => 'renewal:' + it.id, mops: it => 'mops:' + it.id, infra: it => 'infra:' + it.id, parks: it => 'ipark:' + it.id, zones: it => 'zone:' + it.id, heat: it => 'heat:' + it.id, mrt: it => 'mrt:' + it.name, licenses: it => 'license:' + it.license_number, moves: it => 'move:' + it.uniform_number };
 const USAGE = { office: '辦公', hotel: '旅館', house: '住宅', store: '零售', parking: '停車', others: '其他' };
 const DENSITY = { immersive: '沉浸', balanced: '平衡', annotated: '標註' };
-const API = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+import { API, apiUrl } from './api.js';
 const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
 
 export function createUI({ map, data, basemap, layers, timeline, sensors, viewerApi, cameraMode, overlay }) {
@@ -36,7 +36,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- FUNRAISE MCP status pill: live / unauthorized → authorize / unreachable / no server ---- */
   const pill = $('#mcpstat');
   ui.setMcp = (h) => {
-    const m = (h && h.mcp) || { status: 'noserver' }; ui.mcp = { ...m, serverOk: !!(h && h.ok), model: h && h.model };
+    const m = (h && h.mcp) || { status: 'noserver' }; ui.mcp = { ...m, serverOk: !!(h && h.ok), model: h && h.model, provider: h && h.provider };
     pill.className = m.status === 'live' ? 'live' : m.status === 'unauthorized' ? 'auth' : 'down';
     const label = { live: 'FUNRAISE MCP · LIVE', unauthorized: 'FUNRAISE MCP · 點此授權', unreachable: 'FUNRAISE MCP 連不上 · 快照', error: 'FUNRAISE MCP 錯誤 · 快照', noserver: 'FUNRAISE MCP · 快照（本地）' }[m.status] || 'FUNRAISE MCP · 快照';
     pill.querySelector('span').textContent = label;
@@ -47,8 +47,8 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   let authWin = null;
   pill.onclick = async () => {
     const m = ui.mcp;
-    if (m.status === 'unauthorized') { authWin = window.open(API + '/api/mcp/authorize', 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
-    if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 Claude 模式即可即時查詢'); return; }
+    if (m.status === 'unauthorized') { authWin = window.open(apiUrl('/api/mcp/authorize'), 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
+    if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 AI 模式即可即時查詢'); return; }
     if (m.status === 'noserver') { toast('先在 app/ 執行 npm run server（需 ANTHROPIC_API_KEY），再按一次即可授權 FUNRAISE MCP'); return; }
     toast('重新探測 FUNRAISE MCP…'); const h = claude ? await claude.probe(true) : null; ui.setMcp(h);
   };
@@ -92,6 +92,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   const list = $('#layers'); const visible = new Set(Object.keys(LAYERS));
   const counts = { stock: (data.buildings || []).length, future: (data.future_dev || []).length, licenses: (data.building_licenses || []).length, renewal: (data.urban_renewal || []).length, zones: (data.development_zones || []).length, mops: (data.mops || []).length, moves: (data.registry_moves || []).length, infra: (data.public_infras || []).length, parks: (data.industrial_parks || []).length, heat: (data.business_areas || []).length, mrt: (basemap.mrt_stations || []).length };
   for (const [k, L] of Object.entries(LAYERS)) { const b = el('button', 'layer', `<span class="sw ${L.glyph}" style="background:${L.color};color:${L.color}"></span><span class="lbl">${L.name}</span><span class="cnt">${counts[k] || ''}</span>`); b.dataset.layer = k; b.title = L.desc; b.setAttribute('aria-pressed', 'true'); b.onclick = () => ui.setLayer(k, !visible.has(k)); list.appendChild(b); }
+  { const b = el('button', 'layer', `<span class="sw ring" style="background:#16A4C0;color:#16A4C0"></span><span class="lbl">YouBike 即時</span><span class="cnt"></span>`); b.dataset.live = 'youbike'; b.title = 'YouBike 2.0 即時站點：可借／可還車柱數（每分鐘更新，需 server）'; b.setAttribute('aria-pressed', 'false'); b.onclick = () => ui.setYouBike(!(map.youbikeOn)); list.appendChild(b); ui.setYouBike = (on) => { if (!map.setYouBike) return false; map.setYouBike(on); b.setAttribute('aria-pressed', !!on); if (on) toast('YouBike 即時站點：拉近到 6 km 內顯示，1.2 km 內看得到可借／可還'); return !!on; }; }
   ui.setLayer = (k, on) => { if (!LAYERS[k]) return; if (on) visible.add(k); else visible.delete(k); layers.setVisible(k, !!on); const b = list.querySelector(`[data-layer="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); $('#edge-r .cnt').textContent = `${visible.size}/${Object.keys(LAYERS).length}`; };
   ui.visibleLayers = () => [...visible];
 
@@ -108,7 +109,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- theme: 夜間戰情室 (dark) · PickPeak 日間 (light) ---- */
   const themeBtn = $('#theme');
-  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); themeBtn.textContent = t === 'light' ? '☾ 夜間' : '☀︎ 日間'; themeBtn.title = t === 'light' ? '切到夜間戰情室主題（N）' : '切到 PickPeak 日間主題（N）'; if (t === 'light' && !(BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('esri_light'); if (t === 'dark' && (BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('nlsc_photo'); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
+  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); themeBtn.textContent = t === 'light' ? '☾ 夜間' : '☀︎ 日間'; themeBtn.title = t === 'light' ? '切到夜間戰情室主題（N）' : '切到 PickPeak 日間主題（N）'; if (t === 'light' && !(BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('esri_light'); if (t === 'dark' && (BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('nlsc_photo'); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
   themeBtn.onclick = () => ui.setTheme(ui.theme === 'light' ? 'dark' : 'light');
 
   /* ---- camera gimbal ---- */
@@ -135,8 +136,8 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   ui.setOverlay = (k, on) => { if (!OVERLAYS[k]) return false; viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits(); if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); } return true; };
   ui.overlays = () => viewerApi.overlays;
   /* ---- render quality ---- */
-  const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR' };
-  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { facade: '夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）', ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
+  const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR', ...(viewerApi.terrainAvailable ? { terrain: '地形' } : {}) };
+  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { facade: '夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）', ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射', terrain: 'Cesium World Terrain（ion）：山區地形；盆地平坦，量體仍貼 0 m' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
   ui.setQuality = (q) => { const cur = viewerApi.setQuality(q); if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); return cur; };
   ui.syncQuality = () => { const cur = viewerApi.quality; if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); };
   /* ---- measure / draw-site tools ---- */
@@ -193,6 +194,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   const keyOf = (item, layer) => (KEY_OF[layer] || (it => layer + ':' + it.id))(item);
   ui.select = (item, layer) => { map.selected = item ? { key: keyOf(item, layer), item, layer } : null; renderSelection(item, layer); if (item && innerWidth < 820) document.body.classList.add('show-inspector'); if (!item && map.focus && map.focus.active) map.focus.exit(); };
   ui.isochrone = (item, layer, maxMin = 20) => { if (!map.showIsochrone) return null; const p = itemPos(item); if (!p) return null; ui.setLayer('mrt', true); const info = map.showIsochrone({ lon: p[0], lat: p[1], name: item.name || item.company_name || '這裡', maxMin }); if (info && info.bounds) { const [w, s, e, n] = info.bounds; const span = Math.hypot((e - w) * 111320 * Math.cos(((s + n) / 2) * Math.PI / 180), (n - s) * 110540); map.flyTo((w + e) / 2, (s + n) / 2, { range: Math.max(1600, span * 0.9), pitch: -55 }); } if (info) toast(`${info.origin.name} · ${maxMin} 分鐘捷運圈：可達 ${info.stations} 站${info.farthest ? `，最遠 ${info.farthest.name} ${info.farthest.minutes} 分` : ''}`); return info; };
+  ui.walkshed = async (item, profile = 'foot-walking', minutes = [5, 10, 15]) => { if (!map.showWalkshed) return null; const p = itemPos(item); if (!p) return null; const info = await map.showWalkshed({ lon: p[0], lat: p[1], name: item.name || item.company_name || '這裡', profile, minutes }); if (info && info.bounds) { const [w, s, e, n] = info.bounds; const span = Math.hypot((e - w) * 111320 * Math.cos(((s + n) / 2) * Math.PI / 180), (n - s) * 110540); map.flyTo((w + e) / 2, (s + n) / 2, { range: Math.max(1200, span * 0.9), pitch: -55 }); } const label = profile === 'foot-walking' ? '步行' : profile === 'cycling-regular' ? '騎車' : '開車'; if (info) toast(`${info.origin.name} · ${label} ${minutes[minutes.length - 1]} 分生活圈${info.source === 'estimate' ? '（估算，server 未接 ORS）' : ''}：面積約 ${info.areasKm2.map(a => a.toFixed(2)).join(' / ')} km²`); return info; };
   ui.focus = (item, layer, on = true) => { if (!map.focus) return false; if (!on) { map.focus.exit(); if (map.selected) renderSelection(map.selected.item, map.selected.layer); return true; } const p = itemPos(item); if (!p) return false; map.focus.enter({ lon: p[0], lat: p[1], key: keyOf(item, layer) }); if (map.selected) renderSelection(map.selected.item, map.selected.layer); return true; };
   const summaryRows = (it, layer) => {
     if (layer === 'stock') return row('等級', it.grade ? it.grade + ' 級' : null) + row('樓層', `${it.floor_above || '?'}F / B${it.floor_below || '?'}`) + row('實價租金', it.actual_rent_avg_ntd_per_ping ? `均 ${fmtInt(it.actual_rent_avg_ntd_per_ping)} 元/坪/月` : null, true) + row('捷運', it.mrt && it.mrt[0] ? `${it.mrt[0].station_name || it.mrt[0].station} ${it.mrt[0].distance} m` : null);
@@ -225,8 +227,8 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     if (layer === 'parcels') h += `<div class="rows">${row('地段', `${it.town} ${it.section1} 段（${it.sectcode}）`)}${row('地號', it.landcode)}${row('面積', it.area_sqm ? `${fmtInt(it.area_sqm)} m²（${fmtInt(it.area_sqm / 3.3058)} 坪）` : null)}${row('所屬單元', it.unit_name)}</div><div class="chips"><button class="chip brand" data-say="模擬 ${escapeHtml(it.unit_name || '')} 都更">🏗 模擬這個單元</button></div>`;
     if (layer === 'mrt') h += `<div class="rows">${row('路線', (it.lines || []).join('、'))}</div><div class="chips"><button class="chip" data-say="帶我去${escapeHtml(it.name)}">500m 內商辦</button></div>`;
     const focused = map.focus && map.focus.active && map.focus.active.key === keyOf(it, layer);
-    if (itemPos(it)) h += `<div class="chips" style="margin-top:4px"><button class="chip brand" data-pin="1">📌 釘在地圖上</button><button class="chip${focused ? ' brand' : ''}" data-focus="1" title="對焦：其餘量體與標註淡出，只留這棟與周邊 320 m">🔦 ${focused ? '取消對焦' : '對焦'}</button><button class="chip" data-iso="1" title="用內建捷運路網算 20 分鐘可達的站（不需外部 API）">🚇 捷運 20 分圈</button>${layer === 'stock' && map.floorWalk ? `<button class="chip" data-floorwalk="1" title="第一人稱：走進這棟的樓層向外看（拖曳看四周、滾輪換樓層、W/S 前進）">👁 站上 ${Math.min(12, it.floor_above || 1)} 樓看出去</button>` : ''}</div>`;
-    sel.innerHTML = h; sel.querySelectorAll('[data-say]').forEach(b => b.onclick = () => say(b.dataset.say)); const fwb = sel.querySelector('[data-floorwalk]'); if (fwb) fwb.onclick = () => map.floorWalk.enter({ lon: it.lon, lat: it.lat, name: it.name, floors: it.floor_above }); const ib = sel.querySelector('[data-iso]'); if (ib) ib.onclick = () => ui.isochrone(it, layer, 20); const fb = sel.querySelector('[data-focus]'); if (fb) fb.onclick = () => ui.focus(it, layer, !(map.focus && map.focus.active && map.focus.active.key === keyOf(it, layer))); const pb = sel.querySelector('[data-pin]'); if (pb) pb.onclick = () => ui.pin(it, layer); const sb2 = sel.querySelector('[data-sim]'); if (sb2) sb2.onclick = () => ui.simulateRenewal(it);
+    if (itemPos(it)) h += `<div class="chips" style="margin-top:4px"><button class="chip brand" data-pin="1">📌 釘在地圖上</button><button class="chip${focused ? ' brand' : ''}" data-focus="1" title="對焦：其餘量體與標註淡出，只留這棟與周邊 320 m">🔦 ${focused ? '取消對焦' : '對焦'}</button><button class="chip" data-iso="1" title="用內建捷運路網算 20 分鐘可達的站（不需外部 API）">🚇 捷運 20 分圈</button><button class="chip" data-walkshed="1" title="OpenRouteService 真實路網步行生活圈（server 未接 ORS 金鑰時退回估算圈）">🚶 步行 15 分圈</button>${layer === 'stock' && map.floorWalk ? `<button class="chip" data-floorwalk="1" title="第一人稱：走進這棟的樓層向外看（拖曳看四周、滾輪換樓層、W/S 前進）">👁 站上 ${Math.min(12, it.floor_above || 1)} 樓看出去</button>` : ''}</div>`;
+    sel.innerHTML = h; sel.querySelectorAll('[data-say]').forEach(b => b.onclick = () => say(b.dataset.say)); const fwb = sel.querySelector('[data-floorwalk]'); if (fwb) fwb.onclick = () => map.floorWalk.enter({ lon: it.lon, lat: it.lat, name: it.name, floors: it.floor_above }); const wsb = sel.querySelector('[data-walkshed]'); if (wsb) wsb.onclick = () => ui.walkshed(it); const ib = sel.querySelector('[data-iso]'); if (ib) ib.onclick = () => ui.isochrone(it, layer, 20); const fb = sel.querySelector('[data-focus]'); if (fb) fb.onclick = () => ui.focus(it, layer, !(map.focus && map.focus.active && map.focus.active.key === keyOf(it, layer))); const pb = sel.querySelector('[data-pin]'); if (pb) pb.onclick = () => ui.pin(it, layer); const sb2 = sel.querySelector('[data-sim]'); if (sb2) sb2.onclick = () => ui.simulateRenewal(it);
   }
 
   /* ---- overlay: pins (Direction C「釘在地圖上」) & numbered callouts (annotated) ---- */
@@ -292,7 +294,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- transcript, tool cards, provenance, caption ---- */
   const tr = $('#transcript'); const orb = $('#orb');
   ui.userTurn = text => { ui.clearCallouts(); const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
-  ui.agentTurn = () => { orb.classList.add('busy'); const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · Claude' : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
+  ui.agentTurn = () => { orb.classList.add('busy'); const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · ' + (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
   ui.toolStart = (turn, name, params) => { const p = Object.entries(params || {}).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${typeof v === 'string' ? '"' + v + '"' : JSON.stringify(v)}`).join(', '); const c = el('div', 'tool run', `<span class="st"></span><span class="name"><b>${escapeHtml(name)}</b> (${escapeHtml(p.length > 160 ? p.slice(0, 160) + '…' : p)})</span><span class="res">…</span>`); turn.querySelector('.tools .list').appendChild(c); tr.scrollTop = tr.scrollHeight; c._t0 = performance.now(); c._name = name; return c; };
   ui.toolDone = (card, summary) => { card.classList.remove('run'); card.classList.add('ok'); card._ms = Math.round(performance.now() - card._t0); card._summary = summary; card.querySelector('.res').textContent = `${summary} · ${card._ms} ms`; };
   const provChip = (turn) => { const cards = [...turn.querySelectorAll('.tool')]; if (!cards.length) return ''; const ms = cards.reduce((s, c) => s + (c._ms || 0), 0); return `<span class="provchip${ui.source === 'LIVE' ? '' : ' snap'}"><i></i>${cards.length} 次 MCP 呼叫 · ${ms} ms · ${ui.source === 'LIVE' ? 'FUNRAISE MCP 即時' : '快照 ' + String(meta.generated_at || '').slice(0, 10)}</span>`; };
@@ -311,7 +313,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- command bar, suggestions ---- */
   $('#send').onclick = () => say(cmd.value); cmd.addEventListener('keydown', e => { if (e.key === 'Enter') say(cmd.value); });
   function renderSuggest(id) { const box = $('#suggest'); box.innerHTML = ''; for (const s of (LENSES[id] || LENSES.occupier).suggest) { const b = el('button', 'chip', s); b.onclick = () => say(s); box.appendChild(b); } }
-  orb.onclick = () => toast(ui.claudeMode ? `Claude 模式 · ${ui.mcp.model || ''} · 資料 ${ui.source} · 語音 ${speech.voice}` : `內建 agent · 本地快照 · 語音 ${speech.voice}。按「內建」切到 Claude 模式（需 server）`);
+  orb.onclick = () => toast(ui.claudeMode ? `AI 模式 · ${ui.mcp.provider || ''} ${ui.mcp.model || ''} · 資料 ${ui.source} · 語音 ${speech.voice}` : `內建 agent · 本地快照 · 語音 ${speech.voice}。按「內建」切到 AI 模式（需 server）`);
 
   /* ---- speech in / out ---- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; const mic = $('#mic'); let rec = null;
@@ -330,7 +332,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- agent mode (built-in ⇄ Claude) ---- */
   const am = $('#agentmode');
-  ui.setAgentMode = on => { ui.claudeMode = !!on; am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? 'Claude' : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
+  ui.setAgentMode = on => { ui.claudeMode = !!on; am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
   am.onclick = async () => { if (ui.claudeMode) { ui.setAgentMode(false); toast('切回內建 agent（本地快照，模擬 MCP 呼叫）'); return; } if (!claude) return; toast('偵測 agent server…'); const h = await claude.probe(true); ui.setMcp(h); if (h.ok) { ui.setAgentMode(true); toast(`Claude 模式：${h.model}${h.mcp && h.mcp.status === 'live' ? ' + FUNRAISE MCP 即時查詢' : h.mcp && h.mcp.status === 'unauthorized' ? '（FUNRAISE MCP 未授權：先用快照，點右上角授權）' : '（FUNRAISE MCP 連不上：先用快照）'}`); } else toast('找不到 agent server。請在 app/ 執行 npm run server，並在 .env 設定 ANTHROPIC_API_KEY。'); };
 
   /* ---- scenes ---- */
@@ -348,7 +350,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   addEventListener('keydown', e => {
     if (e.target === cmd || e.metaKey || e.ctrlKey || e.altKey) { if (e.key === 'Escape') cmd.blur(); return; }
     const k = e.key.toLowerCase();
-    if (k === '/') { e.preventDefault(); cmd.focus(); } else if (k === 'escape') { if (director && director.playing) director.stop(); menu.classList.add('hidden'); vmenu.classList.add('hidden'); ui.select(null); if (map.clearIsochrone) map.clearIsochrone(); }
+    if (k === '/') { e.preventDefault(); cmd.focus(); } else if (k === 'escape') { if (director && director.playing) director.stop(); menu.classList.add('hidden'); vmenu.classList.add('hidden'); ui.select(null); if (map.clearIsochrone) map.clearIsochrone(); if (map.clearWalkshed) map.clearWalkshed(); }
     else if (k === 'd') ui.cycleDensity(); else if (k === '1') ui.setSensor('normal'); else if (k === '2') ui.setSensor('night'); else if (k === '3') ui.setSensor('thermal'); else if (k === '4') ui.setSensor('blueprint');
     else if (k === 'o') ui.userMode('orbit'); else if (k === 's') ui.userMode('street'); else if (k === 'c') ui.userMode('city'); else if (k === 'g') ui.userMode('globe'); else if (k === 't') ui.userMode('timelapse');
     else if (k === 'l') { const ids = Object.keys(LENSES); agent && agent.setLens(ids[(ids.indexOf(agent.lens) + 1) % ids.length]); } else if (k === 'n') ui.setTheme(ui.theme === 'light' ? 'dark' : 'light'); else if (k === 'b') ui.cycleBasemap(); else if (k === 'p') { if (ui.presenter) { ui.presenter.toggle(); const pb = $('#presenter'); if (pb) pb.setAttribute('aria-pressed', ui.presenter.active); } else sb.click(); }

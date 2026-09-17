@@ -12,7 +12,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import Anthropic from '@anthropic-ai/sdk';
+import { createLLM } from './llm.mjs';
+import { createSetup } from './setup.mjs';
+import { createOrsRoutes } from './routes/ors.mjs';
+import { createLiveRoutes } from './routes/live.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -26,17 +29,19 @@ function loadEnv(file) {
   }
   return out;
 }
-const env = { ...loadEnv(path.join(root, '.env')), ...process.env };
+const ENV_FILE = env_file_path(); const env = { ...loadEnv(ENV_FILE), ...process.env };
+function env_file_path() { return process.env.PEAKLENS_ENV_FILE || path.join(root, '.env'); }
 const PORT = +(env.PORT || 8787);
-const MODEL = env.ANTHROPIC_MODEL || 'claude-opus-5';
+let llm = createLLM(env); // provider adapter (OpenAI Responses API or Anthropic Messages API); null until a key is set
+export function reloadEnv() { const f = loadEnv(ENV_FILE); for (const k of Object.keys(env)) if (!(k in process.env) && !(k in f)) delete env[k]; Object.assign(env, f, process.env); llm = createLLM(env); return env; }
+const MODEL = () => llm ? llm.model : (env.OPENAI_MODEL || env.ANTHROPIC_MODEL || 'none');
 const MCP_URL = env.FUNRAISE_MCP_URL || 'https://connector.mcp.funraise.ai/t/hkvmS7xU5N5TnxXalyUUA/mcp';
 const PUBLIC_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const REDIRECT_URI = `${PUBLIC_URL}/api/mcp/callback`;
 const TOKEN_FILE = path.join(here, '.mcp-token.json');
-const client = env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : null;
 
 /* ---------------- Fish Audio TTS (server-side key, on-disk cache) ---------------- */
-const FISH_KEY = env.FISH_API_KEY || ''; const FISH_MODEL = env.FISH_MODEL || 's2.1-pro-free';
+const FISH_KEY_ = () => env.FISH_API_KEY || ''; const FISH_MODEL_ = () => env.FISH_MODEL || 's2.1-pro-free';
 export const DEFAULT_VOICES = [
   { id: 'nelsen', name: 'Nelsen', desc: '陳致瑋 · 沉穩敘事（帳號內聲音模型）', fish: 'ebebcafee7784ad6b5b1205723f936de', gender: 'male' },
   { id: 'eunice', name: 'Eunice', desc: '溫暖親切的台灣女聲（帳號內聲音模型）', fish: '0883de2699424fb5a19f84631d6d4c0d', gender: 'female' },
@@ -46,11 +51,11 @@ let VOICES = DEFAULT_VOICES; try { if (env.FISH_VOICES) VOICES = JSON.parse(env.
 const TTS_CACHE = path.join(here, '.tts-cache'); fs.mkdirSync(TTS_CACHE, { recursive: true });
 export const fnv1a = (str) => { let h = 0x811c9dc5; for (const c of Buffer.from(str, 'utf8')) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 export async function synthesize(text, voiceId, { speed = 1 } = {}) {
-  const v = VOICES.find(x => x.id === voiceId) || VOICES[0]; if (!FISH_KEY) throw Object.assign(new Error('FISH_API_KEY not set'), { status: 503 });
+  const v = VOICES.find(x => x.id === voiceId) || VOICES[0]; if (!FISH_KEY_()) throw Object.assign(new Error('FISH_API_KEY not set'), { status: 503 });
   text = String(text || '').trim().slice(0, 800); if (!text) throw Object.assign(new Error('empty text'), { status: 400 });
   const key = fnv1a(v.fish + '|' + speed + '|' + text); const file = path.join(TTS_CACHE, key + '.mp3');
   if (fs.existsSync(file)) return { file, cached: true, voice: v };
-  const r = await fetch('https://api.fish.audio/v1/tts', { method: 'POST', headers: { authorization: `Bearer ${FISH_KEY}`, 'content-type': 'application/json', model: FISH_MODEL }, body: JSON.stringify({ text, reference_id: v.fish, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, prosody: { speed } }), signal: AbortSignal.timeout(60000) });
+  const r = await fetch('https://api.fish.audio/v1/tts', { method: 'POST', headers: { authorization: `Bearer ${FISH_KEY_()}`, 'content-type': 'application/json', model: FISH_MODEL_() }, body: JSON.stringify({ text, reference_id: v.fish, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, prosody: { speed } }), signal: AbortSignal.timeout(60000) });
   if (!r.ok) { const t = await r.text().catch(() => ''); throw Object.assign(new Error(`fish ${r.status}: ${t.slice(0, 160)}`), { status: r.status === 402 ? 402 : 502 }); }
   const buf = Buffer.from(await r.arrayBuffer()); fs.writeFileSync(file, buf); return { file, cached: false, voice: v };
 }
@@ -145,6 +150,10 @@ const CAMERA_TOOLS = [
   { name: 'start_tool', description: '啟動量測／畫基地工具：distance 量距離、area 量面積、site 畫基地（完成後自動用手繪範圍模擬容積量體）；off 關閉。使用者要量多遠、量面積、自己畫基地時使用。', input_schema: { type: 'object', properties: { mode: { type: 'string', enum: ['distance', 'area', 'site', 'off'] } }, required: ['mode'] } },
   { name: 'floor_view', description: '樓層視角：第一人稱走進一棟大樓的第幾層向外看。給 key（stock:<building_id>）或 lon/lat＋floors；floor 省略自動挑約 12 樓；exit:true 離開。', input_schema: { type: 'object', properties: { key: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, floors: { type: 'integer' }, floor: { type: 'integer' }, heading: { type: 'number' }, exit: { type: 'boolean' } } } },
   { name: 'show_isochrone', description: '畫出從一個點出發、N 分鐘內搭捷運可到的等時圈（走到站＋每站停靠＋轉乘罰時，內建捷運路網計算，不需外部 API）：範圓圈、可達站、實際路線。用於「從○○搭捷運 20 分鐘能到哪」「等時圈」「通勤圈」。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名或站名（沒有座標時用它解析）' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, maxMin: { type: 'integer', minimum: 5, maximum: 60 } } } },
+  { name: 'set_live_layer', description: '開關即時圖層：youbike（YouBike 2.0 即時站點，可借／可還車柱數，每分鐘更新）。', input_schema: { type: 'object', properties: { layer: { type: 'string', enum: ['youbike'] }, on: { type: 'boolean' } }, required: ['layer', 'on'] } },
+  { name: 'get_environment', description: '台北現在天氣（天氣現象、氣溫、濕度、降雨機率、今日溫度範圍）與空氣品質 AQI（可給 lon/lat 挑最近測站）。每 10 分鐘更新；缺金鑰時對應欄位為 null。', input_schema: { type: 'object', properties: { lon: { type: 'number' }, lat: { type: 'number' } } } },
+  { name: 'show_walkshed', description: '步行／騎車／開車 N 分鐘的真實路網生活圈（OpenRouteService；沒有 ORS_API_KEY 時退回固定速度估算圈，回傳 source 會標明）。用於「這裡走路 15 分鐘能到哪」「生活圈」「騎車 10 分鐘範圍」。', input_schema: { type: 'object', properties: { place: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, profile: { type: 'string', enum: ['foot-walking', 'cycling-regular', 'driving-car'] }, minutes: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 60 }, maxItems: 3 } } } },
+  { name: 'clear_walkshed', description: '收起生活圈。', input_schema: { type: 'object', properties: {} } },
   { name: 'clear_isochrone', description: '收起等時圈。', input_schema: { type: 'object', properties: {} } },
   { name: 'presenter', description: '展示模式（投影用）：隱藏編輯 HUD、放大字幕、←→ 切場景。on 省略則切換。', input_schema: { type: 'object', properties: { on: { type: 'boolean' } } } },
   { name: 'play_trips', description: '播放「企業遷徙動線」動畫：公司登記地址異動的弧線（原址→新址）依序飛行，落地有漣漪與公司名稱。可指定 year（預設目前時間軸年份；快照只有 2026 的異動）。', input_schema: { type: 'object', properties: { year: { type: 'integer', minimum: 2012, maximum: 2030 } } } },
@@ -167,10 +176,10 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 3. 回答簡潔：3 句內講結論與數字，最後一行用「來源：<工具>·<資料期間>」標註。沒有資料就明說，不要編造。
 4. 台北市行政區、商圈與捷運站名用正體中文；金額用「億／萬」；面積用坪並附 m²。
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
-6. 專用工具：等時圈／通勤圈／幾分鐘能到 → show_isochrone；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
+6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；天氣／空氣品質 → get_environment；YouBike → set_live_layer；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
 
-function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
+function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
 function html(res, code, body) { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); res.end(body); }
 function readBody(req, limit = 2e6) { return new Promise((resolve, reject) => { let n = 0; const chunks = []; req.on('data', c => { n += c.length; if (n > limit) { reject(new Error('body too large')); req.destroy(); } else chunks.push(c); }); req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); } catch (e) { reject(e); } }); req.on('error', reject); }); }
 function sanitizeMessages(msgs) {
@@ -180,14 +189,12 @@ function sanitizeMessages(msgs) {
   return out;
 }
 export async function runAgent({ messages, view }) {
-  if (!client) throw new Error('ANTHROPIC_API_KEY not set');
+  if (!llm) { const e = new Error('沒有 LLM 金鑰：在 app/.env 設 OPENAI_API_KEY（或 ANTHROPIC_API_KEY），或開 http://localhost:' + PORT + '/setup 貼上'); e.status = 503; throw e; }
   const mcp = await mcpProbe(); const tok = mcp.status === 'live' ? await validToken() : null;
-  const tools = [...CAMERA_TOOLS]; const extra = {};
-  if (tok) { tools.push({ type: 'mcp_toolset', mcp_server_name: 'funraise' }); extra.mcp_servers = [{ type: 'url', url: MCP_URL, name: 'funraise', authorization_token: tok.access_token }]; extra.betas = ['mcp-client-2025-11-20']; }
   const sourceNote = tok ? '資料來源：FUNRAISE MCP 即時（LIVE）。優先用 MCP 工具查詢，快照只用來定位畫面物件。' : `資料來源：本地快照（FUNRAISE MCP ${mcp.status === 'unauthorized' ? '尚未授權：請使用者按右上角「授權」' : '目前連不上'}）。只能用 search_local_snapshot 與畫面工具；回答時註明「快照 2026-09-14」。`;
-  const res = await client.beta.messages.create({ model: MODEL, max_tokens: 6000, thinking: { type: 'adaptive' }, system: SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(view || {}), messages: sanitizeMessages(messages), tools, ...extra });
+  const res = await llm.run({ system: SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(view || {}), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null });
   for (const b of res.content) if (b.type === 'mcp_tool_result' && b.is_error && /401|unauthori|invalid_token|forbidden/i.test(JSON.stringify(b.content || ''))) { mcpState = { status: 'unauthorized', checked: Date.now(), reason: 'MCP rejected the token during a call' }; }
-  return { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, source: tok ? 'live' : 'snapshot' };
+  return { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
 }
 
 /* ---------------- static (dist/) ---------------- */
@@ -201,25 +208,38 @@ function serveStatic(req, res) {
 }
 const CALLBACK_PAGE = (ok, msg) => `<!doctype html><meta charset="utf-8"><title>PeakLens · FUNRAISE MCP</title><body style="margin:0;display:grid;place-items:center;height:100vh;background:#030712;color:#F3F4F6;font:15px Inter,'Noto Sans TC',sans-serif"><div style="text-align:center;max-width:420px;padding:24px"><div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#93DCE6">FUNRAISE MCP</div><h1 style="font-size:20px;margin:8px 0">${ok ? '已授權，睿鏡可以即時查資料了' : '授權失敗'}</h1><p style="color:#99A1AF">${msg}</p><p style="color:#6A7282;font-size:12px">${ok ? '這個視窗會自動關閉。' : '請關閉視窗後再試一次。'}</p></div><script>try{(window.opener||window.parent).postMessage({type:'peaklens-mcp-authorized',ok:${ok ? 'true' : 'false'}},'*')}catch(e){} ${ok ? 'setTimeout(()=>window.close(),1400);' : ''}</script></body>`;
 
-if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!client, model: MODEL, mcp: mcpSummary(m), tts: FISH_KEY ? 'fish:' + FISH_MODEL : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
+if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), tts: FISH_KEY_() ? 'fish:' + FISH_MODEL_() : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
 
+// abuse guard for a shared/hosted server: per-IP sliding window (agent 30/min, tts 60/min, others 240/min)
+const GATE_FREE = new Set(['/api/health', '/api/mcp/callback']); const rateBuckets = new Map();
+function rateOk(ip, pathname) { const limit = pathname === '/api/agent' ? +(env.RATE_AGENT_PER_MIN || 30) : pathname === '/api/tts' ? +(env.RATE_TTS_PER_MIN || 60) : 240; const key = ip + '|' + (pathname === '/api/agent' || pathname === '/api/tts' ? pathname : 'other'); const now = Date.now(); const arr = (rateBuckets.get(key) || []).filter(t => now - t < 60000); arr.push(now); rateBuckets.set(key, arr); if (rateBuckets.size > 5000) rateBuckets.clear(); return arr.length <= limit; }
+const ORS = createOrsRoutes(env); const LIVE = createLiveRoutes(env);
+const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root });
 if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
   http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     try {
       if (req.method === 'OPTIONS') return json(res, 204, {});
-      if (url.pathname === '/api/health') { const m = await mcpProbe(url.searchParams.has('force')); return json(res, 200, { ok: !!client, model: MODEL, mcp: mcpSummary(m), tools: CAMERA_TOOLS.length, tts: FISH_KEY ? 'fish' : 'none', voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) }); }
-      if (url.pathname === '/api/voices') return json(res, 200, { fish: !!FISH_KEY, model: FISH_MODEL, voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) });
+      if (url.pathname.startsWith('/api/') && !GATE_FREE.has(url.pathname) && !url.pathname.startsWith('/api/setup')) {
+        const code = env.PEAKLENS_ACCESS_CODE; if (code) { const given = req.headers['x-peaklens-code'] || url.searchParams.get('code') || ''; if (given !== code) return json(res, 401, { error: '這個 PeakLens server 需要存取碼', need_code: true }); }
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(); if (!rateOk(ip, url.pathname)) return json(res, 429, { error: '請求太頻繁，稍後再試' });
+      }
+      if (url.pathname === '/setup') return SETUP.page(req, res);
+      if (url.pathname.startsWith('/api/setup')) return SETUP.api(req, res, url, readBody, json);
+      if (url.pathname === '/api/health') { const m = await mcpProbe(url.searchParams.has('force')); return json(res, 200, { ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), tools: CAMERA_TOOLS.length, tts: FISH_KEY_() ? 'fish' : 'none', voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) }); }
+      if (url.pathname === '/api/voices') return json(res, 200, { fish: !!FISH_KEY_(), model: FISH_MODEL_(), voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) });
       if (url.pathname === '/api/tts' && req.method === 'POST') { const body = await readBody(req, 64000); const t0 = Date.now(); const out = await synthesize(body.text, body.voice, { speed: Math.min(2, Math.max(0.5, +body.speed || 1)) }); console.log(`[tts] ${out.voice.id} ${out.cached ? 'cache' : 'fish'} ${Date.now() - t0} ms · ${String(body.text).slice(0, 40)}`); const st = fs.statSync(out.file); res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': st.size, 'cache-control': 'public, max-age=86400', 'x-tts-voice': out.voice.id, 'x-tts-cached': out.cached ? '1' : '0', 'access-control-allow-origin': '*' }); return fs.createReadStream(out.file).pipe(res); }
       if (url.pathname === '/api/mcp/authorize') { const loc = await beginAuthorize(); res.writeHead(302, { location: loc, 'cache-control': 'no-store' }); return res.end(); }
       if (url.pathname === '/api/mcp/callback') { const err = url.searchParams.get('error'); if (err) return html(res, 400, CALLBACK_PAGE(false, `${err}: ${url.searchParams.get('error_description') || ''}`)); try { await finishAuthorize(url.searchParams.get('code'), url.searchParams.get('state')); const m = await mcpProbe(true); return html(res, 200, CALLBACK_PAGE(m.status === 'live', m.status === 'live' ? `已連上 ${m.server && m.server.name ? m.server.name : 'FUNRAISE MCP'}。` : `已取得 token，但探測回報 ${m.status}（${m.reason || ''}）。`)); } catch (e) { return html(res, 400, CALLBACK_PAGE(false, e.message)); } }
       if (url.pathname === '/api/mcp/logout' && req.method === 'POST') { store.clear(); mcpState = { status: 'unknown', checked: 0 }; return json(res, 200, { ok: true }); }
       if (url.pathname === '/api/agent' && req.method === 'POST') { const body = await readBody(req); const t0 = Date.now(); const out = await runAgent(body); console.log(`[agent] ${out.stop_reason} · ${out.source} · ${out.usage ? out.usage.input_tokens + '→' + out.usage.output_tokens + ' tok' : ''} · ${Date.now() - t0} ms`); return json(res, 200, out); }
+      if (LIVE[url.pathname]) { const r = await LIVE[url.pathname]({ url }); return json(res, r.status, r.json); }
+      if (ORS[url.pathname]) { const r = await ORS[url.pathname]({ url, req, res, readBody }); return json(res, r.status, r.json); }
       if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'unknown route' });
       return serveStatic(req, res);
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }
   }).listen(PORT, async () => {
     const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message }));
-    console.log(`PeakLens agent server on http://localhost:${PORT}  model=${MODEL}  claude=${client ? 'on' : 'OFF (set ANTHROPIC_API_KEY)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY ? 'fish' : 'none'}  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
+    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
   });
 }
