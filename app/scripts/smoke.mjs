@@ -121,7 +121,7 @@ try {
   console.log('night', JSON.stringify(await page.evaluate(() => ({ quality: window.PL.viewerApi.quality, bloom: window.PL.viewer.scene.postProcessStages.bloom.enabled, roadsShown: window.PL.ground ? window.PL.ground.roads.filter(p => p.show).length : 0, basemapYear: window.PL.viewerApi.basemapYear }))));
   await page.evaluate(() => { window.PL.map.setYear(2016); }); await wait(600); console.log('vintage', JSON.stringify(await page.evaluate(() => ({ year: window.PL.map.year, basemapYear: window.PL.viewerApi.basemapYear })))); await page.evaluate(() => window.PL.map.setYear(2026));
   await page.evaluate(() => { window.PL.director.play('investor'); }); await wait(9000); // block body: sample the scene, never await its whole run await page.screenshot({ path: path.join(out, 'shot-8-scene.jpg'), type: 'jpeg', quality: 84 });
-  const cine = await page.evaluate(() => document.querySelector('#cine-text').textContent); console.log('scene text:', cine);
+  const cine = await page.evaluate(() => ((document.querySelector('#voicebar') || document.querySelector('#cine-text') || {}).textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120)); console.log('scene text:', cine);
   await page.evaluate(() => window.PL.director.stop());
   await page.evaluate(() => window.PL.map.globe()); await wait(4000); await page.screenshot({ path: path.join(out, 'shot-9-globe.jpg'), type: 'jpeg', quality: 84 });
   const health = await page.evaluate(() => fetch('/api/health').then(r => r.json())); console.log('health', JSON.stringify(health));
