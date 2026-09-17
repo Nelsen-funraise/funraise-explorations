@@ -94,7 +94,7 @@ export class TimeMachine {
       for (const d of this._districts) { const s = this.seriesFor(metric, d.name); this.years.forEach((y, i) => { if (this._excludedFromRange(metric, y)) return; const v = s[i]; if (v < mn) mn = v; if (v > mx) mx = v; }); }
       if (!isFinite(mn)) mn = 0; if (!isFinite(mx) || mx <= mn) mx = mn + 1; this._range[metric] = { min: mn, max: mx }; } }
   heightFor(metric, value, scale) { const r = this._range[metric] || { min: 0, max: 1 }; const t = Math.max(0, Math.min(1, (value - r.min) / ((r.max - r.min) || 1))); const span = scale === 'S2' ? S2_SPAN : S1_SPAN; return span[0] + t * (span[1] - span[0]); }
-  colorFor(yoy) { if (yoy == null) return C(GRAY, .52); const sat = Math.min(1, Math.abs(yoy) / SATURATE_AT); if (yoy > FLAT_BAND) return lerpColor(C(GRAY, .5), C(BLUE, .7), sat); if (yoy < -FLAT_BAND) return lerpColor(C(GRAY, .5), C(ORANGE, .7), sat); return C(GRAY_LIGHT, .48); }
+  colorFor(yoy) { if (yoy == null) return C(GRAY, .3); const sat = Math.min(1, Math.abs(yoy) / SATURATE_AT); if (yoy > FLAT_BAND) return lerpColor(C(GRAY, .3), C(BLUE, .48), sat); if (yoy < -FLAT_BAND) return lerpColor(C(GRAY, .3), C(ORANGE, .48), sat); return C(GRAY_LIGHT, .48); }
   /** 統一計算某指標／某區／某年該顯示的值：資料涵蓋不足（sales_office < 2017）與 YTD（2026）都在這裡一次處理，
    * 高度／顏色／文字三個地方都吃同一份判斷，不會各自長出不一致的規則。 */
   _valueInfo(metric, name, year) {
@@ -108,7 +108,7 @@ export class TimeMachine {
   }
   /* ---- 逐幀動畫讀值：350ms 內從 v0/c0 補間到 v1/c1，高度依「目前尺度」即時換算（S1↔S2 邊界自然改變誇張倍率）---- */
   _curValue(name) { const a = this._anim.get(name); if (!a) return 0; const u = Math.min(1, (performance.now() - a.t0) / TWEEN_MS); return a.v0 + (a.v1 - a.v0) * u; }
-  _colorNow(name) { const a = this._anim.get(name); if (!a) return C(GRAY, .55); const u = Math.min(1, (performance.now() - a.t0) / TWEEN_MS); return Cesium.Color.lerp(a.c0, a.c1, u, new Cesium.Color()); }
+  _colorNow(name) { const a = this._anim.get(name); if (!a) return C(GRAY, .3); const u = Math.min(1, (performance.now() - a.t0) / TWEEN_MS); return Cesium.Color.lerp(a.c0, a.c1, u, new Cesium.Color()); }
   _heightNow(name) { return this.heightFor(this.metric, this._curValue(name), this.layers.scale); }
   _labelText(name) {
     const info = this._valueInfo(this.metric, name, this.layers.year); const unit = METRICS[this.metric].unit;
@@ -140,8 +140,8 @@ export class TimeMachine {
   _onYear(year, prev) {
     for (const d of this._districts) {
       const name = d.name; const info = this._valueInfo(this.metric, name, year);
-      const c1 = info.insufficient ? C(GRAY, .28) : this.colorFor(info.yoy);
-      const had = this._anim.has(name); const curV = had ? this._curValue(name) : 0; const curC = had ? this._colorNow(name) : C(GRAY, .55);
+      const c1 = info.insufficient ? C(GRAY, .2) : this.colorFor(info.yoy);
+      const had = this._anim.has(name); const curV = had ? this._curValue(name) : 0; const curC = had ? this._colorNow(name) : C(GRAY, .3);
       this._anim.set(name, { v0: curV, v1: info.v, c0: curC, c1, t0: performance.now() });
       if (prev != null && year > prev) this.layers.pulse('tm:' + name, PULSE_MS);
     }
