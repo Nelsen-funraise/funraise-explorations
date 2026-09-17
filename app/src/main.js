@@ -30,7 +30,12 @@ import { WalkshedLayer } from './analysis/walkshed.js';
 import { RenewalEnvelope } from './renewal.js';
 import { createCompose } from './compose.js';
 import { createExplain } from './explain.js';
+import { createInsights } from './ui/insights.js';
 import { TimeMachine } from './layers/timemachine.js';
+import { createPhotoreal } from './layers/photoreal.js';
+import { createFrames } from './layers/frames.js';
+import { createStage } from './fx/stage.js';
+import { createVoicebar } from './ui/voicebar.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -118,6 +123,11 @@ async function boot() {
   const measure = createMeasure({ viewer, onSite: site => { const unit = { id: 'draw:' + Date.now(), name: '手繪基地', area_sqm: site.areaSqm, rings: [site.ring], _c: site.centroid }; ui.simulateRenewal(unit); ui.toast(`手繪基地 ${Math.round(site.areaPing).toLocaleString('zh-TW')} 坪 → 容積量體試算`); }, onStatus: () => {} });
   map.measure = measure; measure.setTheme(ui.theme); { const orig = ui.setTheme; ui.setTheme = (...a) => { const r = orig(...a); measure.setTheme(ui.theme); return r; }; } ui.bindMeasure && ui.bindMeasure(measure);
   const presenter = createPresenter({ ui, director, scenes: SCENES, viewer }); ui.presenter = presenter; const presenterBtn = $('#presenter'); if (presenterBtn) presenterBtn.onclick = () => { presenter.toggle(); presenterBtn.setAttribute('aria-pressed', presenter.active); };
+  // Phase 10Q 場景導演 2.0（docs/11-v2-cesium-app.md §18.2）：map.stage post-processes entity graphics for dramatic
+  // per-step emphasis (called from scenes.js), and the unified #voicebar replaces the old #cinebar/#caption for both
+  // scene narration and AI answers (ui.js's ui.cine/ui.speak and settle() route to it — see src/ui/voicebar.js).
+  const stage = createStage({ layers }); map.stage = stage;
+  const voicebar = createVoicebar({ ui, director, scenes: SCENES }); ui.voicebar = voicebar;
   { const orig = agent.setLens.bind(agent); agent.setLens = id => { orig(id); ui.syncUrl(); }; }
   // 視圖合成器（Phase 9A，docs/11-v2-cesium-app.md §16）：一個 Look 取代五個各自為政的開關；建在 rig/layers/osm/ground/
   // youbike/isochrone/walkshed/focus/trips 與（已經疊了 syncUrl/trips/measure 三層的）ui 都齊全之後，再把自己包在最外層。
@@ -127,6 +137,23 @@ async function boot() {
   // 建在 compose 之後，因為要讀 layers.scale／layers.isHot 這些 compose 才會開始驅動的狀態。
   let timemachine = null; try { timemachine = new TimeMachine({ viewer, layers, data, basemap, timeline }); await timemachine.ready; map.timemachine = timemachine.api; } catch (e) { console.warn('timemachine unavailable', e); }
   let explain = null; try { explain = createExplain({ viewer, map, layers, ui, rig }); map.explain = explain; ui.explain = explain; } catch (e) { console.warn('explain unavailable', e); }
+  // Phase 10R 洞察列（docs/11-v2-cesium-app.md §18.3）：標註密度＝聰明——右側自動生成的洞察晶片，讀快照＋
+  // timeseries.json 算出目前鏡頭下行政區的重點數字；只在 body.d-annotated 顯示（自己用 MutationObserver 盯
+  // body class，不需要 ui.js 掛鉤）。建在 explain 之後，因為點晶片會呼叫 map.explain.enter() 帶物件編號跳出來。
+  let insights = null; try { insights = createInsights({ map, layers, ui, data }); } catch (e) { console.warn('insights unavailable', e); }
+  // Phase 10P 實景底座＋玻璃殼框（docs/11-v2-cesium-app.md §18.1）：建在 compose 之後，因為 enterPhotoreal()／
+  // exitPhotoreal() 只在「真的呼叫」的當下讀 map.photoreal／map.frames（不在 compose 建構時快照），晚建立也接
+  // 得上；frames 讀 layers.build() 已經算好在 data.buildings[]/_h、_built 上的量體高度／完工年。
+  let photoreal = null; try { photoreal = createPhotoreal({ viewer, viewerApi: api, osm, layers, compose, ui }); } catch (e) { console.warn('photoreal unavailable', e); }
+  map.photoreal = photoreal;
+  let frames = null; try { frames = createFrames({ viewer, osm, layers, data }); } catch (e) { console.warn('frames unavailable', e); }
+  map.frames = frames;
+  // §18.1「有任一把就把 Look 預設設成實景」：只在使用者從沒手動選過 Look，或上次存的剛好是舊預設「白模」時才切；
+  // 已經手動選過別的（日照／黃金／夜景／甚至明確選回白模之外又切回來？不會發生，見上）一律尊重那個選擇，不搶著換。
+  if (photoreal && photoreal.available) {
+    let savedLook = null; try { savedLook = localStorage.getItem('pl.look'); } catch { /* private mode */ }
+    if (!savedLook || savedLook === 'white') compose.setLook('photoreal', { quiet: true }).catch(() => {});
+  }
 
   /* ---- picking ---- */
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
@@ -157,8 +184,8 @@ async function boot() {
   booted = true;
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
-  claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, explain, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine };
+  claude.probe().then(h => { ui.setMcp(h); if (h && h.ok) { let pref = null; try { pref = localStorage.getItem('pl.ai'); } catch { /* private mode */ } if (pref !== 'off') ui.setAgentMode(true, true); } if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
+  window.PL = { Cesium, viewer, map, explain, insights, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine, photoreal, frames, stage, voicebar };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

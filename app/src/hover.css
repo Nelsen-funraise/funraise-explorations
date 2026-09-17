@@ -1,0 +1,10 @@
+/* Hover mini-card (Phase 10R Harmony §18.3) — the glass background/border/blur/radius/shadow all come from the
+   shared `.panel` class (hover.js sets card.className='panel hidden'); this file only owns the card's own content
+   layout/typography, plus a small per-layer colour accent so the card reads as "of a piece" with the map chips. */
+#hovercard{position:absolute;left:0;top:0;padding:9px 12px 8px;max-width:280px;pointer-events:none;z-index:30;font-size:12px;will-change:transform;transition:opacity .12s ease}
+#hovercard::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--hc-accent,var(--blue-400));opacity:.85}
+#hovercard h5{margin:2px 0 3px;font-size:13px;font-weight:600;color:var(--ink);letter-spacing:.01em}
+#hovercard .l{font-family:var(--mono);font-size:11px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+#hovercard .hint{margin-top:4px;font-size:10px;color:var(--ink-3)}
+body.theme-light #hovercard h5{color:var(--gray-900)}
+@media (prefers-reduced-motion:reduce){#hovercard{transition:none}}

@@ -23,11 +23,16 @@ export const LAYERS = {
 };
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const MRT_COLOR = { '文湖線': '#C48C31', '淡水信義線': '#E3002C', '松山新店線': '#008659', '中和新蘂線': '#F8B61C', '中和新蘆線': '#F8B61C', '板南線': '#0070BD', '環狀線': '#FFDB00' };
-const heatDisc = (() => { let url = null; return () => { if (url) return url; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.4, 'rgba(255,255,255,0.42)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 256, 256); url = c.toDataURL('image/png'); return url; }; })();
-const heatTint = (hot, light, mul = 1) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha((0.18 + hot * 0.14) * mul) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha((0.3 + hot * 0.12) * mul);
+// §18.3: softer/larger heat glow — a gentler multi-stop falloff (was a hard 0.9→0.42→0 two-step) and lower base alpha below.
+const heatDisc = (() => { let url = null; return () => { if (url) return url; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,0.68)'); grd.addColorStop(0.35, 'rgba(255,255,255,0.34)'); grd.addColorStop(0.7, 'rgba(255,255,255,0.12)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 256, 256); url = c.toDataURL('image/png'); return url; }; })();
+const heatTint = (hot, light, mul = 1) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha((0.14 + hot * 0.10) * mul) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha((0.22 + hot * 0.10) * mul);
 const yearOf = s => { if (!s) return null; const m = String(s).match(/(\d{4})/); if (m) return +m[1]; const r = String(s).match(/^(\d{3})/); return r ? +r[1] + 1911 : null; };
-const FONT = '500 13px "Inter", "Noto Sans TC", sans-serif', MONO = '600 11px "SF Mono", ui-monospace, Menlo, monospace';
-const label = (text, opts = {}) => ({ text, font: opts.font || FONT, fillColor: C(opts.color || '#F3F4F6'), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, opts.dy ?? -14), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, opts.far || 3500), scale: opts.scale || 1, showBackground: !!opts.bg, backgroundColor: C('#030712', .65), backgroundPadding: new Cesium.Cartesian2(6, 3) });
+// Phase 10R Harmony (§18.3): every label is a pill — showBackground always on (建構灰 @.78 dark / white @.88 light,
+// set here and kept in sync per-theme by setTheme() below), 12px sans for names / 11px mono for numbers-as-label
+// (one fact per label; the second line, if any, lives in the hover card), no stroke outline (the pill supplies
+// contrast on its own, so a black outline just muddies the glass look the owner asked for).
+const FONT = '500 12px "Inter", "Noto Sans TC", sans-serif', MONO = '600 11px "SF Mono", ui-monospace, Menlo, monospace';
+const label = (text, opts = {}) => ({ text, font: opts.font || FONT, fillColor: C(opts.color || '#F3F4F6'), style: Cesium.LabelStyle.FILL, pixelOffset: new Cesium.Cartesian2(0, opts.dy ?? -14), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(opts.near || 0, opts.far || 3500), scale: opts.scale || 1, showBackground: true, backgroundColor: C('#1E2939', .78), backgroundPadding: new Cesium.Cartesian2(8, 4) });
 // view composer helpers (§16.1/§16.4): short renewal-unit names at S3 (full name stays in hover/select, which read the
 // item, not the label), a local haversine-ish metre distance for the analysis-ring dim mask, and the z-bias that makes
 // a selected/highlighted label win over an overlapping ordinary one (disableDepthTestDistance is already universal above).
@@ -53,7 +58,9 @@ export class FunraiseLayers {
   pulse(key, ms = 7000) { this.highlight.set(key, performance.now() + ms); }
   setVisible(k, on) { if (!this.ds[k]) return; this.vis[k] = !!on; this._applyShow(k); }
   /* ---- view composer (compose.js): scale mask, separate from the user's own `vis` toggle — ds.show is their AND ---- */
-  _applyShow(k) { const on = !!(this.vis[k] && this.mask[k] !== false); this.ds[k].show = on; if (k === 'stock' && this.ds.markers) this.ds.markers.show = on; }
+  _applyShow(k) { const on = !!(this.vis[k] && this.mask[k] !== false); this.ds[k].show = (k === 'stock' && this._hideStockVolumes) ? false : on; if (k === 'stock' && this.ds.markers) this.ds.markers.show = on; }
+  // 實景（Google 3D Tiles）下商辦的橘色量體會和 frames.js 的玻璃殼打架：只藏量體，icon／標籤照常（Phase 10P 交接事項）
+  setStockVolumes(on) { this._hideStockVolumes = !on; this._applyShow('stock'); }
   setMask(k, on) { if (!(k in this.mask)) return; this.mask[k] = !!on; this._applyShow(k); }
   _scaleAllows(k) { const sc = LAYERS[k] && LAYERS[k].scales; return !sc || sc.includes(this.scale); }
   /** Called by compose.js after every scale re-evaluation (§16.1). Re-derives every layer's mask from LAYERS[k].scales,
@@ -148,7 +155,8 @@ export class FunraiseLayers {
       const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null;
       if (e.billboard && pl) { const name = ds === this.ds.markers ? 'tower' : (LAYERS[pl.layer] && LAYERS[pl.layer].icon); if (name && e.billboard.image) { if (!e._img0) e._img0 = e.billboard.image.getValue(); const ink = ds === this.ds.markers && /^[AP]$/.test(pl.item.grade || '') ? '#DE7020' : (ICON_INK[pl.layer] || '#1E2939'); e.billboard.image = light ? icon(name, ink, 64, { bg: 'rgba(255,255,255,0.94)' }) : e._img0; } }
       if (!e.label) continue; if (!e._fill) e._fill = e.label.fillColor ? e.label.fillColor.getValue() : Cesium.Color.WHITE;
-      e.label.fillColor = light ? Cesium.Color.fromCssColorString(pl ? (DARK_INK[pl.layer] || '#1E2939') : '#4A5565') : e._fill; e.label.outlineColor = light ? Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(0.92) : Cesium.Color.fromCssColorString('#030712').withAlpha(0.9); e.label.backgroundColor = light ? Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(0.82) : Cesium.Color.fromCssColorString('#030712').withAlpha(0.65); }
+      // §18.3 pill background: 建構灰 @.78 in dark, white @.88 in light — no outline now (style is FILL-only; the pill supplies contrast).
+      e.label.fillColor = light ? Cesium.Color.fromCssColorString(pl ? (DARK_INK[pl.layer] || '#1E2939') : '#4A5565') : e._fill; e.label.backgroundColor = light ? Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(.88) : Cesium.Color.fromCssColorString('#1E2939').withAlpha(.78); }
   }
   setDensity(mode) {
     const f = mode === 'immersive' ? 0.6 : mode === 'annotated' ? 1.7 : 1; this._densityMinImp = mode === 'immersive' ? 0.5 : 0;
@@ -180,9 +188,13 @@ export class FunraiseLayers {
   buildMarkers() {
     const ds = this.ds.markers; const cl = ds.clustering; cl.enabled = true; cl.pixelRange = 64; cl.minimumClusterSize = 3; cl.clusterBillboards = true; cl.clusterLabels = false; cl.clusterPoints = false;
     for (const b of this.d.buildings || []) { if (!b.lat) continue; const key = 'stock:' + b.id; const grade = b.grade || 'B'; const col = grade === 'A' ? '#FCBE83' : grade === 'F' ? '#6EE7B7' : grade === 'P' ? '#F29628' : '#E8C9A0';
-      ds.entities.add({ position: Cesium.Cartesian3.fromDegrees(b.lon, b.lat, (b._h || 40) + 10), show: new Cesium.CallbackProperty(() => b._built == null || b._built <= this.year, false),
-        billboard: { image: icon('tower', col, 64), width: 28, height: 28, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(2200, 70000), scaleByDistance: new Cesium.NearFarScalar(3000, 1, 40000, 0.6) },
-        properties: { pl: { layer: 'stock', key, item: b } } }); }
+      const h = b._h || 40; const sz = grade === 'A' || grade === 'P' ? 34 : 26; // §18.3 size-by-importance: P/A 34px, others 26px
+      const show = new Cesium.CallbackProperty(() => b._built == null || b._built <= this.year, false);
+      ds.entities.add({ position: Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h + 10), show,
+        billboard: { image: icon('tower', col, 64), width: sz, height: sz, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(2200, 70000), scaleByDistance: new Cesium.NearFarScalar(3000, 1, 40000, 0.6) },
+        properties: { pl: { layer: 'stock', key, item: b } } });
+      // §18.3 needle: 1px hairline from the roof up to the floating chip, so it reads as attached rather than adrift.
+      ds.entities.add({ show, polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights([b.lon, b.lat, h, b.lon, b.lat, h + 10]), width: 1, material: C(col, .5), disableDepthTestDistance: Number.POSITIVE_INFINITY } }); }
     cl.clusterEvent.addEventListener((entities, cluster) => { cluster.label.show = false; cluster.billboard.show = true; cluster.billboard.image = clusterImage(entities.length); cluster.billboard.width = entities.length >= 10 ? 56 : 46; cluster.billboard.height = cluster.billboard.width; cluster.billboard.verticalOrigin = Cesium.VerticalOrigin.CENTER; cluster.billboard.disableDepthTestDistance = Number.POSITIVE_INFINITY; cluster.billboard.id = { cluster: entities }; });
   }
   /* ---- 地號（都更模擬用）：選定單元內的地籤 polygon ---- */
@@ -190,7 +202,7 @@ export class FunraiseLayers {
     const units = (this.d.parcels && this.d.parcels.units) || {};
     for (const [uid, u] of Object.entries(units)) for (const pc of u.parcels || []) { if (!pc.ring || pc.ring.length < 3) continue; const key = `parcel:${pc.sectcode}/${pc.landcode}`; const flat = []; let cx = 0, cy = 0; for (const q of pc.ring) { flat.push(q[0], q[1]); cx += q[0]; cy += q[1]; } cx /= pc.ring.length; cy /= pc.ring.length; const item = { ...pc, unit_id: uid, unit_name: u.name, name: `${pc.town} ${pc.section1}段 ${pc.landcode} 地號`, lon: cx, lat: cy };
       this.add('parcels', key, item, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.8, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#93DCE6', this.isHot(key) ? .45 : .14), false)), outline: true, outlineColor: C('#E3F8FA', .95), outlineWidth: 1.5 },
-        position: Cesium.Cartesian3.fromDegrees(cx, cy, 3), label: label(pc.landcode, { color: '#E3F8FA', far: 900, font: '600 10px "SF Mono", ui-monospace, monospace', dy: 0 }) }); }
+        position: Cesium.Cartesian3.fromDegrees(cx, cy, 3), label: label(pc.landcode, { color: '#E3F8FA', far: 900, font: MONO, dy: 0 }) }); }
   }
   /* ---- 時間軸動態：跨年時新出現的大樓「長出來」、當年交易「ping」 ---- */
   onYearChange(prev, year) {
@@ -222,7 +234,9 @@ export class FunraiseLayers {
       const dims = new Cesium.CallbackProperty(() => new Cesium.Cartesian3(side, side, h * prog()), false);
       const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#93DCE6', this.year >= done ? 0.78 : (this.isHot(key) ? 0.45 : 0.2)), false));
       this.add('future', key, f, { position: pos, box: { shadows: Cesium.ShadowMode.ENABLED, dimensions: dims, material: mat, outline: true, outlineColor: C('#BBEAF0', .9) } });
-      this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.future, false), position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(f.lon, f.lat, h * prog() + 8), false), label: label(new Cesium.CallbackProperty(() => `${f.name} · ${this.year >= done ? '完工' : done}`, false), { color: '#BBEAF0', far: 4500, font: MONO }), properties: { pl: { layer: 'future', key, item: f } } });
+      // §18.3 needle: box-top (its current, animated height) up to the floating chip, so the ghost volume reads as "claimed" rather than a bare box.
+      this.ds.future.entities.add({ polyline: { positions: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegreesArrayHeights([f.lon, f.lat, Math.max(0, h * prog()), f.lon, f.lat, h * prog() + 8]), false), width: 1, material: C('#93DCE6', .5), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
+      this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.future, false), position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(f.lon, f.lat, h * prog() + 8), false), billboard: BB('ghost', '#93DCE6', 26, 7000), label: label(f.name, { color: '#BBEAF0', far: 4500 }), properties: { pl: { layer: 'future', key, item: f } } });
     }
   }
   /* ---- 建照脈衝 ---- */
@@ -232,7 +246,7 @@ export class FunraiseLayers {
       this.add('licenses', key, l, { position: Cesium.Cartesian3.fromDegrees(l.lon, l.lat, 6), show: new Cesium.CallbackProperty(() => this.year >= (y || 2025), false),
         point: { pixelSize: new Cesium.CallbackProperty(() => 4 + (this.isHot(key) ? 6 : 0), false), color: C('#50C0D4', .0), outlineColor: C('#50C0D4', .35), outlineWidth: new Cesium.CallbackProperty(() => 10 + 10 * (0.5 + 0.5 * Math.sin(this.t * 2.2 + ph)), false), disableDepthTestDistance: Number.POSITIVE_INFINITY },
         billboard: BB('permit', '#50C0D4', 22, 9000),
-        label: label(`${l.license_number} · ${l.construction_type || ''}`, { color: '#93DCE6', far: 1800, font: MONO, dy: -12 }) });
+        label: label(l.construction_type || l.license_number, { color: '#93DCE6', far: 1800, dy: -12 }) });
     }
   }
   /* ---- 都更多邊形 ---- */
@@ -240,22 +254,27 @@ export class FunraiseLayers {
     for (const u of this.d.urban_renewal || []) {
       if (!u.rings) continue; const key = 'renewal:' + u.id; const gov = u.category === '政府主導'; let cx = 0, cy = 0, n = 0;
       for (const ring of u.rings) { const flat = []; for (const p of ring) { flat.push(p[0], p[1]); cx += p[0]; cy += p[1]; n++; } if (flat.length < 6) continue;
-        this.add('renewal', key + ':' + n, u, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: 3, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(gov ? '#DDD6FE' : '#C4B5FD', this.isHot(key) ? .75 : .38), false)), outline: true, outlineColor: C('#EDE9FE', .95) } }); }
+        // §18.3: 8% base fill (keep hue) + a breathing edge — outline alpha oscillates .35↔.6 over a 2.4s cycle so the unit reads as "alive" even when nothing else is happening.
+        this.add('renewal', key + ':' + n, u, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: 3, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(gov ? '#DDD6FE' : '#C4B5FD', this.isHot(key) ? .75 : .08), false)), outline: true, outlineColor: new Cesium.CallbackProperty(() => C('#EDE9FE', .475 + .125 * Math.sin(this.t * (Math.PI * 2 / 2.4))), false) } }); }
       if (n) { u._c = [cx / n, cy / n]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.renewal, false), position: Cesium.Cartesian3.fromDegrees(cx / n, cy / n, 10), billboard: { ...BB(gov ? 'renew' : 'renew', gov ? '#DDD6FE' : '#C4B5FD', gov ? 24 : 18, 7000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, gov ? 9000 : 4000) }, label: label(shortName(u.name), { color: '#DDD6FE', far: 2600, dy: -16 }), properties: { pl: { layer: 'renewal', key, item: u } } }); }
     }
   }
   /* ---- 重劃／區段徵收 ---- */
   buildZones() {
+    // §18.3: thin ring instead of a filled hex — the polygon is almost all outline now, fill only enough to keep the shape pickable.
     for (const z of this.d.development_zones || []) { if (!z.lat) continue; const key = 'zone:' + z.id; const r = z.category === '區段徵收' ? 240 : 180;
-      this.add('zones', key, z, { position: Cesium.Cartesian3.fromDegrees(z.lon, z.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.3, material: C('#A78BFA', z.status === '規劃中' ? .22 : .10), outline: true, outlineColor: C('#A78BFA', .75) },
-        label: label(z.name.replace(/^臺北市/, ''), { color: '#DDD6FE', far: 5000, dy: -4, font: MONO }) }); }
+      this.add('zones', key, z, { position: Cesium.Cartesian3.fromDegrees(z.lon, z.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.3, material: C('#A78BFA', .03), outline: true, outlineWidth: 2, outlineColor: C('#A78BFA', .85) },
+        label: label(z.name.replace(/^臺北市/, ''), { color: '#DDD6FE', far: 5000, dy: -4 }) }); }
   }
   /* ---- 上市櫃資產交易 ---- */
   buildMops() {
     for (const m of this.d.mops || []) { if (!m.lat) continue; const key = 'mops:' + m.id; const y = yearOf(m.announcement_date); m._year = y; const size = Math.max(9, Math.min(26, 6 + Math.log10(Math.max(1e6, m.total_price || 1e6)) * 2.2));
-      this.add('mops', key, m, { position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, 14), show: new Cesium.CallbackProperty(() => y == null || (y <= this.year && y >= this.year - 1), false),
+      const show = new Cesium.CallbackProperty(() => y == null || (y <= this.year && y >= this.year - 1), false);
+      this.add('mops', key, m, { position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, 14), show,
         billboard: { ...BB('deal', '#F29628', Math.round(size * 1.6)), scale: new Cesium.CallbackProperty(() => this.isHot(key) ? 1.15 + 0.2 * Math.sin(this.t * 5) : 1, false) },
-        label: label(`${m.company_name} · ${fmtMoney(m.total_price)}`, { color: '#FFDAA0', far: 4200, dy: -16, font: MONO, bg: true }) }); }
+        label: label(fmtMoney(m.total_price), { color: '#FFDAA0', far: 4200, dy: -16, font: MONO }) });
+      // §18.3 needle: mops isn't tied to a roof, so it lands on the ground point instead.
+      this.ds.mops.entities.add({ show, polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights([m.lon, m.lat, 0, m.lon, m.lat, 14]), width: 1, material: C('#F29628', .5), disableDepthTestDistance: Number.POSITIVE_INFINITY } }); }
   }
   /* ---- 企業遷徙弧線 ---- */
   buildMoves() {
@@ -263,7 +282,7 @@ export class FunraiseLayers {
     for (const mv of this.d.registry_moves || []) { if (!mv.lat) continue; const key = 'move:' + mv.uniform_number; const from = orig(mv.before); if (!from) continue; const to = [mv.lon, mv.lat]; const pts = arc(from, to, 44); mv._from = from;
       this.add('moves', key, mv, { polyline: { positions: pts, width: 2.2, material: new Cesium.PolylineGlowMaterialProperty({ glowPower: 0.25, taperPower: 0.6, color: C('#DE7020', .85) }), arcType: Cesium.ArcType.NONE } });
       const ph = Math.random(); this.ds.moves.entities.add({ position: new Cesium.CallbackProperty(() => { const u = (this.t * 0.18 + ph) % 1; return pts[Math.min(pts.length - 1, Math.floor(u * pts.length))]; }, false), point: { pixelSize: 5, color: C('#FFDAA0'), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
-      this.ds.moves.entities.add({ position: Cesium.Cartesian3.fromDegrees(to[0], to[1], 30), billboard: BB('arrow', '#DE7020', 20, 6000), label: label(mv.company_name.replace(/股份有限公司|有限公司/, ''), { color: '#FFDAA0', far: 2200, font: MONO, dy: -14 }), properties: { pl: { layer: 'moves', key, item: mv } } }); }
+      this.ds.moves.entities.add({ position: Cesium.Cartesian3.fromDegrees(to[0], to[1], 30), billboard: BB('arrow', '#DE7020', 20, 6000), label: label(mv.company_name.replace(/股份有限公司|有限公司/, ''), { color: '#FFDAA0', far: 2200, dy: -14 }), properties: { pl: { layer: 'moves', key, item: mv } } }); }
   }
   originFor(before) {
     if (!before) return null; const m = before.match(/(臺北市|台北市)(\S{2}區)/); if (m && this.districtCentroids.has(m[2])) return this.districtCentroids.get(m[2]);
@@ -274,32 +293,35 @@ export class FunraiseLayers {
   buildInfra() {
     for (const p of this.d.public_infras || []) { const key = 'infra:' + p.id; const cons = p.status === 'constructing';
       if (p.line && p.line.length > 1) { const flat = []; for (const q of p.line) flat.push(q[0], q[1], 12); this.add('infra', key, p, { polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(flat), width: 5, material: new Cesium.PolylineDashMaterialProperty({ color: C('#BBEAF0', .95), gapColor: C('#BBEAF0', .15), dashLength: 24 }), arcType: Cesium.ArcType.GEODESIC } });
-        const mid = p.line[Math.floor(p.line.length / 2)]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.infra, false), position: Cesium.Cartesian3.fromDegrees(mid[0], mid[1], 30), label: label(`${p.name} · ${cons ? '興建中' : '規劃中'} ${p.completion_year || ''}`, { color: '#E3F8FA', far: 30000, bg: true, dy: -6 }), properties: { pl: { layer: 'infra', key, item: p } } }); continue; }
+        const mid = p.line[Math.floor(p.line.length / 2)]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.infra, false), position: Cesium.Cartesian3.fromDegrees(mid[0], mid[1], 30), label: label(p.name, { color: '#E3F8FA', far: 30000, dy: -6 }), properties: { pl: { layer: 'infra', key, item: p } } }); continue; }
       if (!p.lat) continue;
       this.ds.infra.entities.add({ position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 175), billboard: BB('crane', '#BBEAF0', 30, 40000), properties: { pl: { layer: 'infra', key, item: p } } });
       this.add('infra', key, p, { position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0), cylinder: { length: new Cesium.CallbackProperty(() => 120 + 30 * Math.sin(this.t * 1.5), false), topRadius: 22, bottomRadius: 60, material: C('#BBEAF0', cons ? .35 : .15), outline: true, outlineColor: C('#BBEAF0', .8) },
-        label: label(`${p.name} · ${cons ? '興建中' : '規劃中'} ${p.completion_year || ''}`, { color: '#E3F8FA', far: 12000, bg: true, dy: -60 }) }); }
+        label: label(p.name, { color: '#E3F8FA', far: 12000, dy: -60 }) }); }
   }
   /* ---- 產業園區 ---- */
   buildParks() {
     for (const p of this.d.industrial_parks || []) { if (!p.lat) continue; const key = 'ipark:' + p.id; const r = Math.max(120, Math.sqrt((p.area_ha || 10) * 1e4) * 0.62);
       this.ds.parks.entities.add({ position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 70), billboard: BB('factory', '#6EE7B7', 30, 40000), properties: { pl: { layer: 'parks', key, item: p } } });
-      this.add('parks', key, p, { position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.4, material: C('#6EE7B7', .10), outline: true, outlineColor: C('#6EE7B7', .9), outlineWidth: 2 }, label: label(p.name, { color: '#A7F3D0', far: 20000, dy: -4, bg: true }) }); }
+      this.add('parks', key, p, { position: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.4, material: C('#6EE7B7', .06), outline: true, outlineColor: C('#6EE7B7', .9), outlineWidth: 2 }, label: label(p.name, { color: '#A7F3D0', far: 20000, dy: -4 }) }); }
   }
   /* ---- 商圈行情 ---- */
   buildHeat() {
     for (const a of this.d.business_areas || []) { if (!a.lat) continue; const key = 'heat:' + a.id; const mp = a.market_price || {}; const rent = mp.actual_rent_avg || 1500; const hot = Math.max(0, Math.min(1, (rent - 1200) / 1600)); const col = `rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`;
-      const r = 520 + hot * 260; const disc = this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.2, material: new Cesium.ImageMaterialProperty({ image: heatDisc(), transparent: true, color: heatTint(hot, false) }) }, properties: { pl: { layer: 'heat', key, item: a } } }); disc._hot = hot; (this._heatDiscs = this._heatDiscs || []).push(disc); void col;
+      const r = 640 + hot * 340; // §18.3: softer/larger glow — radius up, heatDisc()/heatTint() below carry the softened falloff
+      const disc = this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 0), ellipse: { semiMajorAxis: r, semiMinorAxis: r, height: 0.2, material: new Cesium.ImageMaterialProperty({ image: heatDisc(), transparent: true, color: heatTint(hot, false) }) }, properties: { pl: { layer: 'heat', key, item: a } } }); disc._hot = hot; (this._heatDiscs = this._heatDiscs || []).push(disc); void col;
       this.ds.heat.entities.add({ position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 40), billboard: BB('coin', '#FCBE83', 26, 30000), properties: { pl: { layer: 'heat', key, item: a } } });
-      this.add('heat', key, a, { position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 40), label: label(`${(a.name || '').replace(/^台北市/, '')}\n租 ${fmtInt(rent)}/坪 · 售 ${fmtInt((mp.actual_sale_avg || 0) / 1e4)} 萬/坪`, { color: '#FCBE83', far: 16000, bg: true, dy: -18 }) }); }
+      this.add('heat', key, a, { position: Cesium.Cartesian3.fromDegrees(a.lon, a.lat, 40), label: label((a.name || '').replace(/^台北市/, ''), { color: '#FCBE83', far: 16000, dy: -18 }) }); }
   }
   /* ---- 捷運 ---- */
   buildMrt() {
     for (const l of this.base.mrt_lines || []) { const col = MRT_COLOR[l.name] || l.color || '#8FA3C8'; for (const seg of l.coords || []) { const flat = []; for (const q of seg) flat.push(q[0], q[1], 3); if (flat.length < 6) continue; this.ds.mrt.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(flat), width: 3.5, material: C(col, .85), arcType: Cesium.ArcType.GEODESIC } }); } }
-    for (const s of this.base.mrt_stations || []) { const key = 'mrt:' + s.name; this.add('mrt', key, s, { position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 4), billboard: { ...BB('metro', '#D1D5DB', 18, 9000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 14000) }, label: label(s.name, { color: '#D1D5DB', far: 2800, font: '11px "Noto Sans TC", sans-serif', dy: -8 }) }); }
+    for (const s of this.base.mrt_stations || []) { const key = 'mrt:' + s.name; this.add('mrt', key, s, { position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 4), billboard: { ...BB('metro', '#D1D5DB', 18, 9000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 14000) }, label: label(s.name, { color: '#D1D5DB', far: 2800, dy: -8 }) }); }
   }
   buildDistricts() {
-    for (const [name, c] of this.districtCentroids) { const tp = (this.base.districts || []).find(d => d.name === name); if (!tp || !/臺北市|台北市/.test(tp.county)) continue; this.ds.labels.entities.add({ position: Cesium.Cartesian3.fromDegrees(c[0], c[1], 80), label: { text: name, font: '600 15px "Noto Sans TC", sans-serif', fillColor: C('#99A1AF', .9), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(5000, 120000) } }); }
+    // District names are a region-level tier above data-point labels, so they keep a slightly larger size (14px vs
+    // the 12/11px rule below) but share the same pill-glass construction via label() — one visual language throughout.
+    for (const [name, c] of this.districtCentroids) { const tp = (this.base.districts || []).find(d => d.name === name); if (!tp || !/臺北市|台北市/.test(tp.county)) continue; this.ds.labels.entities.add({ position: Cesium.Cartesian3.fromDegrees(c[0], c[1], 80), label: label(name, { color: '#99A1AF', font: '600 14px "Noto Sans TC", sans-serif', near: 5000, far: 120000 }) }); }
   }
   /* ---- analytics helpers ---- */
   inBounds(b, lon, lat) { return lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3]; }

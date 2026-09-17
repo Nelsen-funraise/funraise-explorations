@@ -240,7 +240,7 @@ export class Agent {
       if (has(t, /展示模式|簡報模式|presenter|上台/)) { const willEnter = !(this.ui.presenter && this.ui.presenter.active); this.ui.presenter && this.ui.presenter.toggle(); return this.finish(a, willEnter ? '進入展示模式：←→ 切換場景、空白鍵播放或停止、Esc 離開。' : '離開展示模式。'); }
       if (has(t, /簡報|總結|摘要|現在看到|這裡有什麼|brief|summary|狀況/)) return this.brief(a);
       const p = this.resolvePlace(text); if (p) return this.goto(p, a);
-      await this.finish(a, `這個原型還聽不懂「${text}」。試試：${LENSES[this.lens].suggest.slice(0, 3).map(s => '「' + s + '」').join('、')}，或說「幫助」。`);
+      await this.finish(a, `內建 agent 還聽不懂「${text}」。試試：${LENSES[this.lens].suggest.slice(0, 3).map(s => '「' + s + '」').join('、')}，或說「幫助」${this.ui.mcp && this.ui.mcp.provider && !this.ui.claudeMode ? '；按下方「內建」切到 AI 模式就能問任何問題' : ''}。`);
     } catch (err) { console.error(err); await this.finish(a, '處理時出了點問題。' + (err && err.message ? ' ' + err.message : '')); }
     finally { this.busy = false; }
   }

@@ -1,7 +1,8 @@
 // presenter.js — 展示模式 Presenter Mode: a clean, projector-friendly view for live demos.
-// Hides authoring/HUD chrome, enlarges the caption/cinebar into a lower-third, shows a small
-// "場景 n／N" progress readout, auto-hides the cursor when idle, and drives scenes with
-// ArrowRight/Left, PageUp/Down, Space and Escape. Self-contained: pulls in its own stylesheet.
+// Hides authoring/HUD chrome, shows a small "場景 n／N" progress readout, auto-hides the cursor
+// when idle, and drives scenes with ArrowRight/Left, PageUp/Down, Space (pause/resume — Phase 10Q)
+// and Escape. #voicebar (src/ui/voicebar.css) becomes the lower-third while presenting; this module
+// no longer touches it directly. Self-contained: pulls in its own stylesheet.
 import './presenter.css';
 
 const IDLE_MS = 2500;
@@ -40,7 +41,7 @@ export function createPresenter({ ui, director, scenes, viewer }) { // `viewer` 
     const k = e.key;
     if (k === 'ArrowRight' || k === 'PageDown') { e.preventDefault(); e.stopPropagation(); next(); }
     else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); e.stopPropagation(); prev(); }
-    else if (k === ' ' || k === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (director.playing) director.stop(); else next(); }
+    else if (k === ' ' || k === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (director.playing) { if (director.paused) director.resume(); else director.pause(); } else next(); }
     else if (k === 'Escape' || k === 'Esc') { e.preventDefault(); e.stopPropagation(); exit(); }
   }
 

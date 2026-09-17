@@ -38,6 +38,12 @@
 
 import * as Cesium from 'cesium';
 import { apiUrl } from '../api.js';
+import { groundPolygon } from '../layers/groundmode.js';
+
+// Phase 10P §18.1：實景（Google 3D Tiles）底下地面疊圖要貼在真正的地表上，不能再用固定小高度擠出——讀
+// map.groundMode（compose.js／photoreal.js 進出「實景」時維護，見 groundmode.js 開頭的說明）；生活圈是使用者
+// 操作後才 show()，main.js 的 boot() 早就跑完了，讀 window.PL 永遠讀得到最新狀態，不需要建構子多傳一份 map。
+const groundModeOn = () => { try { return !!(window.PL && window.PL.map && window.PL.map.groundMode); } catch { return false; } };
 
 /* ---------------- 純幾何（跟 src/tools/measure.js 的 ringAreaSqm 同一套公式，自己留一份小副本） ---------------- */
 const M_PER_DEG_LAT = 110540;
@@ -144,7 +150,7 @@ export class WalkshedLayer {
   _addFill(part, color, alpha) {
     const outerPos = Cesium.Cartesian3.fromDegreesArray(part.outer.flat());
     const holes = (part.holes || []).map(h => new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(h.flat())));
-    const e = this.ds.entities.add({ polygon: { hierarchy: new Cesium.PolygonHierarchy(outerPos, holes), height: .4, material: this._col(color, alpha), outline: false } });
+    const e = this.ds.entities.add({ polygon: { ...groundPolygon({ on: groundModeOn(), height: .4 }), hierarchy: new Cesium.PolygonHierarchy(outerPos, holes), material: this._col(color, alpha), outline: false } });
     e._plKind = 'band'; e._baseColor = color;
     return e;
   }
@@ -250,7 +256,7 @@ export class WalkshedLayer {
       const idx = Math.min(i, meta.colors.length - 1);
       const color = meta.colors[idx], alpha = BAND_ALPHA[Math.min(i, BAND_ALPHA.length - 1)];
       if (this._spend(1)) {
-        const e = this.ds.entities.add({ position: Cesium.Cartesian3.fromDegrees(lon, lat, .4), ellipse: { semiMajorAxis: radius, semiMinorAxis: radius, height: .4, material: this._col(color, alpha), outline: true, outlineColor: this._col(color, Math.min(1, alpha + .4)), outlineWidth: 1.5 } });
+        const e = this.ds.entities.add({ position: Cesium.Cartesian3.fromDegrees(lon, lat, .4), ellipse: { ...groundPolygon({ on: groundModeOn(), height: .4 }), semiMajorAxis: radius, semiMinorAxis: radius, material: this._col(color, alpha), outline: true, outlineColor: this._col(color, Math.min(1, alpha + .4)), outlineWidth: 1.5 } });
         e._plKind = 'band'; e._baseColor = color;
       }
       if (this._spend(1)) this._addBandLabel(lon, lat + radius / M_PER_DEG_LAT, `${bands[i]} 分`, color);

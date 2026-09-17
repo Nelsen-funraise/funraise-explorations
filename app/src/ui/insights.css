@@ -1,0 +1,26 @@
+/* 洞察 · Insights rail (Phase 10R Harmony §18.3) — shown only in body.d-annotated (insights.js toggles .hidden via
+   a MutationObserver on body's class list). Background/border/blur/radius/shadow come from the shared .panel
+   class; this file owns chip layout/typography and the up/down/ytd arrow convention (same 藍升橘降 as #yearhud).
+   Position (top/max-height) is set inline by insights.js, which measures the live gap between #rail and #gimbal
+   so the rail never overlaps either regardless of viewport height or how tall the rail's own content is. */
+#insights{position:absolute;right:16px;width:236px;overflow:auto;z-index:4;padding:8px;display:flex;flex-direction:column;gap:6px;transition:opacity .25s}
+#insights.hidden{display:none}
+#insights .ins-head{padding:2px 4px 3px}
+.ins-chip{display:flex;align-items:flex-start;gap:8px;width:100%;padding:6px 7px;border:1px solid transparent;border-radius:var(--r);background:rgba(255,255,255,.02);text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.ins-chip:hover{background:rgba(255,255,255,.07);border-color:var(--line);transform:translateY(-1px)}
+.ins-chip:active{transform:translateY(0)}
+.ins-ic{width:20px;height:20px;flex:none;margin-top:1px}
+.ins-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ins-line{font-size:12px;line-height:1.42;color:var(--ink)}
+.ins-num{font-weight:600;color:var(--gray-50)}
+.ins-sub{font-size:10.5px;color:var(--ink-3);font-family:var(--mono)}
+.ins-arrow{display:inline-block;font-family:var(--mono);font-weight:600;margin-left:2px;white-space:nowrap;font-size:11px}
+.ins-arrow.up{color:var(--blue-400)}
+.ins-arrow.down{color:var(--warm-2)}
+.ins-arrow.flat,.ins-arrow.ytd{color:var(--ink-3);font-weight:500}
+body.theme-light .ins-chip{background:rgba(15,23,42,.02)}
+body.theme-light .ins-chip:hover{background:rgba(15,23,42,.05)}
+body.theme-light .ins-num{color:var(--gray-900)}
+body.theme-light .ins-sub{color:var(--gray-500)}
+@media (max-width:1000px){#insights{display:none!important}}
+@media (prefers-reduced-motion:reduce){.ins-chip{transition:none}}
