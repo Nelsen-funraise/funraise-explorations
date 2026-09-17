@@ -33,7 +33,11 @@ function loadEnv(file) {
 }
 const ENV_FILE = env_file_path(); const env = { ...loadEnv(ENV_FILE), ...process.env };
 function env_file_path() { return process.env.PEAKLENS_ENV_FILE || path.join(root, '.env'); }
-const PORT = +(env.PORT || 8787);
+const PORT = +(env.PORT || 8790);
+// FUNRAISE MCP exposes ~150 tools; importing all of them costs ~22k input tokens per model call. Only the ones 睿鏡 answers with are allowed
+// (MCP_ALLOWED_TOOLS=comma list overrides; MCP_ALLOWED_TOOLS=all disables the filter). Paid transcripts/crawl tools are deliberately excluded.
+const MCP_ALLOWED_DEFAULT = ['buildings__search_buildings', 'buildings__get_building', 'urban-renewal__search_urban_renewal', 'urban-renewal__get_urban_renewal', 'urban-renewal__aggregate_urban_renewal', 'urban-renewal__urban_renewal_at_point', 'actual-price-sale__search_actual_sales', 'actual-price-sale__aggregate_sales_by_district', 'actual-price-rental__search_actual_rentals', 'mops-property__search_mops_property', 'taipei-licenses__search_taipei_building_licenses', 'taipei-licenses__search_taipei_use_licenses', 'company-registry__search_registry_changes', 'company-registry__aggregate_registry_changes', 'company-registry__get_company_history', 'business-registry__search_business_registry', 'industrial-parks__search_industrial_parks', 'industrial-parks__companies_in_industrial_park', 'public-infras__search_public_infras', 'areas__search_areas', 'areas__get_area', 'land-info__coordinates_by_address', 'land-info__taipei_zoning_at_point', 'land-info__find_taipei_land_at_point', 'future-dev__search_future_dev', 'development-zones__search_development_zones', 'mrt__list_mrt_stations', 'mrt__get_mrt_station', 'key-enterprise__search_key_enterprises', 'stakeholders__search_stakeholders', 'ai-info__search_knowledge'];
+const MCP_ALLOWED = () => { const v = (env.MCP_ALLOWED_TOOLS || '').trim(); if (!v) return MCP_ALLOWED_DEFAULT; if (v.toLowerCase() === 'all') return null; return v.split(',').map(x => x.trim()).filter(Boolean); };
 let llm = createLLM(env); // provider adapter (OpenAI Responses API or Anthropic Messages API); null until a key is set
 export function reloadEnv() { const f = loadEnv(ENV_FILE); for (const k of Object.keys(env)) if (!(k in process.env) && !(k in f)) delete env[k]; Object.assign(env, f, process.env); llm = createLLM(env); return env; }
 const MODEL = () => llm ? llm.model : (env.OPENAI_MODEL || env.ANTHROPIC_MODEL || 'none');
@@ -262,7 +266,7 @@ async function snapshotSubLoop(baseArgs, callFn, onSnapshot) {
 }
 export async function runAgent({ messages, view, final }) {
   const { tok, sourceNote, finalNote } = await agentContext(final);
-  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final };
+  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token, allowedTools: MCP_ALLOWED() } : null, final: !!final };
   const res = await snapshotSubLoop(args, msgs => llm.run({ ...args, messages: msgs }));
   return { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
 }
@@ -273,7 +277,7 @@ export async function runAgent({ messages, view, final }) {
 // transcript shows the snapshot lookup even though the browser's own tool-execution loop never receives it.
 export async function runAgentStream({ messages, view, final }, send) {
   const { tok, sourceNote, finalNote } = await agentContext(final);
-  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final };
+  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token, allowedTools: MCP_ALLOWED() } : null, final: !!final };
   const callFn = msgs => typeof llm.stream === 'function' ? llm.stream({ ...args, messages: msgs }, delta => send('text', { delta })) : (async () => { const r = await llm.run({ ...args, messages: msgs }); for (const b of r.content) if (b.type === 'text' && b.text) send('text', { delta: b.text }); return r; })();
   const res = await snapshotSubLoop(args, callFn, (tu, out) => send('tool', { name: 'query_snapshot', input: tu.input, count: out.count }));
   for (const b of res.content) if (b.type === 'tool_use' || b.type === 'mcp_tool_use') send('tool', { name: b.name, input: b.input });

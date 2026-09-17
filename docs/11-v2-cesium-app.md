@@ -23,7 +23,7 @@ npm ci
 npm run dev            # http://localhost:5173  （keyless：NLSC 正射影像 + OSM 3D 建物）
 # 選配：Claude 模式（需 ANTHROPIC_API_KEY；FUNRAISE MCP 需 URL + token）
 cp .env.example .env && $EDITOR .env
-npm run server         # http://localhost:8787  （/api/health, /api/agent；Vite dev 會把 /api 代理過去）
+npm run server         # http://localhost:8790  （/api/health, /api/agent；Vite dev 會把 /api 代理過去）
 # 正式打包 + 單一 server 同時提供靜態檔與 API
 npm run build && npm run server
 npm run check          # 只印出 server 設定（有沒有 key、模型、工具清單）
@@ -468,3 +468,7 @@ OSM 對台北 101、南山廣場等地標有 `building:part`（分段量體，�
 - HUD：`#yearhud` 顯示「2016 · 台北市成交 18,325 件 ▼17% · 商辦 13 · 建照核發 207」這種即時累計；2026 標「至今」不算年增率；商辦成交 2012–2016 標「資料涵蓋不足」（早年 main_use 標記不足，不是市場事實）。
 - 場景：「時光 2012→2030」改成五段：S1 全市 2012→2019 面量體 → S2 信義 2019→2026 脈衝、金額、光柱 → S3 南港 2026→2030 未來供給 → 回 S1；旁白讀即時資料（如「大同區這幾年變化最大」）。投資人場景第一步改在 S2 讀最近一季商圈租金。
 - 已知：指標切換目前只有 `map.timemachine.setMetric()`（agent／場景用），rail 尚無選單；S1 極遠時兩三個區的面量體標籤與區名可能靠近。
+
+### 17.7 MCP 工具白名單（Phase 9.1，2026-09-17）
+
+實機 log 顯示每回合送給模型的輸入約 3 萬 token，其中約 2.2 萬是 FUNRAISE MCP 一百多個工具的描述被 hosted mcp tool 整包帶進每一回合。server 現在只允許 31 個睿鏡真正用得到的工具（商辦、都更、實價登錄買賣／租賃、上市櫃交易、建照／使照、公司登記、產業園區、公建、商圈、土地與分區、未來供給、重劃、捷運、關鍵企業、利害關係人、大樓知識庫），付費的謄本爬取工具刻意排除。OpenAI 走 `allowed_tools`，Anthropic 走 `tool_configuration.allowed_tools`。`MCP_ALLOWED_TOOLS` 可自訂，填 `all` 關掉過濾。server 預設埠統一為 8790（與 `PeakLens.command`、文件、UI 提示一致）。
