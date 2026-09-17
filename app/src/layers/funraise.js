@@ -58,7 +58,9 @@ export class FunraiseLayers {
   pulse(key, ms = 7000) { this.highlight.set(key, performance.now() + ms); }
   setVisible(k, on) { if (!this.ds[k]) return; this.vis[k] = !!on; this._applyShow(k); }
   /* ---- view composer (compose.js): scale mask, separate from the user's own `vis` toggle — ds.show is their AND ---- */
-  _applyShow(k) { const on = !!(this.vis[k] && this.mask[k] !== false); this.ds[k].show = on; if (k === 'stock' && this.ds.markers) this.ds.markers.show = on; }
+  _applyShow(k) { const on = !!(this.vis[k] && this.mask[k] !== false); this.ds[k].show = (k === 'stock' && this._hideStockVolumes) ? false : on; if (k === 'stock' && this.ds.markers) this.ds.markers.show = on; }
+  // 實景（Google 3D Tiles）下商辦的橘色量體會和 frames.js 的玻璃殼打架：只藏量體，icon／標籤照常（Phase 10P 交接事項）
+  setStockVolumes(on) { this._hideStockVolumes = !on; this._applyShow('stock'); }
   setMask(k, on) { if (!(k in this.mask)) return; this.mask[k] = !!on; this._applyShow(k); }
   _scaleAllows(k) { const sc = LAYERS[k] && LAYERS[k].scales; return !sc || sc.includes(this.scale); }
   /** Called by compose.js after every scale re-evaluation (§16.1). Re-derives every layer's mask from LAYERS[k].scales,

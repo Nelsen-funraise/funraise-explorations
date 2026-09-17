@@ -121,17 +121,20 @@ async function beginAuthorize() {
   return `${meta.authorization_endpoint}?${q}`;
 }
 async function tokenRequest(params) {
-  const meta = await discover(); const c = await ensureClient(meta);
+  const meta = await discover(); const saved0 = store.load() || {};
+  // A refresh token is bound to the client that obtained it: reuse that client even if REDIRECT_URI (port) changed since —
+  // registering a fresh client and refreshing with it yields 400 invalid_grant「Client ID mismatch」(seen in the field).
+  const c = (params.grant_type === 'refresh_token' && saved0.token_client && saved0.token_client.client_id) ? saved0.token_client : await ensureClient(meta);
   const body = new URLSearchParams({ ...params, client_id: c.client_id, resource: meta.resource }); if (c.client_secret) body.set('client_secret', c.client_secret);
   const r = await fetchJson(meta.token_endpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body });
   if (!r.json || !r.json.access_token) throw new Error('token endpoint ' + r.status + ': ' + r.text.slice(0, 300));
-  const saved = store.load() || {}; const tok = { ...saved, access_token: r.json.access_token, refresh_token: r.json.refresh_token || saved.refresh_token || null, token_type: r.json.token_type || 'Bearer', scope: r.json.scope || meta.scopes.join(' '), expires_at: r.json.expires_in ? Date.now() + r.json.expires_in * 1000 : null, obtained_at: Date.now() };
+  const saved = store.load() || {}; const tok = { ...saved, access_token: r.json.access_token, refresh_token: r.json.refresh_token || saved.refresh_token || null, token_type: r.json.token_type || 'Bearer', scope: r.json.scope || meta.scopes.join(' '), expires_at: r.json.expires_in ? Date.now() + r.json.expires_in * 1000 : null, token_client: { client_id: c.client_id, client_secret: c.client_secret || null }, obtained_at: Date.now() };
   store.save(tok); mcpState = { status: 'unknown', checked: 0 }; return tok;
 }
 async function finishAuthorize(code, state) { const p = pending.get(state); if (!p) throw new Error('unknown or expired state'); pending.delete(state); return tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: p.verifier }); }
 async function validToken() {
   if (staticToken) return staticToken; const t = store.load(); if (!t || !t.access_token) return null;
-  if (t.expires_at && Date.now() > t.expires_at - 60000 && t.refresh_token) { try { return await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh_token }); } catch (e) { console.warn('[mcp] refresh failed', e.message); return null; } }
+  if (t.expires_at && Date.now() > t.expires_at - 60000 && t.refresh_token) { try { return await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh_token }); } catch (e) { console.warn('[mcp] refresh failed', e.message); if (/invalid_grant|mismatch|400/i.test(e.message)) { store.save({ ...(store.load() || {}), access_token: null, refresh_token: null }); mcpState = { status: 'unauthorized', checked: Date.now(), reason: 'refresh token rejected — 請重新授權' }; } return null; } }
   return t;
 }
 

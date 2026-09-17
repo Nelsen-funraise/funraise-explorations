@@ -102,14 +102,14 @@ export function createCompose(ctx) {
     state.photoreal = true; map.groundMode = true; // isochrone.js／walkshed.js 動態畫新圖形時讀這個旗標決定要不要走 groundPolygon() 的貼地路徑
     for (const k of [...(viewerApi.overlays || [])]) ui.setOverlay(k, false); // 地面疊圖關閉（走 ui.setOverlay，保持 rail 按鈕與佇列同步）
     if (ground && ground.setVisible) { groundSaved = ground.visible; ground.setVisible({ rivers: false, roads: false }); }
-    if (map.frames && map.frames.setVisible) map.frames.setVisible(true); // 玻璃殼取代白模的量體感（§18.1「有資料的那些棟框起來」）
+    if (map.frames && map.frames.setVisible) map.frames.setVisible(true); if (layers.setStockVolumes) layers.setStockVolumes(false); // 玻璃殼取代白模的量體感（§18.1「有資料的那些棟框起來」）
     return true;
   }
   function exitPhotoreal() {
     const pr = map.photoreal; if (pr) pr.exit();
     state.photoreal = false; map.groundMode = false;
     if (ground && ground.setVisible) { ground.setVisible(groundSaved || { rivers: true, roads: true }); groundSaved = null; }
-    if (map.frames && map.frames.setVisible) map.frames.setVisible(false);
+    if (map.frames && map.frames.setVisible) map.frames.setVisible(false); if (layers.setStockVolumes) layers.setStockVolumes(true);
   }
 
   /** §16.2 一換預設就整組重設：主題／底圖／日照／後製一次套好，尺度約束在 reapplyQuality() 裡贏。 */

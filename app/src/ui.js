@@ -443,7 +443,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- agent mode (built-in ⇄ Claude) ---- */
   const am = $('#agentmode');
-  ui.setAgentMode = on => { ui.claudeMode = !!on; am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
+  ui.setAgentMode = (on, quiet) => { ui.claudeMode = !!on; if (!quiet) { try { localStorage.setItem('pl.ai', ui.claudeMode ? 'on' : 'off'); } catch { /* private mode */ } } am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
   am.onclick = async () => { if (ui.claudeMode) { ui.setAgentMode(false); toast('切回內建 agent（本地快照，模擬 MCP 呼叫）'); return; } if (!claude) return; toast('偵測 agent server…'); const h = await claude.probe(true); ui.setMcp(h); if (h.ok) { ui.setAgentMode(true); toast(`Claude 模式：${h.model}${h.mcp && h.mcp.status === 'live' ? ' + FUNRAISE MCP 即時查詢' : h.mcp && h.mcp.status === 'unauthorized' ? '（FUNRAISE MCP 未授權：先用快照，點右上角授權）' : '（FUNRAISE MCP 連不上：先用快照）'}`); } else toast('找不到 agent server。請在 app/ 執行 npm run server，並在 .env 設定 ANTHROPIC_API_KEY。'); };
 
   /* ---- scenes ---- */

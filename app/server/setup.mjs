@@ -18,8 +18,8 @@ export const KEYS = [
   { k: 'ORS_API_KEY', label: 'OpenRouteService', group: '分析（server 代理）', hint: '真實路網步行／開車等時圈', test: 'ors' },
   { k: 'MAPILLARY_ACCESS_TOKEN', label: 'Mapillary（可選）', group: '分析（server 代理）', test: 'mapillary' },
   { k: 'CARTO_API_KEY', label: 'CARTO（可選）', group: '底圖', hint: '目前無 key 也能跑' },
-  { k: 'VITE_CESIUM_ION_TOKEN', label: 'Cesium ion token', group: '前端金鑰（存檔後要重新 build）', hint: '解鎖 World Terrain（畫質面板「地形」）', test: 'ion' },
-  { k: 'VITE_GOOGLE_MAPS_API_KEY', label: 'Google Maps Platform（可選）', group: '前端金鑰（存檔後要重新 build）', hint: 'Photorealistic 3D Tiles' },
+  { k: 'VITE_CESIUM_ION_TOKEN', label: 'Cesium ion token', group: '實景 3D 與前端金鑰（存檔後要按「重新 build」）', hint: '有這把就會載入 Google 相片級 3D Tiles（實景 Look，透過 Cesium ion 資產 2275207，不需另外的 Google 金鑰）與 World Terrain', test: 'ion' },
+  { k: 'VITE_GOOGLE_MAPS_API_KEY', label: 'Google Maps Platform（可選）', group: '實景 3D 與前端金鑰（存檔後要按「重新 build」）', hint: '可選：直接向 Google 取相片級 3D Tiles（不經 ion，配額算在你的 Google Cloud 專案；要啟用 Map Tiles API）' },
   { k: 'FUNRAISE_MCP_URL', label: 'FUNRAISE MCP URL', group: 'FUNRAISE', secret: false, hint: '改了要重啟 server' },
 ];
 const mask = v => !v ? '' : v.length <= 8 ? '••••' : v.slice(0, 3) + '…' + v.slice(-4);

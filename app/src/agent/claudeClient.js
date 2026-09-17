@@ -139,8 +139,8 @@ export class ClaudeClient {
       this.history.push({ role: 'assistant', content: text2 });
     } catch (e) {
       const fallback = executed.length ? summarize(executed) : null;
-      const msg = fallback ? `${fallback}（AI 模式回應中斷：${e.message}）` : `AI 模式無法使用（${e.message}）。請啟動 server：\`npm run server\`，再開 http://localhost:8790/setup 貼上 OpenAI（或 Anthropic）金鑰；FUNRAISE MCP 用右上角按鈕授權。已切回內建 agent，繼續用快照資料。`;
-      await this.ui.type(turn, msg); if (!fallback) this.ui.setAgentMode(false);
+      const msg = fallback ? `${fallback}（AI 模式回應中斷：${e.message}）` : `AI 模式這一句沒有回應（${e.message}），先用內建 agent 從快照回答；下一句會再試 AI。若一直失敗：確認 server 有跑（npm start）、http://localhost:8790/setup 有 OpenAI 金鑰、右上角 MCP 已授權。`;
+      await this.ui.type(turn, msg); if (!fallback && this.agent && this.agent.handle) { try { await this.agent.handle(text); } catch { /* built-in fallback is best effort */ } }
     }
   }
   async execute(name, input) {
