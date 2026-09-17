@@ -167,6 +167,8 @@ const CAMERA_TOOLS = [
   { name: 'search_local_snapshot', description: '在前端本地資料快照中用名稱搜尋物件（商辦、建案、都更單元、上市櫃交易、公建、園區、重劃區），回傳 key 與座標，用於 highlight / fly_to / pin / select_entity。', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'show_chart', description: '在資料面板顯示長條圖（比較、排名、金額）。', input_schema: { type: 'object', properties: { title: { type: 'string' }, rows: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'number' }, display: { type: 'string', description: '顯示用文字，例如「4.8 億」' } }, required: ['label', 'value'] } } }, required: ['title', 'rows'] } },
   { name: 'select_entity', description: '選取地圖物件並在面板顯示其詳細資料（key 同 highlight）。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
+  { name: 'present_place', description: '展示巨集：一次完成「飛過去／環繞＋擺出風格＋套用外觀 Look」，取代好幾個單獨的鏡頭工具。使用者說「用更好的視角幫我呈現」「展示一下○○」「帶我去○○，環繞＋黃金時刻」時優先用這個，一回合解決，不要分成多次 fly_to／set_camera_mode／set_look。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名（大樓、商圈、行政區、捷運站、園區）' }, style: { type: 'string', enum: ['orbit', 'street', 'overview'], description: '呈現風格：orbit 環繞（預設，最適合展示）、street 街景、overview 拉遠俯視' }, look: { type: 'string', enum: ['white', 'sun', 'golden', 'night', 'photoreal'], description: '外觀 Look：white 白模、sun 日照、golden 黃金時刻（展示首選）、night 夜景、photoreal 相片級' }, range_m: { type: 'number' } }, required: ['place'] } },
+  { name: 'set_look', description: '切換外觀 Look（取代分別呼叫 set_theme／set_sun／set_quality 三個工具）：white 白模（預設，分析用）、sun 日照（可給 hour 5.5–19.5）、golden 黃金時刻（展示用）、night 夜景、photoreal 相片級（需 Google 金鑰，沒有則維持白模）。', input_schema: { type: 'object', properties: { look: { type: 'string', enum: ['white', 'sun', 'golden', 'night', 'photoreal'] }, hour: { type: 'number' } }, required: ['look'] } },
 ];
 const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科技的台灣不動產上帝視角（God's Eye View × FUNRAISE MCP）。使用者是不動產投資人、開發商、企業選址主管、政府局處或學研人員，用口語（繁體中文）對城市發問；你同時「操作畫面」與「回答問題」。
 
@@ -176,7 +178,8 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 3. 回答簡潔：3 句內講結論與數字，最後一行用「來源：<工具>·<資料期間>」標註。沒有資料就明說，不要編造。
 4. 台北市行政區、商圈與捷運站名用正體中文；金額用「億／萬」；面積用坪並附 m²。
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
-6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；天氣／空氣品質 → get_environment；YouBike → set_live_layer；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
+6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；天氣／空氣品質 → get_environment；YouBike → set_live_layer；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun（或直接用 set_look／present_place）；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view；外觀（白模／日照／黃金時刻／夜景／相片級）一律用 set_look，不要分別呼叫 set_theme／set_sun／set_quality；「用更好的視角呈現」「展示一下」這類籠統要求優先用 present_place 一次完成。
+7. 畫面工具在同一回合平行呼叫（一次回傳多個 function_call），鏡頭／外觀最多一回合就決定好、不要分成好幾回合慢慢調；查完資料立刻用文字回答，不要再多繞一輪確認；每次回覆一定要有文字，即使只是一句確認也好，絕不能只呼叫工具卻不留一句話。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
 
 function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
@@ -188,13 +191,32 @@ function sanitizeMessages(msgs) {
   if (!out.length || out[0].role !== 'user') throw new Error('conversation must start with a user message');
   return out;
 }
-export async function runAgent({ messages, view }) {
+async function agentContext(final) {
   if (!llm) { const e = new Error('沒有 LLM 金鑰：在 app/.env 設 OPENAI_API_KEY（或 ANTHROPIC_API_KEY），或開 http://localhost:' + PORT + '/setup 貼上'); e.status = 503; throw e; }
   const mcp = await mcpProbe(); const tok = mcp.status === 'live' ? await validToken() : null;
   const sourceNote = tok ? '資料來源：FUNRAISE MCP 即時（LIVE）。優先用 MCP 工具查詢，快照只用來定位畫面物件。' : `資料來源：本地快照（FUNRAISE MCP ${mcp.status === 'unauthorized' ? '尚未授權：請使用者按右上角「授權」' : '目前連不上'}）。只能用 search_local_snapshot 與畫面工具；回答時註明「快照 2026-09-14」。`;
-  const res = await llm.run({ system: SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(view || {}), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null });
-  for (const b of res.content) if (b.type === 'mcp_tool_result' && b.is_error && /401|unauthori|invalid_token|forbidden/i.test(JSON.stringify(b.content || ''))) { mcpState = { status: 'unauthorized', checked: Date.now(), reason: 'MCP rejected the token during a call' }; }
+  const finalNote = final ? '\n\n## 收尾\n這是最後一輪，不能再呼叫任何工具（包括 MCP）；請根據以上已經執行的操作與查到的資料，直接用 1–2 句繁體中文回答使用者，即使只是確認「已完成」也要留下文字。' : '';
+  return { tok, sourceNote, finalNote };
+}
+const systemFor = (view, sourceNote, finalNote) => SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(view || {}) + finalNote;
+function noteMcpRejection(content) { for (const b of content) if (b.type === 'mcp_tool_result' && b.is_error && /401|unauthori|invalid_token|forbidden/i.test(JSON.stringify(b.content || ''))) mcpState = { status: 'unauthorized', checked: Date.now(), reason: 'MCP rejected the token during a call' }; }
+export async function runAgent({ messages, view, final }) {
+  const { tok, sourceNote, finalNote } = await agentContext(final);
+  const res = await llm.run({ system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final });
+  noteMcpRejection(res.content);
   return { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
+}
+// SSE variant for POST /api/agent {stream:true}: send(event, data) is the caller's SSE writer. Streams real
+// response.output_text.delta chunks when the provider supports it (OpenAI); otherwise sends the full text as one
+// `text` event and still emits `tool` + `done` so the client's SSE contract stays identical either way.
+export async function runAgentStream({ messages, view, final }, send) {
+  const { tok, sourceNote, finalNote } = await agentContext(final);
+  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final };
+  const res = typeof llm.stream === 'function' ? await llm.stream(args, delta => send('text', { delta })) : await (async () => { const r = await llm.run(args); for (const b of r.content) if (b.type === 'text' && b.text) send('text', { delta: b.text }); return r; })();
+  for (const b of res.content) if (b.type === 'tool_use' || b.type === 'mcp_tool_use') send('tool', { name: b.name, input: b.input });
+  noteMcpRejection(res.content);
+  const out = { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
+  send('done', out); return out;
 }
 
 /* ---------------- static (dist/) ---------------- */
@@ -232,7 +254,17 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
       if (url.pathname === '/api/mcp/authorize') { const loc = await beginAuthorize(); res.writeHead(302, { location: loc, 'cache-control': 'no-store' }); return res.end(); }
       if (url.pathname === '/api/mcp/callback') { const err = url.searchParams.get('error'); if (err) return html(res, 400, CALLBACK_PAGE(false, `${err}: ${url.searchParams.get('error_description') || ''}`)); try { await finishAuthorize(url.searchParams.get('code'), url.searchParams.get('state')); const m = await mcpProbe(true); return html(res, 200, CALLBACK_PAGE(m.status === 'live', m.status === 'live' ? `已連上 ${m.server && m.server.name ? m.server.name : 'FUNRAISE MCP'}。` : `已取得 token，但探測回報 ${m.status}（${m.reason || ''}）。`)); } catch (e) { return html(res, 400, CALLBACK_PAGE(false, e.message)); } }
       if (url.pathname === '/api/mcp/logout' && req.method === 'POST') { store.clear(); mcpState = { status: 'unknown', checked: 0 }; return json(res, 200, { ok: true }); }
-      if (url.pathname === '/api/agent' && req.method === 'POST') { const body = await readBody(req); const t0 = Date.now(); const out = await runAgent(body); console.log(`[agent] ${out.stop_reason} · ${out.source} · ${out.usage ? out.usage.input_tokens + '→' + out.usage.output_tokens + ' tok' : ''} · ${Date.now() - t0} ms`); return json(res, 200, out); }
+      if (url.pathname === '/api/agent' && req.method === 'POST') {
+        const body = await readBody(req); const t0 = Date.now();
+        if (body.stream) {
+          res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*' });
+          const send = (event, data) => { try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch { /* client disconnected */ } };
+          try { const out = await runAgentStream(body, send); console.log(`[agent] stream ${out.stop_reason} · ${out.source} · ${Date.now() - t0} ms`); }
+          catch (e) { console.error('[agent] stream error', e); send('error', { error: e.message || String(e) }); }
+          return res.end();
+        }
+        const out = await runAgent(body); console.log(`[agent] ${out.stop_reason} · ${out.source} · ${out.usage ? out.usage.input_tokens + '→' + out.usage.output_tokens + ' tok' : ''} · ${Date.now() - t0} ms`); return json(res, 200, out);
+      }
       if (LIVE[url.pathname]) { const r = await LIVE[url.pathname]({ url }); return json(res, r.status, r.json); }
       if (ORS[url.pathname]) { const r = await ORS[url.pathname]({ url, req, res, readBody }); return json(res, r.status, r.json); }
       if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'unknown route' });

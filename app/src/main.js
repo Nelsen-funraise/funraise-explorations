@@ -28,6 +28,7 @@ import { createEnvBadge } from './live/env.js';
 import { createYouBikeLayer } from './live/youbike.js';
 import { WalkshedLayer } from './analysis/walkshed.js';
 import { RenewalEnvelope } from './renewal.js';
+import { createCompose } from './compose.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -45,7 +46,9 @@ async function boot() {
   const [data, basemap] = await Promise.all([fetchJSON('./data/peaklens.json'), fetchJSON('./data/taipei_basemap.json')]);
 
   let osm = null; let savedTheme = 'light'; try { savedTheme = localStorage.getItem('pl.theme') || 'light'; } catch { /* private mode */ }
-  if (!api.google) { try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`), { palette: savedTheme === 'light' ? 'light' : 'dark', facade: savedTheme !== 'light' }); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); } }
+  // OSM buildings always load now (even with a Google key): 相片級 is a Look the user switches to at runtime
+  // (compose.js), not a boot-time either/or — it hides these primitives instead of us never creating them.
+  try { osm = await loadOsmBuildings(viewer, './data/osm_buildings_taipei.json', p => setMsg(`載入 OpenStreetMap 3D 建物 ${Math.round(p * 100)}%`), { palette: savedTheme === 'light' ? 'light' : 'dark', facade: savedTheme !== 'light' }); } catch (e) { console.warn('OSM buildings unavailable — FUNRAISE buildings fall back to boxes', e); }
 
   setMsg('建立 FUNRAISE 圖層…');
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
@@ -114,6 +117,10 @@ async function boot() {
   map.measure = measure; measure.setTheme(ui.theme); { const orig = ui.setTheme; ui.setTheme = (...a) => { const r = orig(...a); measure.setTheme(ui.theme); return r; }; } ui.bindMeasure && ui.bindMeasure(measure);
   const presenter = createPresenter({ ui, director, scenes: SCENES, viewer }); ui.presenter = presenter; const presenterBtn = $('#presenter'); if (presenterBtn) presenterBtn.onclick = () => { presenter.toggle(); presenterBtn.setAttribute('aria-pressed', presenter.active); };
   { const orig = agent.setLens.bind(agent); agent.setLens = id => { orig(id); ui.syncUrl(); }; }
+  // 視圖合成器（Phase 9A，docs/11-v2-cesium-app.md §16）：一個 Look 取代五個各自為政的開關；建在 rig/layers/osm/ground/
+  // youbike/isochrone/walkshed/focus/trips 與（已經疊了 syncUrl/trips/measure 三層的）ui 都齊全之後，再把自己包在最外層。
+  const compose = createCompose({ viewer, rig, layers, osm, ground, youbike, focus, trips, ui, map, viewerApi: api, lighting });
+  map.compose = compose;
 
   /* ---- picking ---- */
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
@@ -145,7 +152,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api };
+  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

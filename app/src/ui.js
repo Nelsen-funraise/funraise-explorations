@@ -92,7 +92,17 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   const list = $('#layers'); const visible = new Set(Object.keys(LAYERS));
   const counts = { stock: (data.buildings || []).length, future: (data.future_dev || []).length, licenses: (data.building_licenses || []).length, renewal: (data.urban_renewal || []).length, zones: (data.development_zones || []).length, mops: (data.mops || []).length, moves: (data.registry_moves || []).length, infra: (data.public_infras || []).length, parks: (data.industrial_parks || []).length, heat: (data.business_areas || []).length, mrt: (basemap.mrt_stations || []).length };
   for (const [k, L] of Object.entries(LAYERS)) { const b = el('button', 'layer', `<span class="sw ${L.glyph}" style="background:${L.color};color:${L.color}"></span><span class="lbl">${L.name}</span><span class="cnt">${counts[k] || ''}</span>`); b.dataset.layer = k; b.title = L.desc; b.setAttribute('aria-pressed', 'true'); b.onclick = () => ui.setLayer(k, !visible.has(k)); list.appendChild(b); }
-  { const b = el('button', 'layer', `<span class="sw ring" style="background:#16A4C0;color:#16A4C0"></span><span class="lbl">YouBike 即時</span><span class="cnt"></span>`); b.dataset.live = 'youbike'; b.title = 'YouBike 2.0 即時站點：可借／可還車柱數（每分鐘更新，需 server）'; b.setAttribute('aria-pressed', 'false'); b.onclick = () => ui.setYouBike(!(map.youbikeOn)); list.appendChild(b); ui.setYouBike = (on) => { if (!map.setYouBike) return false; map.setYouBike(on); b.setAttribute('aria-pressed', !!on); if (on) toast('YouBike 即時站點：拉近到 6 km 內顯示，1.2 km 內看得到可借／可還'); return !!on; }; }
+  { // YouBike：使用者的「想要」與實際可見（尺度 S3–S4 才顯示，compose.js 拉高自動隱藏／拉回自動出現）分開存；
+    // aria-pressed 反映「想要」，不會因為拉遠而自己跳成未按下。
+    let wanted = false;
+    const b = el('button', 'layer', `<span class="sw ring" style="background:#16A4C0;color:#16A4C0"></span><span class="lbl">YouBike 即時</span><span class="cnt"></span>`); b.dataset.live = 'youbike'; b.title = 'YouBike 2.0 即時站點：只在街廓尺度以下（約 2 km 內）顯示，可借／可還車柱數每分鐘更新，需 server'; b.setAttribute('aria-pressed', 'false'); b.onclick = () => ui.setYouBike(!wanted); list.appendChild(b);
+    ui.setYouBike = (on) => {
+      on = !!on; wanted = on; b.setAttribute('aria-pressed', on);
+      if (map.compose) map.compose.setYouBikeWanted(on); else if (map.setYouBike) map.setYouBike(on);
+      if (on) toast('YouBike 即時站點：只在街廓尺度以下（約 2 km 內）顯示，拉遠會自動隱藏，不用重按');
+      return on;
+    };
+  }
   ui.setLayer = (k, on) => { if (!LAYERS[k]) return; if (on) visible.add(k); else visible.delete(k); layers.setVisible(k, !!on); const b = list.querySelector(`[data-layer="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); $('#edge-r .cnt').textContent = `${visible.size}/${Object.keys(LAYERS).length}`; };
   ui.visibleLayers = () => [...visible];
 
@@ -107,10 +117,30 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   ui.setSensor = s => { s = sensors.set(s); $('#stage').className = 'sensor-' + s; sbox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.sensor === s)); };
   for (const [s, n] of Object.entries(SENSORS)) { const b = el('button', null, n); b.dataset.sensor = s; b.setAttribute('aria-pressed', s === 'normal'); b.onclick = () => ui.setSensor(s); sbox.appendChild(b); }
 
-  /* ---- theme: 夜間戰情室 (dark) · PickPeak 日間 (light) ---- */
-  const themeBtn = $('#theme');
-  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); themeBtn.textContent = t === 'light' ? '☾ 夜間' : '☀︎ 日間'; themeBtn.title = t === 'light' ? '切到夜間戰情室主題（N）' : '切到 PickPeak 日間主題（N）'; if (t === 'light' && !(BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('esri_light'); if (t === 'dark' && (BASEMAPS[viewerApi.basemapKey] || {}).light) ui.setBasemap('nlsc_photo'); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
-  themeBtn.onclick = () => ui.setTheme(ui.theme === 'light' ? 'dark' : 'light');
+  /* ---- theme: 夜間戰情室 (dark) · PickPeak 日間 (light) — 舊的獨立 pill 已拿掉，改由 Look 控制（見下方）決定；
+     底圖是否要跟著換交給 compose.js（一換主題就照目前尺度挑一個合理的底圖，除非使用者已手動覆寫過底圖） ---- */
+  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
+
+  /* ---- Look 控制（header，取代舊的「☀ 日照」「🌙 夜」「☀︎ 日間」三顆 pill）：白模 · 日照 · 黃金 · 夜景 · 相片。
+     真正的邏輯在 compose.js（ui.setLook 由它接管，見 createCompose()）；這裡只管按鈕 DOM／視覺與「已經在日照或黃金
+     時再點一次＝開關時刻子面板」。相片沒有 Google 金鑰時整顆停用。 ---- */
+  const lookBox = $('#look');
+  const LOOK_DEFS = [
+    ['white', '白模', '白模：白色量體、平光 — 分析、閱讀資料（預設）'],
+    ['sun', '日照', '日照：可選時刻或播放一天 — 日照權、量體研究'],
+    ['golden', '黃金', '黃金時刻：17:00 暖色，弱泛光＋HDR — 展示、簡報'],
+    ['night', '夜景', '夜景：深色底圖、窗燈與泛光 — 戰情室、夜間展示'],
+    ['photoreal', '相片', viewerApi.hasGoogleKey ? '相片級：Google Photorealistic 3D Tiles' : '需要 Google Maps 金鑰（/setup）'],
+  ];
+  for (const [id, nm, title] of LOOK_DEFS) {
+    const b = el('button', null, nm); b.dataset.look = id; b.title = title; b.setAttribute('aria-pressed', 'false');
+    if (id === 'photoreal' && !viewerApi.hasGoogleKey) b.disabled = true;
+    b.onclick = () => { if (map.compose && map.compose.look === id && (id === 'sun' || id === 'golden')) { ui.toggleSunMenu && ui.toggleSunMenu(); return; } ui.setLook(id); };
+    lookBox.appendChild(b);
+  }
+  ui.paintLook = (name) => { lookBox.querySelectorAll('button[data-look]').forEach(b => b.setAttribute('aria-pressed', b.dataset.look === name)); };
+  // 合成器就緒前的暫時實作（開機那極短的同步視窗）；main.js 建立 compose 後，這個名字會被 compose.js 換成真正的實作。
+  ui.setLook = async (name, opts) => { if (!map.compose) return { ok: false, reason: 'not-ready' }; return map.compose.setLook(name, opts); };
 
   /* ---- camera gimbal ---- */
   const rose = $('#compass-rose'), tiltIn = $('#g-tilt'), g2d = $('#g-2d');
@@ -125,15 +155,22 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     dial.onpointermove = e => { if (!dragging) return; const d = ang(e) - start; map.rig.aim({ heading: (h0 + d) * Math.PI / 180 }); ui.updateGimbal(); };
     dial.onpointerup = dial.onpointercancel = e => { if (!dragging) return; dragging = false; if (Math.abs(ang(e) - start) < 3) map.rig.north(); }; })();
 
-  /* ---- basemaps & night ---- */
-  const bbox = $('#basemaps'); let night = true;
+  /* ---- basemaps (rail)：Look 控制決定預設（白模／日照按尺度、黃金／相片固定正射、夜景固定深色），這裡留給微調用；
+     手動選了就算覆寫，compose.js 不會再逼著跟尺度換（見 ui.setBasemap 的包裝） ---- */
+  const bbox = $('#basemaps');
   for (const [k, B] of Object.entries(BASEMAPS)) { const b = el('button', null, B.name.split('（')[0]); b.dataset.base = k; b.title = B.name; b.setAttribute('aria-pressed', k === viewerApi.basemapKey); b.onclick = () => ui.setBasemap(k); bbox.appendChild(b); }
-  const nb = el('button', null, '🌙 夜'); nb.title = '夜間色調／日間影像'; nb.setAttribute('aria-pressed', 'true'); nb.onclick = () => ui.setNight(!night); bbox.appendChild(nb);
   ui.setBasemap = k => { viewerApi.setBasemap(k); bbox.querySelectorAll('[data-base]').forEach(b => b.setAttribute('aria-pressed', b.dataset.base === k)); ui.updateCredits(); };
-  /* ---- NLSC overlays (段籍界／建物框／公有地／液化／道路) ---- */
-  const obox = $('#overlays');
+  /* ---- NLSC overlays (段籍界／建物框／公有地／液化／道路)：地面疊圖，最多同時 2 層 — 第 3 層開啟時自動關閉最舊的一層並提示 ---- */
+  const obox = $('#overlays'); let overlayOrder = [];
   for (const [k, O] of Object.entries(OVERLAYS)) { const b = el('button', null, O.name); b.dataset.overlay = k; b.title = `${O.name} · 國土測繪中心 WMTS ${O.layer}`; b.setAttribute('aria-pressed', 'false'); b.onclick = () => ui.setOverlay(k, b.getAttribute('aria-pressed') !== 'true'); obox.appendChild(b); }
-  ui.setOverlay = (k, on) => { if (!OVERLAYS[k]) return false; viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits(); if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); } return true; };
+  ui.setOverlay = (k, on) => {
+    if (!OVERLAYS[k]) return false;
+    if (on) { overlayOrder = overlayOrder.filter(x => x !== k); overlayOrder.push(k); if (overlayOrder.length > 2) { const oldest = overlayOrder.shift(); viewerApi.setOverlay(oldest, false); const ob = obox.querySelector(`[data-overlay="${oldest}"]`); if (ob) ob.setAttribute('aria-pressed', 'false'); toast(`${OVERLAYS[oldest].name} 已自動關閉（地面疊圖最多同時 2 層）`); } }
+    else overlayOrder = overlayOrder.filter(x => x !== k);
+    viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits();
+    if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); }
+    return true;
+  };
   ui.overlays = () => viewerApi.overlays;
   /* ---- render quality ---- */
   const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR', ...(viewerApi.terrainAvailable ? { terrain: '地形' } : {}) };
@@ -147,7 +184,8 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     const clr = el('button', null, '✕ 清除'); clr.title = '清除所有量測與手繪基地'; clr.onclick = () => { measure.clear(); paint(); }; mtBox.appendChild(clr);
     ui.startTool = (mode) => { measure.start(mode); paint(); }; ui.stopTool = () => { measure.cancel(); paint(); }; document.addEventListener('keydown', e => { if (e.key === 'Escape') setTimeout(paint, 0); }); };
   ui.updateCredits = () => { const c = $('#credits'); if (c) c.textContent = '圖資：' + viewerApi.credits().join(' · '); };
-  ui.setNight = on => { night = !!on; viewerApi.setNight(night); nb.setAttribute('aria-pressed', night); nb.textContent = night ? '🌙 夜' : '☀️ 日'; };
+  // 舊的「🌙 夜」pill 已拿掉（併進 Look 控制），ui.setNight 保留給 agent 與工具呼叫用（見 compose.js 的包裝）。
+  ui.setNight = on => viewerApi.setNight(!!on);
   ui.cycleBasemap = () => { const ks = Object.keys(BASEMAPS); ui.setBasemap(ks[(ks.indexOf(viewerApi.basemapKey) + 1) % ks.length]); };
 
   /* ---- timeline ---- */
@@ -293,21 +331,63 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- transcript, tool cards, provenance, caption ---- */
   const tr = $('#transcript'); const orb = $('#orb');
+  let activeToken = 0; // bumped by every agentTurn(); guards speech/orb/caption so an older, still-finishing turn can never clobber a newer one
+  // zh-TW label for the live "查詢 FUNRAISE 產業園區… 第 3 步 · 21 s" progress line — cosmetic best-effort, falls back to a generic phrase.
+  const TOOL_LABELS = [[/industrial.?park/i, '產業園區'], [/urban.?renewal|renewal/i, '都更'], [/actual.?price|rental|presale/i, '實價登錄'], [/mops/i, '上市櫃交易'], [/license/i, '建照'], [/registry/i, '公司登記'], [/land.?info|zoning|land/i, '地籍與分區'], [/public.?infra/i, '公共建設'], [/(^|[^a-z])areas?([^a-z]|$)|business/i, '商圈'], [/enterprise|tenant/i, '租戶'], [/dd.?memo/i, 'DD'], [/transcripts?|moi/i, '謄本'], [/mrt/i, '捷運'], [/search_local_snapshot/i, '本地快照']];
+  const toolLabel = name => { const hit = TOOL_LABELS.find(([re]) => re.test(name)); if (hit) return `查詢 ${hit[1]}`; if (/^(fly_to|set_camera_mode|present_place)/.test(name)) return '調整鏡頭'; if (/^(set_look|set_theme|set_sun|set_quality)/.test(name)) return '調整外觀'; if (/^(set_layers|set_live_layer|set_overlay|set_basemap)/.test(name)) return '調整圖層'; if (/turn$/.test(name)) return '思考中'; return '執行動作'; };
+  const setSummary = (turn, html) => { const s = turn.querySelector('.tools summary'); if (s) s.innerHTML = html; };
+  const updateProgress = turn => { if (!turn || !turn._busy) return; const sec = Math.max(0, Math.round((performance.now() - turn._t0) / 1000)); setSummary(turn, `${escapeHtml(turn._label || '思考中')}… 第 ${turn._step || 1} 步 · ${sec} s`); const s = turn.querySelector('.tools summary'); if (s) s.classList.add('live'); };
+  // ≤110-char spoken line: first two sentences, markdown bullets/·/來源：… stripped (voice requirement, §16.6).
+  function spokenSummary(text) {
+    let s = String(text || '').replace(/來源[:：][\s\S]*$/, '');
+    s = s.split('\n').filter(l => !/^\s*[·•\-*]/.test(l.trim())).join(' ').replace(/[·•]/g, ' ').replace(/\s+/g, ' ').trim();
+    const parts = s.split(/(?<=[。!?!?])/).map(x => x.trim()).filter(Boolean);
+    s = parts.slice(0, 2).join(''); if (!s) s = String(text || '').replace(/\s+/g, ' ').trim();
+    return s.slice(0, 110);
+  }
   ui.userTurn = text => { ui.clearCallouts(); const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
-  ui.agentTurn = () => { orb.classList.add('busy'); const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · ' + (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
-  ui.toolStart = (turn, name, params) => { const p = Object.entries(params || {}).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${typeof v === 'string' ? '"' + v + '"' : JSON.stringify(v)}`).join(', '); const c = el('div', 'tool run', `<span class="st"></span><span class="name"><b>${escapeHtml(name)}</b> (${escapeHtml(p.length > 160 ? p.slice(0, 160) + '…' : p)})</span><span class="res">…</span>`); turn.querySelector('.tools .list').appendChild(c); tr.scrollTop = tr.scrollHeight; c._t0 = performance.now(); c._name = name; return c; };
-  ui.toolDone = (card, summary) => { card.classList.remove('run'); card.classList.add('ok'); card._ms = Math.round(performance.now() - card._t0); card._summary = summary; card.querySelector('.res').textContent = `${summary} · ${card._ms} ms`; };
+  ui.agentTurn = () => {
+    orb.classList.add('busy'); const token = ++activeToken;
+    const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · ' + (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`);
+    t._token = token; t._t0 = performance.now(); t._step = 0; t._busy = true; t._tick = setInterval(() => updateProgress(t), 1000);
+    tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t;
+  };
+  ui.toolStart = (turn, name, params) => { const p = Object.entries(params || {}).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${typeof v === 'string' ? '"' + v + '"' : JSON.stringify(v)}`).join(', '); const c = el('div', 'tool run', `<span class="st"></span><span class="name"><b>${escapeHtml(name)}</b> (${escapeHtml(p.length > 160 ? p.slice(0, 160) + '…' : p)})</span><span class="res">…</span>`); turn.querySelector('.tools .list').appendChild(c); tr.scrollTop = tr.scrollHeight; c._t0 = performance.now(); c._name = name; c._turn = turn; turn._step = (turn._step || 0) + 1; turn._label = toolLabel(name); updateProgress(turn); return c; };
+  ui.toolDone = (card, summary) => { card.classList.remove('run'); card.classList.add('ok'); card._ms = Math.round(performance.now() - card._t0); card._summary = summary; card.querySelector('.res').textContent = `${summary} · ${card._ms} ms`; updateProgress(card._turn); };
   const provChip = (turn) => { const cards = [...turn.querySelectorAll('.tool')]; if (!cards.length) return ''; const ms = cards.reduce((s, c) => s + (c._ms || 0), 0); return `<span class="provchip${ui.source === 'LIVE' ? '' : ' snap'}"><i></i>${cards.length} 次 MCP 呼叫 · ${ms} ms · ${ui.source === 'LIVE' ? 'FUNRAISE MCP 即時' : '快照 ' + String(meta.generated_at || '').slice(0, 10)}</span>`; };
-  ui.type = async (turn, text) => {
-    const ans = turn.querySelector('.answer'); const spd = reduce ? 0 : 8;
-    if (ui.tts && !ui.sceneId) speech.speak(text.split('\n').slice(0, 2).join(' ').replace(/來源：.*$/, '')).catch(() => {});
-    if (!spd) ans.textContent = text; else { for (let i = 0; i <= text.length; i += 3) { ans.textContent = text.slice(0, i); tr.scrollTop = tr.scrollHeight; await new Promise(r => setTimeout(r, spd)); } ans.textContent = text; }
-    ans.classList.remove('caret'); orb.classList.remove('busy');
-    const chipHtml = provChip(turn); const sum = turn.querySelector('.tools summary'); if (sum && chipHtml) { sum.innerHTML = chipHtml; sum.title = '展開／收合工具呼叫'; }
-    // caption (immersive) + provenance section (annotated)
+  // Finalizes a turn: stops its progress ticker, replaces the live line with the provenance chip, and (only if this is
+  // still the newest turn — see activeToken) updates the shared orb/caption/provenance singletons.
+  function settle(turn, text) {
+    clearInterval(turn._tick); turn._busy = false;
+    const chipHtml = provChip(turn); setSummary(turn, chipHtml); const sum = turn.querySelector('.tools summary'); if (sum) { sum.classList.remove('live'); if (chipHtml) sum.title = '展開／收合工具呼叫'; }
+    if (turn._token !== activeToken) return;
+    orb.classList.remove('busy');
     const cap = $('#caption'); $('#caption-text').textContent = text; $('#caption-prov').innerHTML = chipHtml; cap.classList.add('has');
     const prov = $('#provenance'); const cards = [...turn.querySelectorAll('.tool')]; if (cards.length) { prov.innerHTML = `<div class="eyebrow">來源與工具呼叫 · Provenance</div>${cards.map(c => `<div class="prov"><i></i><span class="n"><b>${escapeHtml(c._name || '')}</b></span><span class="r">${escapeHtml(c._summary || '')} · ${c._ms || 0} ms</span></div>`).join('')}`; prov.classList.remove('hidden'); }
-    tr.scrollTop = tr.scrollHeight;
+  }
+  ui.type = async (turn, text) => {
+    const token = turn._token; const ans = turn.querySelector('.answer'); const spd = reduce ? 0 : 8;
+    if (ui.tts && !ui.sceneId && token === activeToken) speech.speak(spokenSummary(text)).catch(() => {});
+    if (!spd || token !== activeToken) ans.textContent = text; else { for (let i = 0; i <= text.length; i += 3) { if (token !== activeToken) break; ans.textContent = text.slice(0, i); tr.scrollTop = tr.scrollHeight; await new Promise(r => setTimeout(r, spd)); } ans.textContent = text; }
+    ans.title = text; ans.classList.remove('caret');
+    settle(turn, text); tr.scrollTop = tr.scrollHeight;
+  };
+  // Streaming counterpart of ui.type: push(delta) types text as it arrives and speaks the first complete sentence the
+  // moment it closes (。！？); done(fullText) reconciles the final text and runs the same wrap-up ui.type does.
+  ui.typeStream = (turn) => {
+    const token = turn._token; const ans = turn.querySelector('.answer'); let acc = ''; let spoken = false;
+    return {
+      push(delta) {
+        acc += delta || ''; if (token !== activeToken) return;
+        ans.textContent = acc; tr.scrollTop = tr.scrollHeight;
+        if (!spoken && ui.tts && !ui.sceneId) { const m = acc.match(/^[\s\S]*?[。!?!?]/); if (m) { spoken = true; speech.speak(spokenSummary(m[0])).catch(() => {}); } }
+      },
+      async done(fullText) {
+        const text = fullText || acc; if (token === activeToken) { ans.textContent = text; ans.title = text; ans.classList.remove('caret'); }
+        if (!spoken && ui.tts && !ui.sceneId && token === activeToken) speech.speak(spokenSummary(text)).catch(() => {});
+        settle(turn, text); tr.scrollTop = tr.scrollHeight;
+      },
+    };
   };
 
   /* ---- command bar, suggestions ---- */

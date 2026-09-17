@@ -3,32 +3,45 @@ import * as Cesium from 'cesium';
 import { icon, clusterImage } from './icons.js';
 const D2R = Math.PI / 180;
 const BB = (name, color, size = 30, far = 26000) => ({ image: icon(name, color, 64), width: size, height: size, verticalOrigin: Cesium.VerticalOrigin.CENTER, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(600, 1.15, far, 0.45), translucencyByDistance: new Cesium.NearFarScalar(far * 0.8, 1, far * 1.6, 0.15) });
+// scales: which camera-height bands (compose.js §16.1 S0..S4) show this layer at all — a mask ANDed with the user's own
+// on/off toggle (ds.show = vis[k] && mask[k]), never the reverse. labelScales narrows further: outside it the layer's
+// entities can still be visible, only their labels hide (still subject to the label budget/importance on top of that).
 export const LAYERS = {
-  stock:    { name: '商辦存量',        color: '#FCBE83', glyph: 'box',     desc: 'FUNRAISE 商辦資料庫 · 等級 / 屋齡 / 認證 / 捷運距離 / 照片' },
-  future:   { name: '未來供給（規劃中）', color: '#93DCE6', glyph: 'ghost', icon: 'ghost',   desc: '興建中／規劃中建案 · 逐層用途 · 完工年（隨時間軸長高）' },
-  licenses: { name: '建照（即將開工）',   color: '#50C0D4', glyph: 'pulse', icon: 'permit',   desc: '臺北市 114–115 年建照 · 未來 24–48 月新供給訊號' },
-  renewal:  { name: '都更單元',        color: '#C4B5FD', glyph: 'polygon', icon: 'renew', desc: '都更地區／單元圖形 · 政府主導／已核定事業' },
-  zones:    { name: '重劃／區段徵收',   color: '#A78BFA', glyph: 'hex',     desc: '臺北市 73 筆市地重劃／區段徵收' },
-  mops:     { name: '上市櫃資產交易',   color: '#F29628', glyph: 'diamond', icon: 'deal', desc: '公開資訊觀測站 取得／處分資產（近 12 月）' },
-  moves:    { name: '企業遷徙',        color: '#DE7020', glyph: 'arc', icon: 'arrow',     desc: '公司登記地址跨區異動（2026-07）· 由原址飛向新址' },
-  infra:    { name: '公共建設（興建中）', color: '#BBEAF0', glyph: 'square', icon: 'crane',  desc: '捷運環狀線／信義東延／汐東線 · TOD 開發' },
-  parks:    { name: '產業園區',        color: '#6EE7B7', glyph: 'ring', icon: 'factory',    desc: '產業園區範圍' },
-  heat:     { name: '商圈行情',        color: '#FCBE83', glyph: 'heat', icon: 'coin',    desc: '商圈租金／售價熱度' },
-  parcels:  { name: '地號（都更模擬）',  color: '#93DCE6', glyph: 'polygon', icon: 'parcel', desc: '台北市地籤圖：選定都更單元內的地號、面積、使用分區（FUNRAISE MCP land-info）' },
-  mrt:      { name: '捷運路網',        color: '#99A1AF', glyph: 'line', icon: 'metro',    desc: '台北捷運 6 線（OSM）' },
+  stock:    { name: '商辦存量',        color: '#FCBE83', glyph: 'box',     desc: 'FUNRAISE 商辦資料庫 · 等級 / 屋齡 / 認證 / 捷運距離 / 照片', scales: ['S1', 'S2', 'S3', 'S4'], labelScales: ['S3', 'S4'] },
+  future:   { name: '未來供給（規劃中）', color: '#93DCE6', glyph: 'ghost', icon: 'ghost',   desc: '興建中／規劃中建案 · 逐層用途 · 完工年（隨時間軸長高）', scales: ['S2', 'S3', 'S4'], labelScales: ['S2', 'S3', 'S4'] },
+  licenses: { name: '建照（即將開工）',   color: '#50C0D4', glyph: 'pulse', icon: 'permit',   desc: '臺北市 114–115 年建照 · 未來 24–48 月新供給訊號', scales: ['S3', 'S4'], labelScales: ['S3', 'S4'] },
+  renewal:  { name: '都更單元',        color: '#C4B5FD', glyph: 'polygon', icon: 'renew', desc: '都更地區／單元圖形 · 政府主導／已核定事業', scales: ['S2', 'S3', 'S4'], labelScales: ['S3'] },
+  zones:    { name: '重劃／區段徵收',   color: '#A78BFA', glyph: 'hex',     desc: '臺北市 73 筆市地重劃／區段徵收', scales: ['S1', 'S2', 'S3'], labelScales: ['S1', 'S2'] },
+  mops:     { name: '上市櫃資產交易',   color: '#F29628', glyph: 'diamond', icon: 'deal', desc: '公開資訊觀測站 取得／處分資產（近 12 月）', scales: ['S2', 'S3', 'S4'], labelScales: ['S2', 'S3', 'S4'] },
+  moves:    { name: '企業遷徙',        color: '#DE7020', glyph: 'arc', icon: 'arrow',     desc: '公司登記地址跨區異動（2026-07）· 由原址飛向新址', scales: ['S2', 'S3', 'S4'], labelScales: ['S2', 'S3', 'S4'] },
+  infra:    { name: '公共建設（興建中）', color: '#BBEAF0', glyph: 'square', icon: 'crane',  desc: '捷運環狀線／信義東延／汐東線 · TOD 開發', scales: ['S1', 'S2', 'S3', 'S4'], labelScales: ['S1', 'S2', 'S3', 'S4'] },
+  parks:    { name: '產業園區',        color: '#6EE7B7', glyph: 'ring', icon: 'factory',    desc: '產業園區範圍', scales: ['S1', 'S2', 'S3'], labelScales: ['S1', 'S2', 'S3'] },
+  heat:     { name: '商圈行情',        color: '#FCBE83', glyph: 'heat', icon: 'coin',    desc: '商圈租金／售價熱度', scales: ['S1', 'S2', 'S3'], labelScales: ['S1', 'S2', 'S3'] },
+  parcels:  { name: '地號（都更模擬）',  color: '#93DCE6', glyph: 'polygon', icon: 'parcel', desc: '台北市地籤圖：選定都更單元內的地號、面積、使用分區（FUNRAISE MCP land-info）', scales: ['S2', 'S3', 'S4'], labelScales: ['S3', 'S4'] },
+  mrt:      { name: '捷運路網',        color: '#99A1AF', glyph: 'line', icon: 'metro',    desc: '台北捷運 6 線（OSM）', scales: ['S1', 'S2', 'S3', 'S4'], labelScales: ['S2', 'S3', 'S4'] },
 };
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const MRT_COLOR = { '文湖線': '#C48C31', '淡水信義線': '#E3002C', '松山新店線': '#008659', '中和新蘂線': '#F8B61C', '中和新蘆線': '#F8B61C', '板南線': '#0070BD', '環狀線': '#FFDB00' };
 const heatDisc = (() => { let url = null; return () => { if (url) return url; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.4, 'rgba(255,255,255,0.42)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 256, 256); url = c.toDataURL('image/png'); return url; }; })();
-const heatTint = (hot, light) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha(0.18 + hot * 0.14) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha(0.3 + hot * 0.12);
+const heatTint = (hot, light, mul = 1) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha((0.18 + hot * 0.14) * mul) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha((0.3 + hot * 0.12) * mul);
 const yearOf = s => { if (!s) return null; const m = String(s).match(/(\d{4})/); if (m) return +m[1]; const r = String(s).match(/^(\d{3})/); return r ? +r[1] + 1911 : null; };
 const FONT = '500 13px "Inter", "Noto Sans TC", sans-serif', MONO = '600 11px "SF Mono", ui-monospace, Menlo, monospace';
 const label = (text, opts = {}) => ({ text, font: opts.font || FONT, fillColor: C(opts.color || '#F3F4F6'), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, opts.dy ?? -14), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, opts.far || 3500), scale: opts.scale || 1, showBackground: !!opts.bg, backgroundColor: C('#030712', .65), backgroundPadding: new Cesium.Cartesian2(6, 3) });
+// view composer helpers (§16.1/§16.4): short renewal-unit names at S3 (full name stays in hover/select, which read the
+// item, not the label), a local haversine-ish metre distance for the analysis-ring dim mask, and the z-bias that makes
+// a selected/highlighted label win over an overlapping ordinary one (disableDepthTestDistance is already universal above).
+export const shortName = s => { s = String(s ?? ''); return s.length > 10 ? s.slice(0, 9) + '…' : s; };
+const distM = (lon1, lat1, lon2, lat2) => Math.hypot((lon1 - lon2) * 111320 * Math.cos(lat2 * Math.PI / 180), (lat1 - lat2) * 110540);
+const EYE_BIAS = new Cesium.Cartesian3(0, 0, -3);
 
 export class FunraiseLayers {
   constructor(viewer, data, basemap, osm) {
     this.viewer = viewer; this.d = data; this.base = basemap || {}; this.osm = osm; this.year = new Date().getFullYear(); this.now = this.year; this.t0 = performance.now();
     this.ds = {}; this.byKey = new Map(); this.highlight = new Map(); this.vis = Object.fromEntries(Object.keys(LAYERS).map(k => [k, true]));
+    // compose.js state: mask = scale gate (separate from vis, the user's own toggle); scale/labelBudget/selectedKey drive
+    // recomputeLabels(); _ringActive/_tripsDim are transient compat-matrix modes (§16.3); _themeLight mirrors setTheme().
+    this.mask = Object.fromEntries(Object.keys(LAYERS).map(k => [k, true]));
+    this.scale = 'S3'; this.labelBudget = 24; this.selectedKey = null; this._densityMinImp = 0; this._themeLight = true; this._ringActive = false; this._tripsDim = false; this._ring = null;
     for (const k of [...Object.keys(LAYERS), 'labels', 'markers', 'fx']) { this.ds[k] = new Cesium.CustomDataSource(k); viewer.dataSources.add(this.ds[k]); }
     this.prevYear = this.year; this.yearChangedAt = 0;
     this.districtCentroids = new Map(); for (const d of this.base.districts || []) { const r = d.rings && d.rings[0]; if (!r) continue; let x = 0, y = 0; for (const p of r) { x += p[0]; y += p[1]; } this.districtCentroids.set(d.name, [x / r.length, y / r.length]); }
@@ -37,10 +50,74 @@ export class FunraiseLayers {
   get t() { return (performance.now() - this.t0) / 1000; }
   isHot(key) { const u = this.highlight.get(key); return u && u > performance.now(); }
   pulse(key, ms = 7000) { this.highlight.set(key, performance.now() + ms); }
-  setVisible(k, on) { if (this.ds[k]) { this.ds[k].show = on; this.vis[k] = on; if (k === 'stock') this.ds.markers.show = on; } }
+  setVisible(k, on) { if (!this.ds[k]) return; this.vis[k] = !!on; this._applyShow(k); }
+  /* ---- view composer (compose.js): scale mask, separate from the user's own `vis` toggle — ds.show is their AND ---- */
+  _applyShow(k) { const on = !!(this.vis[k] && this.mask[k] !== false); this.ds[k].show = on; if (k === 'stock' && this.ds.markers) this.ds.markers.show = on; }
+  setMask(k, on) { if (!(k in this.mask)) return; this.mask[k] = !!on; this._applyShow(k); }
+  _scaleAllows(k) { const sc = LAYERS[k] && LAYERS[k].scales; return !sc || sc.includes(this.scale); }
+  /** Called by compose.js after every scale re-evaluation (§16.1). Re-derives every layer's mask from LAYERS[k].scales,
+   * forces heat/zones off while an analysis ring is active (§16.3), degrades zones to outline-only at S3, and re-runs
+   * the label budget (labelScales can also change per scale even when the mask itself doesn't). */
+  applyScale(scale) {
+    this.scale = scale;
+    for (const k of Object.keys(LAYERS)) { const allowed = this._scaleAllows(k); this.setMask(k, (this._ringActive && (k === 'heat' || k === 'zones')) ? false : allowed); }
+    this._recomputeZoneOutline();
+    this.recomputeLabels();
+  }
+  _recomputeZoneOutline() { // §16.1 S3: 重劃／區段徵收「太大，退成外框」— keep the mask on but fade the fill, drop the label (labelScales already excludes S3)
+    const on = this.scale === 'S3';
+    for (const e of this.ds.zones.entities.values) { if (!e.ellipse) continue; if (e._zoneAlpha0 == null) { const c = e.ellipse.material && e.ellipse.material.color; e._zoneAlpha0 = (c && c.getValue ? c.getValue().alpha : null) ?? 0.15; } e.ellipse.material = C('#A78BFA', on ? 0.02 : e._zoneAlpha0); }
+  }
+  /** Uniform billboard-icon alpha for a whole ds (heat glow discs included): factor 1 restores. Used by the overlay↔heat
+   * and trips-playing↔stock-icon reactions in compose.js — never touches box/polygon materials (those keep their own
+   * isHot()-driven CallbackProperty; overwriting `.material` there would freeze their pulse permanently). */
+  setFlatAlpha(k, factor) {
+    const ds = this.ds[k]; if (!ds) return; const full = factor >= 1;
+    for (const e of ds.entities.values) { if (e.billboard) e.billboard.color = Cesium.Color.WHITE.withAlpha(full ? 1 : factor); if (e.ellipse && e._hot != null) e.ellipse.material = new Cesium.ImageMaterialProperty({ image: heatDisc(), transparent: true, color: heatTint(e._hot, this._themeLight, full ? 1 : factor) }); }
+  }
+  /** §16.3 分析圈（等時圈／生活圈）active: dim out-of-ring icons on the point layers to 30%, hide heat/zones (mask),
+   * renewal keeps polygons only (its label is gated in recomputeLabels()). origin=null clears back to normal. */
+  setRingDim(origin, radiusM) {
+    const POINT_LAYERS = ['stock', 'future', 'licenses', 'mops', 'moves', 'infra', 'parks'];
+    this._ring = origin ? { lon: origin[0], lat: origin[1], r: radiusM || 1200 } : null;
+    for (const k of POINT_LAYERS) { const ds = this.ds[k]; if (!ds) continue;
+      for (const e of ds.entities.values) { if (!e.billboard) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; const it = pl && pl.item;
+        const inR = !this._ring || !it || it.lat == null || distM(it.lon, it.lat, this._ring.lon, this._ring.lat) <= this._ring.r;
+        e.billboard.color = Cesium.Color.WHITE.withAlpha(inR ? 1 : 0.3); } }
+    this._ringActive = !!this._ring;
+    this.setMask('heat', this._ringActive ? false : this._scaleAllows('heat'));
+    this.setMask('zones', this._ringActive ? false : this._scaleAllows('zones'));
+    this.recomputeLabels();
+  }
+  /** §16.3 遷徙動線播放中: mops/licenses labels hide (recomputeLabels' gate), stock icons (the marker cluster billboards) dim to 40%. */
+  setTripsDim(on) { this._tripsDim = !!on; this.setFlatAlpha('markers', on ? 0.4 : 1); this.recomputeLabels(); }
+  setSelected(key) { this.selectedKey = key || null; this.recomputeLabels(); }
+  setLabelBudget(n) { this.labelBudget = n; this.recomputeLabels(); }
+  /** Unified label visibility pass (§16.1 label budget + §16.3 exclusions), replacing the old inline `e.label.show =`
+   * in setDensity(): selected (map.selected, via compose's ui.select wrap) and highlighted (isHot(), pulse()) entities
+   * always show and never count against the budget; everything else is gated by its layer's labelScales, the transient
+   * ring/trips modes, the density importance floor, and finally ranked by importance() against the numeric budget. */
+  recomputeLabels() {
+    const scale = this.scale, minImp = this._densityMinImp ?? 0, tripsDim = !!this._tripsDim, ringActive = !!this._ringActive; const ranked = [];
+    for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) {
+      if (!e.label) continue;
+      const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; const key = pl ? pl.key : null; const layer = pl ? pl.layer : null;
+      if (key && (key === this.selectedKey || this.isHot(key))) { e.label.show = true; e.label.eyeOffset = EYE_BIAS; continue; }
+      e.label.eyeOffset = Cesium.Cartesian3.ZERO;
+      const L = layer ? LAYERS[layer] : null;
+      if (L && L.labelScales && !L.labelScales.includes(scale)) { e.label.show = false; continue; }
+      if (ringActive && layer === 'renewal') { e.label.show = false; continue; }
+      if (tripsDim && (layer === 'mops' || layer === 'licenses')) { e.label.show = false; continue; }
+      const imp = e._imp == null ? 1 : e._imp; if (imp < minImp) { e.label.show = false; continue; }
+      ranked.push({ e, imp });
+    }
+    ranked.sort((a, b) => b.imp - a.imp);
+    const budget = this.labelBudget == null ? Infinity : this.labelBudget;
+    ranked.forEach((r, i) => { r.e.label.show = i < budget; });
+  }
   /* Density budget (Direction C): scale label reach and hide low-importance labels when immersive. */
   setTheme(theme) { // light: darker text on white halo + white-disc icons (PickPeak); dark: original glow colours on dark halo
-    const light = theme === 'light'; for (const d of this._heatDiscs || []) d.ellipse.material.color = heatTint(d._hot, light);
+    const light = theme === 'light'; this._themeLight = light; for (const d of this._heatDiscs || []) d.ellipse.material.color = heatTint(d._hot, light);
     const DARK_INK = { stock: '#9A4B12', heat: '#9A4B12', mops: '#B45309', moves: '#B45309', future: '#0F6A85', licenses: '#0F6A85', infra: '#0F6A85', renewal: '#6D28D9', zones: '#6D28D9', parks: '#047857', mrt: '#374151' };
     const ICON_INK = { stock: '#0C83A2', heat: '#BA5C2D', mops: '#DE7020', moves: '#BA5C2D', future: '#0F6A85', licenses: '#0C83A2', infra: '#0F6A85', renewal: '#6D28D9', zones: '#6D28D9', parks: '#047857', mrt: '#374151' };
     for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) {
@@ -50,9 +127,10 @@ export class FunraiseLayers {
       e.label.fillColor = light ? Cesium.Color.fromCssColorString(pl ? (DARK_INK[pl.layer] || '#1E2939') : '#4A5565') : e._fill; e.label.outlineColor = light ? Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(0.92) : Cesium.Color.fromCssColorString('#030712').withAlpha(0.9); e.label.backgroundColor = light ? Cesium.Color.fromCssColorString('#FFFFFF').withAlpha(0.82) : Cesium.Color.fromCssColorString('#030712').withAlpha(0.65); }
   }
   setDensity(mode) {
-    const f = mode === 'immersive' ? 0.6 : mode === 'annotated' ? 1.7 : 1; const minImp = mode === 'immersive' ? 0.5 : 0;
+    const f = mode === 'immersive' ? 0.6 : mode === 'annotated' ? 1.7 : 1; this._densityMinImp = mode === 'immersive' ? 0.5 : 0;
     for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) { if (!e.label) continue; if (e._far == null) { const d = e.label.distanceDisplayCondition && e.label.distanceDisplayCondition.getValue(); e._far = d ? d.far : 3500; }
-      e.label.distanceDisplayCondition = new Cesium.DistanceDisplayCondition(0, e._far * f); e.label.show = (e._imp == null ? 1 : e._imp) >= minImp; }
+      e.label.distanceDisplayCondition = new Cesium.DistanceDisplayCondition(0, e._far * f); }
+    this.recomputeLabels();
   }
   importance(layer, item) {
     switch (layer) { case 'stock': return item.grade === 'A' || item.grade === 'P' ? 0.9 : item.grade === 'F' ? 0.6 : 0.35; case 'future': return 0.8; case 'renewal': return item.category === '政府主導' ? 0.75 : 0.4; case 'mops': return Math.min(1, 0.5 + Math.log10(Math.max(1, item.total_price || 1)) / 20); case 'licenses': return 0.3; case 'zones': return 0.3; case 'infra': return 0.85; case 'parks': return 0.85; case 'heat': return 0.9; case 'mrt': return 0.4; case 'moves': return 0.45; default: return 0.5; }
@@ -132,7 +210,7 @@ export class FunraiseLayers {
       if (!u.rings) continue; const key = 'renewal:' + u.id; const gov = u.category === '政府主導'; let cx = 0, cy = 0, n = 0;
       for (const ring of u.rings) { const flat = []; for (const p of ring) { flat.push(p[0], p[1]); cx += p[0]; cy += p[1]; n++; } if (flat.length < 6) continue;
         this.add('renewal', key + ':' + n, u, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: 3, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(gov ? '#DDD6FE' : '#C4B5FD', this.isHot(key) ? .75 : .38), false)), outline: true, outlineColor: C('#EDE9FE', .95) } }); }
-      if (n) { u._c = [cx / n, cy / n]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.renewal, false), position: Cesium.Cartesian3.fromDegrees(cx / n, cy / n, 10), billboard: { ...BB(gov ? 'renew' : 'renew', gov ? '#DDD6FE' : '#C4B5FD', gov ? 24 : 18, 7000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, gov ? 9000 : 4000) }, label: label(`${u.name}`, { color: '#DDD6FE', far: 2600, dy: -16 }), properties: { pl: { layer: 'renewal', key, item: u } } }); }
+      if (n) { u._c = [cx / n, cy / n]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.renewal, false), position: Cesium.Cartesian3.fromDegrees(cx / n, cy / n, 10), billboard: { ...BB(gov ? 'renew' : 'renew', gov ? '#DDD6FE' : '#C4B5FD', gov ? 24 : 18, 7000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, gov ? 9000 : 4000) }, label: label(shortName(u.name), { color: '#DDD6FE', far: 2600, dy: -16 }), properties: { pl: { layer: 'renewal', key, item: u } } }); }
     }
   }
   /* ---- 重劃／區段徵收 ---- */

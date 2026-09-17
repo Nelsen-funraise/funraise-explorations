@@ -38,8 +38,8 @@ async function fetchEnv(api, path) {
 export function createEnvBadge({ api, container, viewer } = {}) {
   const el = document.createElement('div');
   el.id = 'envbadge'; el.className = 'pill mono hidden'; el.setAttribute('role', 'status');
-  el.innerHTML = '<i class="dot"></i><span class="txt"></span>';
-  const dotEl = el.querySelector('.dot'), txtEl = el.querySelector('.txt');
+  el.innerHTML = '<i class="dot"></i><span class="txt"></span><b class="demo" hidden>DEMO</b>';
+  const dotEl = el.querySelector('.dot'), txtEl = el.querySelector('.txt'), demoEl = el.querySelector('.demo');
   if (container) { const before = container.querySelector('#clock'); if (before) container.insertBefore(el, before); else container.appendChild(el); }
 
   let data = null, destroyed = false, timer = null;
@@ -81,9 +81,11 @@ export function createEnvBadge({ api, container, viewer } = {}) {
     txtEl.textContent = parts.length ? parts.join(' · ') : '—';
     if (a && a.status) { dotEl.style.background = AQI_DOT[a.status] || AQI_DOT_FALLBACK; dotEl.style.display = ''; }
     else { dotEl.style.display = 'none'; }
+    demoEl.hidden = !(data && data.demo); // PEAKLENS_DEMO_LIVE=1 時 server 才會帶這個旗標（見 server/routes/live.mjs §16.8）
     const tip = [];
     if (w) { if (w.desc) tip.push(w.desc); if (w.humidity != null) tip.push(`濕度 ${w.humidity}%`); if (w.pop != null) tip.push(`降雨機率 ${w.pop}%`); if (w.minT != null && w.maxT != null) tip.push(`今日 ${w.minT}–${w.maxT}°`); if (w.at) tip.push(`觀測時間 ${w.at}`); }
     if (a) { if (a.site) tip.push(`AQI 測站：${a.site}`); if (a.pm25 != null) tip.push(`PM2.5 ${a.pm25} μg/m³`); if (a.at) tip.push(`AQI 發布 ${a.at}`); }
+    if (data && data.demo) tip.push('（PEAKLENS_DEMO_LIVE 擬真資料，非即時來源）');
     el.title = tip.join('\n');
   }
 

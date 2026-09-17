@@ -186,7 +186,7 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 #timeline input[type=range]{flex:1;accent-color:var(--blue-500);min-width:0}
 #timeline .yr{font-size:14px;color:var(--blue-300);min-width:44px;text-align:right}
 #timeline .now{color:var(--ink-4)}
-#transcript{max-height:18vh;overflow:auto;margin-right:124px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:var(--blur);display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;transition:max-height .35s var(--ease)}
+#transcript{max-height:22vh;max-width:560px;overflow:auto;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:var(--blur);display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;transition:max-height .35s var(--ease)}
 #transcript:hover,#transcript:focus-within{max-height:46vh}
 #transcript:empty{display:none}
 .turn{display:flex;gap:10px;font-size:13px}
@@ -195,9 +195,13 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 .turn.agent .who{color:var(--blue-300)}
 .turn .body{flex:1;min-width:0}
 .turn.user .body{color:var(--ink-2)}
+/* older turns collapse to one ellipsized line each; only the newest exchange (last user + last agent turn) stays full */
+.turn:nth-last-child(n+3) .tools{display:none}
+.turn:nth-last-child(n+3) .answer,.turn.user:nth-last-child(n+3) .body{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tools{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
-.tools summary{list-style:none;cursor:pointer;display:inline-flex}
+.tools summary{list-style:none;cursor:pointer;display:inline-flex;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .tools summary::-webkit-details-marker{display:none}
+.tools summary.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue-400);flex:none;align-self:center;margin-right:6px;animation:blink .8s infinite}
 .tool{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--ink-3);padding:3px 6px;border-left:2px solid var(--line);background:rgba(255,255,255,.02)}
 .tool .st{width:8px;height:8px;border-radius:50%;background:var(--ink-4)}
 .tool.run .st{background:var(--blue-400);animation:blink .8s infinite}
@@ -310,8 +314,12 @@ body.moving:not(.d-annotated) #inspector:hover,body.moving:not(.d-annotated) #ra
 #g-2d[aria-pressed="true"]{background:var(--blue-500);color:var(--gray-950);border-color:transparent}
 body.d-immersive #gimbal{opacity:.55} body.d-immersive #gimbal:hover{opacity:1}
 body.moving:not(.d-annotated) #gimbal{opacity:1}
-#theme,#sun,#share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
-#sun[aria-pressed="true"]{border-color:var(--warm);color:var(--warm)}
+#share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
+/* ---- Look 控制（header）：白模 · 日照 · 黃金 · 夜景 · 相片 — 取代舊的 ☀ 日照／🌙 夜／☀︎ 日間 三顆 pill（compose.js §16.2） ---- */
+.look{display:flex;gap:2px;padding:2px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur)}
+.look button{padding:4px 11px;font-size:12px;font-weight:500;line-height:16px;border:0;border-radius:999px;font-family:var(--sans);color:var(--ink-2);white-space:nowrap}
+.look button[aria-pressed="true"]{background:var(--blue-500);color:#fff}
+.look button[disabled]{opacity:.4;cursor:not-allowed}
 #sunmenu{position:absolute;right:16px;top:58px;width:340px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;z-index:20}
 #sunmenu .chips{display:flex;flex-wrap:wrap;gap:6px}
 #sunmenu .chip[aria-pressed="true"]{background:var(--blue-500);color:#fff;border-color:transparent}
@@ -357,7 +365,8 @@ body.theme-light #cmdbar{background:rgba(255,255,255,.94);border-color:rgba(22,1
 body.theme-light #cmd{color:var(--gray-900)} body.theme-light #cmd::placeholder{color:var(--gray-400)}
 body.theme-light #send{background:var(--blue-600);color:#fff} body.theme-light #send:hover{background:var(--blue-500);color:#fff}
 body.theme-light #mic{background:var(--blue-600);color:#fff}
-body.theme-light #mcpstat,body.theme-light #theme{background:rgba(255,255,255,.85)}
+body.theme-light #mcpstat,body.theme-light .look{background:rgba(255,255,255,.85)}
+body.theme-light .look button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
 body.theme-light #toast{background:var(--gray-900);color:#fff;border-color:var(--gray-900)}
 body.theme-light #loading{background:var(--gray-100)} body.theme-light #loadmsg{color:var(--gray-600)}
 body.theme-light .cesium-widget-credits,body.theme-light .cesium-widget-credits a{color:var(--gray-500)!important}

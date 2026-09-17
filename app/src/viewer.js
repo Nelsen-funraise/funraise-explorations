@@ -97,11 +97,20 @@ export async function createViewer(container, opts = {}) {
   };
   setBasemap(opts.basemap || 'nlsc_photo');
 
-  // optional Google Photorealistic 3D Tiles
-  let google = null; const gkey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  if (gkey) { try { Cesium.GoogleMaps.defaultApiKey = gkey; google = await Cesium.createGooglePhotorealistic3DTileset(); scene.primitives.add(google); } catch (e) { console.warn('Google 3D Tiles unavailable', e); } }
+  // optional Google Photorealistic 3D Tiles — LAZY (Phase 9A 相片級 look, compose.js): created on first ensureGoogle()
+  // call, not at boot, so OSM buildings can always load (compose toggles between the two) and boot stays fast when
+  // a key is present but the look is never used. `show=false` until compose flips it on.
+  const gkey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  let googleTileset = null, googlePromise = null;
+  const ensureGoogle = () => {
+    if (!gkey) return Promise.resolve(null);
+    if (googleTileset) return Promise.resolve(googleTileset);
+    if (googlePromise) return googlePromise;
+    googlePromise = (async () => { try { Cesium.GoogleMaps.defaultApiKey = gkey; const t = await Cesium.createGooglePhotorealistic3DTileset(); t.show = false; scene.primitives.add(t); googleTileset = t; return t; } catch (e) { console.warn('Google 3D Tiles unavailable', e); return null; } })();
+    return googlePromise;
+  };
   // Cesium World Terrain (needs VITE_CESIUM_ION_TOKEN) is opt-in via quality.terrain: the Taipei basin is flat and extruded footprints sit at height 0, so terrain mostly matters for wide shots of the hills.
   let terrainOn = false; const setTerrain = async (on) => { if (!ionToken) return false; if (!!on === terrainOn) return terrainOn; terrainOn = !!on; try { viewer.terrainProvider = terrainOn ? await Cesium.createWorldTerrainAsync() : new Cesium.EllipsoidTerrainProvider(); scene.globe.depthTestAgainstTerrain = false; } catch (e) { console.warn('World terrain unavailable', e); terrainOn = false; } return terrainOn; };
 
-  return { viewer, scene, setBasemap, setYear, setOverlay, get overlays() { return [...base.overlays.keys()]; }, credits, setQuality: (q) => { quality.pinned = true; return setQuality(q); }, get quality() { return { ...quality }; }, get terrainAvailable() { return !!ionToken; }, setNight: (on) => { base.night = on; applyTint(); }, setTheme, get basemapKey() { return base.key; }, get basemapYear() { return base.year; }, get theme() { return base.theme || 'dark'; }, google };
+  return { viewer, scene, setBasemap, setYear, setOverlay, get overlays() { return [...base.overlays.keys()]; }, credits, setQuality: (q) => { quality.pinned = true; return setQuality(q); }, get quality() { return { ...quality }; }, get terrainAvailable() { return !!ionToken; }, setNight: (on) => { base.night = on; applyTint(); }, setTheme, get basemapKey() { return base.key; }, get basemapYear() { return base.year; }, get theme() { return base.theme || 'dark'; }, ensureGoogle, get googleTileset() { return googleTileset; }, hasGoogleKey: !!gkey, get google() { return googleTileset; } };
 }
