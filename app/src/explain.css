@@ -15,7 +15,10 @@ body.theme-light #explain-vignette{background:radial-gradient(circle at var(--vx
 body.explaining .explain-anchor .callout{animation:explainPop .35s cubic-bezier(.16,1,.3,1)}
 @keyframes explainPop{0%{transform:scale(.86);opacity:0}100%{transform:scale(1);opacity:1}}
 
+/* §18.3: explain-card had no glass of its own (unlike #caption, which carries class="panel") — give it the same
+   unified background/border/blur/radius/shadow recipe so it doesn't read as bare text floating over the map. */
 #explain-card{position:absolute;right:16px;bottom:224px;width:380px;max-width:calc(100vw - 32px);z-index:9;padding:12px 14px;font-size:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:var(--blur);box-shadow:var(--panel-shadow);
   opacity:0;transform:translateY(6px);transition:opacity .3s ease,transform .3s ease;pointer-events:none}
 #explain-card.hidden{display:none}
 #explain-card.show{opacity:1;transform:translateY(0);pointer-events:auto}

@@ -60,6 +60,13 @@
  */
 
 import * as Cesium from 'cesium';
+import { groundPolygon } from '../layers/groundmode.js';
+
+/** Phase 10P §18.1：實景（Google 3D Tiles）底下地面疊圖要貼在真正的地表上，不能再用固定小高度擠出——
+ * 讀 map.groundMode（compose.js／photoreal.js 進出「實景」時維護，見 groundmode.js 開頭的說明）；main.js 的
+ * boot() 跑完以前這個 module-level 讀法本來就不會被呼叫到（等時圈是使用者操作後才 show()），所以永遠讀得到
+ * 最新的 window.PL，不需要建構子額外傳一份 map 進來。 */
+const groundModeOn = () => { try { return !!(window.PL && window.PL.map && window.PL.map.groundMode); } catch { return false; } };
 
 /* >>> PURE HELPERS (no Cesium) — everything down to the MrtNetwork class close is plain JS with no
    Cesium dependency (see module JSDoc above). isochrone.test.mjs extracts this exact block by these
@@ -423,7 +430,7 @@ export class IsochroneLayer {
     const t0 = performance.now();
 
     // 走路可及圈（固定 8 分鐘 ≈ 640m，PickPeak 藍、地面半透明）
-    const walkEnt = this.ds.entities.add({ position: originPos, ellipse: { semiMajorAxis: WALK_RADIUS_M, semiMinorAxis: WALK_RADIUS_M, height: .5, material: this._col(palette[0], .16), outline: true, outlineColor: this._col(palette[0], .55), outlineWidth: 1.5 } });
+    const walkEnt = this.ds.entities.add({ position: originPos, ellipse: { ...groundPolygon({ on: groundModeOn(), height: .5 }), semiMajorAxis: WALK_RADIUS_M, semiMinorAxis: WALK_RADIUS_M, material: this._col(palette[0], .16), outline: true, outlineColor: this._col(palette[0], .55), outlineWidth: 1.5 } });
     walkEnt._plKind = 'walk'; walkEnt._baseColor = palette[0];
 
     // 出發點
@@ -460,9 +467,9 @@ export class IsochroneLayer {
     const waveEnt = this.ds.entities.add({
       position: originPos,
       ellipse: {
+        ...groundPolygon({ on: groundModeOn(), height: 1 }),
         semiMajorAxis: new Cesium.CallbackProperty(() => outerRadius * easeOutCubic(prog()), false),
         semiMinorAxis: new Cesium.CallbackProperty(() => outerRadius * easeOutCubic(prog()), false),
-        height: 1,
         material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => { const p = prog(); const light = this.theme === 'light'; return this._col(waveColor, (light ? .12 : .22) * (1 - .7 * p)); }, false)),
         outline: true,
         outlineColor: new Cesium.CallbackProperty(() => { const p = prog(); const light = this.theme === 'light'; return this._col(waveColor, (light ? .5 : .65) - .2 * p); }, false),

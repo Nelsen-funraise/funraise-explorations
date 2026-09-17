@@ -387,7 +387,9 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     const chipHtml = provChip(turn); setSummary(turn, chipHtml); const sum = turn.querySelector('.tools summary'); if (sum) { sum.classList.remove('live'); if (chipHtml) sum.title = '展開／收合工具呼叫'; }
     if (turn._token !== activeToken) return;
     orb.classList.remove('busy');
-    const cap = $('#caption'); $('#caption-text').textContent = text; $('#caption-prov').innerHTML = chipHtml; cap.classList.add('has');
+    // Phase 10Q: the AI answer's first sentence now goes through the unified #voicebar instead of the old #caption
+    // strip; while a scene is paused waiting on this very question, also surface the way back in.
+    if (ui.voicebar) { ui.voicebar.say(text, { mode: 'agent' }); if (director && director.paused) ui.voicebar.showResume(); }
     const prov = $('#provenance'); const cards = [...turn.querySelectorAll('.tool')]; if (cards.length) { prov.innerHTML = `<div class="eyebrow">來源與工具呼叫 · Provenance</div>${cards.map(c => `<div class="prov"><i></i><span class="n"><b>${escapeHtml(c._name || '')}</b></span><span class="r">${escapeHtml(c._summary || '')} · ${c._ms || 0} ms</span></div>`).join('')}`; prov.classList.remove('hidden'); }
     try { if (ui.explain && !ui.sceneId) ui.explain.onAnswer(turn, text); } catch (e) { console.warn('explain', e); }
   }
@@ -433,7 +435,10 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   }
   ttsBtn.onclick = () => { vmenu.classList.toggle('hidden'); menu.classList.add('hidden'); renderVoiceMenu(); };
   speech.init().then(vs => { const cur = vs.find(v => v.id === speech.voice); if (!cur || !cur.available) { const first = vs.find(v => v.id !== 'system' && v.available) || vs.find(v => v.id === 'system'); if (first) speech.setVoice(first.id); } ttsBtn.title = `語音：${(vs.find(v => v.id === speech.voice) || {}).name || ''}`; });
-  ui.speak = text => ui.tts ? speech.speak(text) : Promise.resolve({ ms: 0, source: 'off' });
+  // Phase 10Q (§18.2 旁白節拍): forwards onProgress to #voicebar's sentence-advance too, so scene narration and any
+  // other caller of ui.speak(text,{onProgress}) drive the same subtitle without each having to know about voicebar.
+  ui.speak = (text, opts = {}) => { const cb = opts.onProgress; const relay = f => { ui.voicebar && ui.voicebar.advance(f); cb && cb(f); };
+    if (!ui.tts) { relay(1); return Promise.resolve({ ms: 0, source: 'off' }); } return speech.speak(text, { ...opts, onProgress: relay }); };
   ui.warmSpeech = texts => { if (ui.tts) speech.warm(texts); };
 
   /* ---- agent mode (built-in ⇄ Claude) ---- */
@@ -448,8 +453,10 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   all.onclick = async () => { menu.classList.add('hidden'); if (!director) return; for (const sc of SCENES) { await director.play(sc.id); if (director.stopFlag) break; } };
   menu.appendChild(all);
   sb.onclick = () => { if (director && director.playing) { director.stop(); toast('場景停止'); return; } menu.classList.toggle('hidden'); vmenu.classList.add('hidden'); };
-  let densityBeforeScene = null;
-  ui.cine = (title, text) => { const bar = $('#cinebar'); if (!title) { speech.stop(); bar.classList.add('hidden'); sb.textContent = '▶ 場景'; document.body.classList.remove('cinema'); ui.sceneId = null; if (densityBeforeScene) { ui.setDensity(densityBeforeScene, true); densityBeforeScene = null; } return; } if (!ui.sceneId && ui.density !== 'immersive') { densityBeforeScene = ui.density; ui.setDensity('immersive', true); } bar.classList.remove('hidden'); $('#cine-title').textContent = title; $('#cine-text').textContent = text || ''; sb.textContent = '■ 停止'; document.body.classList.add('cinema'); ui.sceneId = title; };
+  // Phase 10Q: look/density/layers/camera snapshot+restore around a scene now lives in SceneDirector itself
+  // (docs/11-v2-cesium-app.md §18.2 舞台接管), so this only drives the unified #voicebar (src/ui/voicebar.js) and the
+  // cosmetic "▶ 場景／■ 停止" button label + body.cinema dimming — it no longer stops speech or touches density itself.
+  ui.cine = (title, text, meta) => { document.body.classList.toggle('cinema', !!title); sb.textContent = title ? '■ 停止' : '▶ 場景'; if (!title) { ui.sceneId = null; ui.voicebar && ui.voicebar.sceneEnd(); return; } ui.sceneId = title; ui.voicebar && ui.voicebar.sceneStep(title, text || '', meta || {}); };
 
   /* ---- toast, keyboard, mobile ---- */
   let toastT; function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3000); } ui.toast = toast;

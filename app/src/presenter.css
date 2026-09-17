@@ -1,6 +1,8 @@
-/* presenter.css — 展示模式 Presenter Mode. Hides authoring/HUD chrome, blows the caption/cinebar
-   up into a lower-third, adds a small scene-progress readout, and auto-hides the cursor when
-   idle. Reuses the PickPeak tokens defined in style.css (loaded first). */
+/* presenter.css — 展示模式 Presenter Mode. Hides authoring/HUD chrome, adds a small scene-progress
+   readout, and auto-hides the cursor when idle. Reuses the PickPeak tokens defined in style.css
+   (loaded first). Phase 10Q: the old "blow the caption/cinebar up into a lower-third" rules moved
+   to voicebar.css — #cinebar/#caption are gone, replaced by #voicebar for both scene narration and
+   AI answers, and its own body.presenting rules there are the only lower-third treatment now. */
 
 /* ---- hide authoring/HUD chrome while presenting ---- */
 body.presenting #cmdbar,
@@ -18,27 +20,6 @@ body.presenting #readout,
 body.presenting #rail,
 body.presenting #inspector {
   display: none !important;
-}
-
-/* ---- caption / cinebar become a big lower-third for projector legibility ---- */
-body.presenting #cinebar,
-body.presenting #caption {
-  bottom: 64px;
-  max-width: min(920px, calc(100vw - 48px));
-  padding: 18px 26px;
-  background: var(--panel-solid);
-  border-color: var(--line-2);
-  box-shadow: 0 24px 64px -16px rgba(3, 7, 18, .55);
-}
-body.presenting #cine-text,
-body.presenting #caption-text {
-  font-size: 20px;
-  line-height: 1.6;
-  -webkit-line-clamp: 4;
-}
-body.presenting #cine-title,
-body.presenting #caption .head .eyebrow {
-  font-size: 12px;
 }
 
 /* ---- scene progress indicator, bottom-right (where the gimbal normally sits) ---- */
@@ -71,7 +52,3 @@ body.presenting.cursor-idle * {
   cursor: none !important;
 }
 
-@media (max-width: 640px) {
-  body.presenting #cine-text,
-  body.presenting #caption-text { font-size: 17px; }
-}
