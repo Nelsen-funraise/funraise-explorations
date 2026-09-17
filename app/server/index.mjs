@@ -13,6 +13,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createLLM } from './llm.mjs';
+import { createSnapshot } from './snapshot.mjs';
+import { createCache } from './cache.mjs';
 import { createSetup } from './setup.mjs';
 import { createOrsRoutes } from './routes/ors.mjs';
 import { createLiveRoutes } from './routes/live.mjs';
@@ -39,6 +41,18 @@ const MCP_URL = env.FUNRAISE_MCP_URL || 'https://connector.mcp.funraise.ai/t/hkv
 const PUBLIC_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const REDIRECT_URI = `${PUBLIC_URL}/api/mcp/callback`;
 const TOKEN_FILE = path.join(here, '.mcp-token.json');
+
+/* ---------------- Phase 9G snapshot-first data layer (server/snapshot.mjs) ----------------
+   Owner's complaint: 「資料大部分要先有個快照在上面，不用每次都要去呼叫 tools」. SNAPSHOT loads public/data/peaklens.json
+   (+ timeseries.json once the other agent building it lands) ONCE at boot; the query_snapshot tool below lets the
+   model answer from it instead of round-tripping FUNRAISE MCP. CACHE memoizes query_snapshot(input) results (see
+   server/cache.mjs's header comment for why it can't yet cache the MCP calls themselves). */
+const SNAPSHOT = createSnapshot({ dataDir: env.PEAKLENS_DATA_DIR });
+const CACHE = createCache({ max: 200, ttlMs: (+(env.MCP_CACHE_TTL_S || 600)) * 1000 });
+function cachedSnapshotQuery(input) {
+  const key = CACHE.key('query_snapshot', input); const hit = CACHE.get(key); if (hit) return hit;
+  const out = SNAPSHOT.query(input); CACHE.set(key, out); return out;
+}
 
 /* ---------------- Fish Audio TTS (server-side key, on-disk cache) ---------------- */
 const FISH_KEY_ = () => env.FISH_API_KEY || ''; const FISH_MODEL_ = () => env.FISH_MODEL || 's2.1-pro-free';
@@ -165,6 +179,7 @@ const CAMERA_TOOLS = [
   { name: 'pin', description: '把一個物件的資料卡釘在地圖上（帶引線的標註，跟著物件移動）。key 同 highlight。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
   { name: 'get_view_state', description: '取得目前畫面狀態：相機中心、行政區、年份、鏡、密度、可見圖層、選取物件、視野內各圖層數量。', input_schema: { type: 'object', properties: {} } },
   { name: 'search_local_snapshot', description: '在前端本地資料快照中用名稱搜尋物件（商辦、建案、都更單元、上市櫃交易、公建、園區、重劃區），回傳 key 與座標，用於 highlight / fly_to / pin / select_entity。', input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+  { name: 'query_snapshot', description: '查詢 server 端本地資料快照（優先於 FUNRAISE MCP：免費、即時、不耗 token）。kind 決定查哪個資料集：buildings 商辦（district/grade/name）、mops 上市櫃資產交易（district/since/min_price）、licenses 建照（district/year）、renewal 都更單元（district/category）、future 未來供給（district/year＝累計到該年為止）、moves 企業遷徙（district＝遷入區/from＝遷出區）、zones 重劃區（name/category）、infra 公共建設（name/year）、parks 產業園區（name）、areas 商圈行情含季度租售序列與 YoY（name）、districts 行政區統計：公司數／成長率／行情／商辦分布／產業結構（district）、timeseries 年度成交／建照趨勢：district 省略＝全市（year/since）、summary 快照總覽一段話。回傳精簡列（預設 ≤12 筆，可用 top 調整）與可用 highlight／focus 點亮的 keys。快照涵蓋信義／大安／中山／松山／內湖／南港等區；查不到再用 FUNRAISE MCP。', input_schema: { type: 'object', properties: { kind: { type: 'string', enum: ['buildings', 'mops', 'licenses', 'renewal', 'future', 'moves', 'zones', 'infra', 'parks', 'areas', 'districts', 'timeseries', 'summary'] }, district: { type: 'string', description: '行政區，例如「信義區」（可省略「區」字）' }, name: { type: 'string', description: '名稱關鍵字（大樓、商圈、園區、公建等）' }, year: { type: 'integer', description: '西元年：buildings/licenses/infra 為當年、future/timeseries 為該年（或累計到該年）' }, since: { type: 'string', description: 'YYYY-MM-DD，用於 mops/moves/timeseries' }, grade: { type: 'string', description: '商辦等級 A/B/F/P，僅 buildings' }, category: { type: 'string', description: '都更類別或重劃分類' }, min_price: { type: 'number', description: '最低交易總額（元），僅 mops' }, from: { type: 'string', description: '遷出行政區，僅 moves' }, top: { type: 'integer', description: '回傳筆數上限，預設 12，最多 50' }, sort: { type: 'string', enum: ['asc', 'desc'], description: '依該 kind 的主要數值欄位排序，預設多為 desc' } }, required: ['kind'] } },
   { name: 'show_chart', description: '在資料面板顯示長條圖（比較、排名、金額）。', input_schema: { type: 'object', properties: { title: { type: 'string' }, rows: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'number' }, display: { type: 'string', description: '顯示用文字，例如「4.8 億」' } }, required: ['label', 'value'] } } }, required: ['title', 'rows'] } },
   { name: 'select_entity', description: '選取地圖物件並在面板顯示其詳細資料（key 同 highlight）。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
   { name: 'present_place', description: '展示巨集：一次完成「飛過去／環繞＋擺出風格＋套用外觀 Look」，取代好幾個單獨的鏡頭工具。使用者說「用更好的視角幫我呈現」「展示一下○○」「帶我去○○，環繞＋黃金時刻」時優先用這個，一回合解決，不要分成多次 fly_to／set_camera_mode／set_look。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名（大樓、商圈、行政區、捷運站、園區）' }, style: { type: 'string', enum: ['orbit', 'street', 'overview'], description: '呈現風格：orbit 環繞（預設，最適合展示）、street 街景、overview 拉遠俯視' }, look: { type: 'string', enum: ['white', 'sun', 'golden', 'night', 'photoreal'], description: '外觀 Look：white 白模、sun 日照、golden 黃金時刻（展示首選）、night 夜景、photoreal 相片級' }, range_m: { type: 'number' } }, required: ['place'] } },
@@ -174,47 +189,94 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 
 規則：
 1. 先動畫面再說話：地點問題先 fly_to／set_camera_mode；清單或比較問題用 highlight + show_chart（標註模式會自動編號）；時間問題用 set_year；視角問題用 set_lens；使用者要「乾淨／沉浸」或「多一點資料」用 set_density。一次可呼叫多個工具。
-2. 資料以 FUNRAISE MCP 工具（若可用）的查詢結果為準：商辦 buildings、都更 urban-renewal、實價登錄 actual-price-*、上市櫃資產 mops-property、建照 taipei-licenses、公司登記 company-registry、產業園區 industrial-parks、公共建設 public-infras、商圈 areas、土地與使用分區 land-info。查到的物件若在前端快照裡，用 search_local_snapshot 找到 key 後 highlight / pin / select_entity。
+2. 快照優先：問題只要落在下面「## 快照內容」涵蓋的範圍（商辦、上市櫃交易、建照、都更、重劃、未來供給、公共建設、產業園區、商圈行情與季度序列、行政區統計、年度成交／建照趨勢），先呼叫 query_snapshot 用本地資料回答，結尾標「來源：${SNAPSHOT.stats.date}」；只有 (a) 快照查不到的特定物件、(b) 需要特定地址／地號／公司登記／謄本等即時資料、或 (c) 使用者明確要「最新」「即時」時才呼叫 FUNRAISE MCP（商辦 buildings、都更 urban-renewal、實價登錄 actual-price-*、上市櫃資產 mops-property、建照 taipei-licenses、公司登記 company-registry、產業園區 industrial-parks、公共建設 public-infras、商圈 areas、土地與使用分區 land-info），單一回合最多呼叫 3 個 MCP 工具，優先用聚合類工具。query_snapshot 或 MCP 查到的物件，用回傳的 key（或 search_local_snapshot 查到的 key）highlight / pin / select_entity 點亮。
 3. 回答簡潔：3 句內講結論與數字，最後一行用「來源：<工具>·<資料期間>」標註。沒有資料就明說，不要編造。
 4. 台北市行政區、商圈與捷運站名用正體中文；金額用「億／萬」；面積用坪並附 m²。
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
 6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；天氣／空氣品質 → get_environment；YouBike → set_live_layer；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun（或直接用 set_look／present_place）；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view；外觀（白模／日照／黃金時刻／夜景／相片級）一律用 set_look，不要分別呼叫 set_theme／set_sun／set_quality；「用更好的視角呈現」「展示一下」這類籠統要求優先用 present_place 一次完成。
 7. 畫面工具在同一回合平行呼叫（一次回傳多個 function_call），鏡頭／外觀最多一回合就決定好、不要分成好幾回合慢慢調；查完資料立刻用文字回答，不要再多繞一輪確認；每次回覆一定要有文字，即使只是一句確認也好，絕不能只呼叫工具卻不留一句話。
-畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
+畫面狀態與資料來源狀態會附在下方（由 server 提供）。` + '\n\n## 快照內容\n' + SNAPSHOT.describe();
 
 function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
 function html(res, code, body) { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); res.end(body); }
 function readBody(req, limit = 2e6) { return new Promise((resolve, reject) => { let n = 0; const chunks = []; req.on('data', c => { n += c.length; if (n > limit) { reject(new Error('body too large')); req.destroy(); } else chunks.push(c); }); req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); } catch (e) { reject(e); } }); req.on('error', reject); }); }
 function sanitizeMessages(msgs) {
   if (!Array.isArray(msgs)) throw new Error('messages must be an array');
-  const out = msgs.filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content != null).slice(-24);
-  if (!out.length || out[0].role !== 'user') throw new Error('conversation must start with a user message');
-  return out;
+  const out = msgs.filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content != null);
+  // Trim to the last 8 real user turns (§ Phase 9G token-spend reduction) — a "turn" starts at a plain-string user
+  // message (a genuine new question); everything after it (assistant tool_use/text, user tool_result replies) rides
+  // along as part of that same turn. Walk from the end so we cut BEFORE a turn-start message, never mid-turn.
+  let turns = 0, startIdx = 0;
+  for (let i = out.length - 1; i >= 0; i--) { if (out[i].role === 'user' && typeof out[i].content === 'string') { turns++; startIdx = i; if (turns >= 8) break; } }
+  const trimmed = out.slice(startIdx).slice(-60); // 60 = generous hard ceiling against a pathological single turn
+  if (!trimmed.length || trimmed[0].role !== 'user') throw new Error('conversation must start with a user message');
+  return trimmed;
 }
 async function agentContext(final) {
   if (!llm) { const e = new Error('沒有 LLM 金鑰：在 app/.env 設 OPENAI_API_KEY（或 ANTHROPIC_API_KEY），或開 http://localhost:' + PORT + '/setup 貼上'); e.status = 503; throw e; }
   const mcp = await mcpProbe(); const tok = mcp.status === 'live' ? await validToken() : null;
-  const sourceNote = tok ? '資料來源：FUNRAISE MCP 即時（LIVE）。優先用 MCP 工具查詢，快照只用來定位畫面物件。' : `資料來源：本地快照（FUNRAISE MCP ${mcp.status === 'unauthorized' ? '尚未授權：請使用者按右上角「授權」' : '目前連不上'}）。只能用 search_local_snapshot 與畫面工具；回答時註明「快照 2026-09-14」。`;
+  // Phase 9G: snapshot-first even when MCP is LIVE — the curated snapshot answers most questions for free, so MCP is
+  // reserved for what it doesn't cover (see SYSTEM rule 2 and "## 快照內容" below).
+  const sourceNote = tok ? `資料來源：query_snapshot（本地快照，${SNAPSHOT.stats.date}）優先；FUNRAISE MCP 即時（LIVE）備援，只用於快照查不到的物件、特定地址／地號／公司登記／謄本，或使用者明確要「最新」「即時」時。` : `資料來源：本地快照（FUNRAISE MCP ${mcp.status === 'unauthorized' ? '尚未授權：請使用者按右上角「授權」' : '目前連不上'}）。用 query_snapshot／search_local_snapshot 與畫面工具；回答時註明「來源：${SNAPSHOT.stats.date}」。`;
   const finalNote = final ? '\n\n## 收尾\n這是最後一輪，不能再呼叫任何工具（包括 MCP）；請根據以上已經執行的操作與查到的資料，直接用 1–2 句繁體中文回答使用者，即使只是確認「已完成」也要留下文字。' : '';
   return { tok, sourceNote, finalNote };
 }
-const systemFor = (view, sourceNote, finalNote) => SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(view || {}) + finalNote;
+// Phase 9G: drop zero-count in_view keys and round a couple of numeric fields before the view state rides into the
+// system prompt — it's re-sent on every single round of every turn, so trimming it is pure token savings.
+function compactView(view) {
+  if (!view || typeof view !== 'object') return view;
+  const v = { ...view };
+  if (v.in_view && typeof v.in_view === 'object') { const iv = {}; for (const [k, n] of Object.entries(v.in_view)) if (n) iv[k] = n; v.in_view = iv; }
+  if (typeof v.lon === 'number') v.lon = +v.lon.toFixed(4);
+  if (typeof v.lat === 'number') v.lat = +v.lat.toFixed(4);
+  if (typeof v.height_m === 'number') v.height_m = Math.round(v.height_m / 10) * 10;
+  return v;
+}
+const systemFor = (view, sourceNote, finalNote) => SYSTEM + '\n\n## 資料來源狀態\n' + sourceNote + '\n\n## 目前畫面狀態\n' + JSON.stringify(compactView(view) || {}) + finalNote;
 function noteMcpRejection(content) { for (const b of content) if (b.type === 'mcp_tool_result' && b.is_error && /401|unauthori|invalid_token|forbidden/i.test(JSON.stringify(b.content || ''))) mcpState = { status: 'unauthorized', checked: Date.now(), reason: 'MCP rejected the token during a call' }; }
+
+// ---- server-side query_snapshot sub-loop (Phase 9G) ----
+// When the model calls query_snapshot we execute it HERE — never round-tripping to the browser — feed the compact
+// JSON result back as a tool_result in the SAME conversation, and call the model again, up to SNAPSHOT_TOOL_MAX
+// times, so a data question resolves inside this one /api/agent call instead of costing the browser extra rounds.
+// We only keep looping while a round's tool_use blocks are query_snapshot ONLY: if the model also asked for a
+// camera/UI tool in the same round we stop and return everything as-is — the browser executes the camera tool, and
+// the unexecuted query_snapshot tool_use is the rare edge case claudeClient.js's `case 'query_snapshot'` no-op
+// fallback exists for. (We can't keep looping in that mixed case: the next provider call would replay `msgs` with
+// the camera tool_use still unanswered, which both the OpenAI and Anthropic APIs reject — the server has no browser
+// to execute it and get a real result from.)
+const SNAPSHOT_TOOL_MAX = 4;
+async function snapshotSubLoop(baseArgs, callFn, onSnapshot) {
+  let msgs = baseArgs.messages;
+  for (let used = 0; ; ) {
+    const res = await callFn(msgs);
+    noteMcpRejection(res.content); // checked every round (not just the last) — an MCP call can happen on any round
+    const toolUses = res.content.filter(b => b.type === 'tool_use');
+    const snapUses = toolUses.filter(b => b.name === 'query_snapshot');
+    const otherUses = toolUses.some(b => b.name !== 'query_snapshot');
+    if (baseArgs.final || !snapUses.length || otherUses || used >= SNAPSHOT_TOOL_MAX) return res;
+    used += snapUses.length;
+    const results = snapUses.map(tu => { const out = cachedSnapshotQuery(tu.input); if (onSnapshot) onSnapshot(tu, out); return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) }; });
+    msgs = [...msgs, { role: 'assistant', content: res.content }, { role: 'user', content: results }];
+  }
+}
 export async function runAgent({ messages, view, final }) {
   const { tok, sourceNote, finalNote } = await agentContext(final);
-  const res = await llm.run({ system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final });
-  noteMcpRejection(res.content);
+  const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final };
+  const res = await snapshotSubLoop(args, msgs => llm.run({ ...args, messages: msgs }));
   return { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
 }
 // SSE variant for POST /api/agent {stream:true}: send(event, data) is the caller's SSE writer. Streams real
 // response.output_text.delta chunks when the provider supports it (OpenAI); otherwise sends the full text as one
-// `text` event and still emits `tool` + `done` so the client's SSE contract stays identical either way.
+// `text` event and still emits `tool` + `done` so the client's SSE contract stays identical either way. Each
+// server-side query_snapshot call (see snapshotSubLoop) emits its own `tool` event as it happens, so a raw SSE
+// transcript shows the snapshot lookup even though the browser's own tool-execution loop never receives it.
 export async function runAgentStream({ messages, view, final }, send) {
   const { tok, sourceNote, finalNote } = await agentContext(final);
   const args = { system: systemFor(view, sourceNote, finalNote), messages: sanitizeMessages(messages), tools: CAMERA_TOOLS, mcp: tok ? { url: MCP_URL, name: 'funraise', token: tok.access_token } : null, final: !!final };
-  const res = typeof llm.stream === 'function' ? await llm.stream(args, delta => send('text', { delta })) : await (async () => { const r = await llm.run(args); for (const b of r.content) if (b.type === 'text' && b.text) send('text', { delta: b.text }); return r; })();
+  const callFn = msgs => typeof llm.stream === 'function' ? llm.stream({ ...args, messages: msgs }, delta => send('text', { delta })) : (async () => { const r = await llm.run({ ...args, messages: msgs }); for (const b of r.content) if (b.type === 'text' && b.text) send('text', { delta: b.text }); return r; })();
+  const res = await snapshotSubLoop(args, callFn, (tu, out) => send('tool', { name: 'query_snapshot', input: tu.input, count: out.count }));
   for (const b of res.content) if (b.type === 'tool_use' || b.type === 'mcp_tool_use') send('tool', { name: b.name, input: b.input });
-  noteMcpRejection(res.content);
   const out = { content: res.content, stop_reason: res.stop_reason, usage: res.usage, model: res.model, provider: llm.provider, source: tok ? 'live' : 'snapshot' };
   send('done', out); return out;
 }
@@ -230,7 +292,7 @@ function serveStatic(req, res) {
 }
 const CALLBACK_PAGE = (ok, msg) => `<!doctype html><meta charset="utf-8"><title>PeakLens · FUNRAISE MCP</title><body style="margin:0;display:grid;place-items:center;height:100vh;background:#030712;color:#F3F4F6;font:15px Inter,'Noto Sans TC',sans-serif"><div style="text-align:center;max-width:420px;padding:24px"><div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;color:#93DCE6">FUNRAISE MCP</div><h1 style="font-size:20px;margin:8px 0">${ok ? '已授權，睿鏡可以即時查資料了' : '授權失敗'}</h1><p style="color:#99A1AF">${msg}</p><p style="color:#6A7282;font-size:12px">${ok ? '這個視窗會自動關閉。' : '請關閉視窗後再試一次。'}</p></div><script>try{(window.opener||window.parent).postMessage({type:'peaklens-mcp-authorized',ok:${ok ? 'true' : 'false'}},'*')}catch(e){} ${ok ? 'setTimeout(()=>window.close(),1400);' : ''}</script></body>`;
 
-if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), tts: FISH_KEY_() ? 'fish:' + FISH_MODEL_() : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
+if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), snapshot: SNAPSHOT.stats, tts: FISH_KEY_() ? 'fish:' + FISH_MODEL_() : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
 
 // abuse guard for a shared/hosted server: per-IP sliding window (agent 30/min, tts 60/min, others 240/min)
 const GATE_FREE = new Set(['/api/health', '/api/mcp/callback']); const rateBuckets = new Map();
@@ -272,6 +334,6 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }
   }).listen(PORT, async () => {
     const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message }));
-    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
+    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  snapshot=${SNAPSHOT.stats.date}(${Object.values(SNAPSHOT.stats.counts).reduce((a, b) => a + b, 0)} rows${SNAPSHOT.stats.hasTimeseries ? '+ts' : ''})  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
   });
 }

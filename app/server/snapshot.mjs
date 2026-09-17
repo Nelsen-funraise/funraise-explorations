@@ -28,33 +28,21 @@ const clampTop = top => Math.max(1, Math.min(50, +top || 12));
 const dirMul = d => d === 'asc' ? 1 : -1;
 const groupBy = (arr, fn) => { const m = new Map(); for (const it of arr || []) { const k = fn(it); if (k == null) continue; if (!m.has(k)) m.set(k, []); m.get(k).push(it); } return m; };
 
-// timeseries.json's exact shape is defined by TIMESERIES_README.md, written by the concurrent data-build agent — as of
-// this writing that file (and its README) don't exist yet, so this normalizer is deliberately tolerant of two
-// plausible shapes: (1) { by_district: { "信義區": { sales_all: {"2012":n,...}, sales_office:{...}, licenses:{...} } },
-// city_totals?: {...}, meta?: { years:[...] } } or (2) a flat array of { district, year, sales_all, sales_office,
-// licenses } rows (district falsy/"__city__" = city total row). Either way it normalizes to { years, byDistrict:
-// Map<normDistrict,{series:Map<year,val>}>, cityTotals:{series:Map<year,val>} }. Adjust here if the real file differs.
+// timeseries.json (produced by a concurrent data-build agent; no TIMESERIES_README.md yet) shape, confirmed against
+// the real file: { meta:{ years:[2012..2026], ytd_year:2026, ... }, districts:["中正區",...12 Taipei districts...],
+// sales_all: { "<district>": [15 numbers, index-aligned to meta.years] }, sales_office: {...}, licenses: {...},
+// city: { sales_all:[15], sales_office:[15], licenses:[15] }, alltime: {...}, peaks: {...}, yoy: {...} }. We only need
+// years/districts/sales_all/sales_office/licenses/city below — yoy and peak-year are RECOMPUTED here from the raw
+// counts (not read from the file's own precomputed `yoy`/`peaks` blocks) so a district query and a city-totals query
+// (which the file doesn't precompute yoy/peaks for at all) share identical math; spot-checked against the file's own
+// `yoy` numbers and they match exactly, mod unit (file uses %, we use decimal fractions like every other *_yoy field
+// in this module). Falls back to null (→ a graceful empty result, never a throw) if the file is missing or malformed.
 function normalizeTimeseries(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const toMap = obj => { const m = new Map(); if (obj) for (const [y, v] of Object.entries(obj)) m.set(+y, v); return m; };
-  const byDistrict = new Map(); const yearsSet = new Set(((raw.meta && raw.meta.years) || []).map(Number));
-  const emptyBucket = () => ({ sales_all: new Map(), sales_office: new Map(), licenses: new Map() });
-  if (Array.isArray(raw)) {
-    for (const row of raw) {
-      const dn = row.district ? norm(row.district) : null; const y = +row.year; if (!y) continue; yearsSet.add(y);
-      if (dn) { if (!byDistrict.has(dn)) byDistrict.set(dn, emptyBucket()); const b = byDistrict.get(dn); for (const s of SERIES) if (row[s] != null) b[s].set(y, row[s]); }
-    }
-  } else {
-    const src = raw.by_district || raw.districts || {};
-    for (const [dn, obj] of Object.entries(src || {})) {
-      const bucket = emptyBucket(); for (const s of SERIES) { bucket[s] = toMap(obj && obj[s]); for (const y of bucket[s].keys()) yearsSet.add(y); }
-      byDistrict.set(norm(dn), bucket);
-    }
-  }
-  if (!byDistrict.size && !yearsSet.size) return null; // nothing usable → treat like "absent"
-  let cityTotals = raw.city_totals && !Array.isArray(raw) ? { sales_all: toMap(raw.city_totals.sales_all), sales_office: toMap(raw.city_totals.sales_office), licenses: toMap(raw.city_totals.licenses) } : null;
-  if (!cityTotals) { cityTotals = emptyBucket(); for (const bucket of byDistrict.values()) for (const s of SERIES) for (const [y, v] of bucket[s]) cityTotals[s].set(y, (cityTotals[s].get(y) || 0) + v); }
-  return { years: [...yearsSet].sort((a, b) => a - b), byDistrict, cityTotals };
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.meta && raw.meta.years) || !raw.meta.years.length) return null;
+  const years = raw.meta.years.map(Number); const idx = new Map(years.map((y, i) => [y, i]));
+  const districts = raw.districts || Object.keys(raw.sales_all || {});
+  if (!districts.length) return null;
+  return { years, idx, ytdYear: raw.meta.ytd_year || null, districts, series: { sales_all: raw.sales_all || {}, sales_office: raw.sales_office || {}, licenses: raw.licenses || {} }, city: raw.city || {} };
 }
 
 export function createSnapshot({ dataDir } = {}) {
@@ -151,14 +139,20 @@ export function createSnapshot({ dataDir } = {}) {
   }
   function rowsTimeseries(q) {
     if (!timeseries) return { rows: [], note: 'timeseries.json 尚未產生，暫無年度趨勢資料（改用 FUNRAISE MCP 或稍後再試）', peaks: null, scope: q.district || '全市' };
-    const bucket = q.district ? timeseries.byDistrict.get(norm(q.district)) : timeseries.cityTotals;
-    if (!bucket) return { rows: [], note: `timeseries 沒有「${q.district}」的資料`, peaks: null, scope: q.district || '全市' };
+    let dn = null;
+    if (q.district) { dn = timeseries.districts.find(x => norm(x) === norm(q.district)) || null; if (!dn) return { rows: [], note: `timeseries 沒有「${q.district}」的資料`, peaks: null, scope: q.district }; }
+    const arrOf = s => dn ? timeseries.series[s][dn] : timeseries.city[s];
     let years = timeseries.years;
     if (q.year) years = years.filter(y => y === +q.year);
     if (q.since) { const sy = yearOf(q.since) || +String(q.since).slice(0, 4); if (sy) years = years.filter(y => y >= sy); }
-    const rows = years.map(y => { const row = { year: y }; for (const s of SERIES) { const cur = bucket[s].has(y) ? bucket[s].get(y) : null; const prev = bucket[s].has(y - 1) ? bucket[s].get(y - 1) : null; row[s] = cur; row[`${s}_yoy`] = (cur != null && prev) ? round((cur - prev) / prev, 3) : null; } return row; });
-    const peaks = {}; for (const s of SERIES) { let best = null; for (const y of timeseries.years) { const v = bucket[s].get(y); if (v != null && (!best || v > best.value)) best = { year: y, value: v }; } peaks[s] = best; }
-    return { rows, peaks, scope: q.district || '全市' };
+    const rows = years.map(y => {
+      const i = timeseries.idx.get(y); const row = { year: y };
+      for (const s of SERIES) { const arr = arrOf(s); const cur = arr ? arr[i] ?? null : null; const pi = timeseries.idx.get(y - 1); const prev = (arr && pi != null) ? arr[pi] : null; row[s] = cur; row[`${s}_yoy`] = (cur != null && prev) ? round((cur - prev) / prev, 3) : null; }
+      return row;
+    });
+    const peaks = {}; for (const s of SERIES) { const arr = arrOf(s); let best = null; if (arr) arr.forEach((v, i) => { if (v != null && (!best || v > best.value)) best = { year: timeseries.years[i], value: v }; }); peaks[s] = best; }
+    const note = (timeseries.ytdYear && years.includes(timeseries.ytdYear)) ? `${timeseries.ytdYear} 為年初至今（YTD）資料，非全年度，與其他完整年度比較時請留意基期不同。` : undefined;
+    return { rows, peaks, scope: dn || '全市', ...(note ? { note } : {}) };
   }
   function summaryRow() {
     const text = `本地快照（${SOURCE}）涵蓋台北市信義／大安／中山／松山／內湖／南港等區：商辦 ${buildings.length} 棟、上市櫃資產交易 ${mops.length} 筆、建照 ${licenses.length} 張、都更單元 ${renewal.length} 筆、重劃區 ${zones.length} 處、未來供給 ${future.length} 案、公共建設 ${infra.length} 項、產業園區 ${parks.length} 處、商圈 ${areas.length} 個（含季度租售序列與 YoY）、行政區統計 ${districts.length} 區、企業遷徙 ${moves.length} 筆${timeseries ? `，另有 ${timeseries.years[0]}–${timeseries.years[timeseries.years.length - 1]} 年年度成交／建照趨勢` : ''}。多數問題可直接用 query_snapshot 回答，不必呼叫 FUNRAISE MCP。`;
@@ -191,7 +185,7 @@ export function createSnapshot({ dataDir } = {}) {
     return [
       `本地快照（${SOURCE}）涵蓋台北市信義／大安／中山／松山／內湖／南港（另有少量萬華／新北參考列）：`,
       `商辦 ${buildings.length} 棟、上市櫃資產交易（MOPS）${mops.length} 筆、建照 ${licenses.length} 張、都更單元 ${renewal.length} 筆（都更區位統計 ${((peak.urban_renewal_stats && peak.urban_renewal_stats.by_district) || []).length} 區）、重劃區 ${zones.length} 處、未來供給 ${future.length} 案、公共建設 ${infra.length} 項、產業園區 ${parks.length} 處、企業遷徙 ${moves.length} 筆、商圈 ${areas.length} 個（各含 2024–2026 季度租售序列與 YoY）、行政區統計 ${districts.length} 區（公司數／成長率／行情／商辦分布／產業結構）。`,
-      timeseries ? `另有 timeseries：${timeseries.years[0]}–${timeseries.years[timeseries.years.length - 1]} 年各行政區與全市年度實價登錄成交量、辦公室成交量、建照量（含 YoY 與高峰年）。` : `timeseries.json 尚未產生：年度趨勢類問題目前答不了，之後補上或改用 FUNRAISE MCP。`,
+      timeseries ? `另有 timeseries：${timeseries.years[0]}–${timeseries.years[timeseries.years.length - 1]} 年台北市 12 個行政區與全市年度實價登錄成交量、辦公室成交量、建照量（含 YoY 與高峰年；${timeseries.ytdYear} 為年初至今 YTD，非全年度）。` : `timeseries.json 尚未產生：年度趨勢類問題目前答不了，之後補上或改用 FUNRAISE MCP。`,
       `用 query_snapshot({kind,district?,name?,year?,since?,top?,sort?,...}) 取得精簡列（≤ top，預設 12）與可 highlight／focus 的 keys；kind 涵蓋 ${KINDS.join('、')}。快照已涵蓋的問題不必呼叫 FUNRAISE MCP。`,
     ].join('\n');
   }
