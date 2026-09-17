@@ -328,6 +328,8 @@ npm run server              # http://localhost:8790
 | ![explain](assets/v2-explain.jpg) 說明模式：回答提到的物件自動編號、引線、暈影與說明卡（Phase 9） | ![101 parts](assets/v2-101-parts.jpg) 台北101 改用 OSM building:part 分段量體，階梯狀輪廓（Phase 9） |
 | ![white S3](assets/v2-white-s3.jpg) 白模 Look · 街廓尺度：視野內優先的標籤預算（≤ 24） | ![night S1](assets/v2-night-s1.jpg) 夜景 Look · 城市尺度：合成器強制關閉泛光／HDR，不再糊成一片 |
 | ![golden S4](assets/v2-golden-s4.jpg) 黃金時刻 Look · 建物尺度：泛光與 HDR 只在 S3–S4 開 | ![time machine](assets/v2-timemachine.jpg) 價值時光機 2.0：12 區依年度成交件數長高、依年增率上色，HUD 即時計數 |
+| ![scene stage](assets/v2-scene-stage.jpg) 場景導演 2.0：舞台接管（黃金＋沉浸）、編號標註、底部統一語音列與步驟進度（Phase 10） | ![annotated insights](assets/v2-annotated-insights.jpg) 標註模式：玻璃晶片 icon、膠囊標籤、右側自動洞察列（Phase 10） |
+| ![immersive](assets/v2-immersive-letterbox.jpg) 沉浸模式：上下遮幕，只留地圖、標註與語音列（Phase 10） | |
 
 ## 16. 視圖語法與合成規則（Phase 9 設計，2026-09-17）
 
