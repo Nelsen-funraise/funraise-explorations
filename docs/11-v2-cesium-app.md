@@ -500,3 +500,27 @@ Nelsen 第二輪實測回饋：為什麼不用真實 3D 紋理；場景裡的虛
 - **HUD**：面板統一玻璃（背景 72% 模糊 18 px、1 px 邊線、頂部 1 px 藍本藍高光線）、圓角 14、陰影兩層；數字用 mono 大字；「AI 思考中」有流光。
 - **標註模式要聰明**：右側「洞察列」自動從快照與時序資料產生 3–5 張晶片（如「信義區 2025 成交 ▼24%」「南港 2026–2028 新供給 45 層」「大安區公司數 16,850 ▲6%」），點一張就飛過去並進說明模式；畫面上被提到的物件掛編號與引線；標籤預算提高到 32。
 - **沉浸模式要沉浸**：只留語音列與右下小羅盤，上下各 6% 漆黑遮幕（letterbox），面板全部收成邊緣把手；hover 小卡仍可用。
+
+## 19. Phase 10 落地紀錄（2026-09-17）
+
+### 19.1 實景底座（`src/layers/photoreal.js`、`frames.js`、`groundmode.js`）
+
+- 有 `VITE_CESIUM_ION_TOKEN` 或 `VITE_GOOGLE_MAPS_API_KEY` 任一把就把 Look 預設設成「實景」：Google Photorealistic 3D Tiles 透過 Cesium ion 資產 2275207 載入（有 Google 金鑰則直連）。`photoreal.status` idle→loading→ready｜failed；失敗自動退回白模並 toast 原因，`PL.photoreal.diagnostics()` 可查；同一個 session 不重試，除非 `retry()`。
+- 156 棟 FUNRAISE 商辦中 143 棟對到 OSM 足跡，畫成玻璃殼（外擴 1.5 m、半透明、等級配色）＋屋頂發光輪廓＋針腳到晶片 icon；屋頂光環在所有 Look 都保留當「有資料」的暗示；未來供給幽靈量體加虛線屋頂線。實景下白模與橘色商辦量體隱藏（`layers.setStockVolumes(false)`），icon／標籤照常。
+- 地面圖層在實景下改成 `classificationType: BOTH` 貼附網格（都更、重劇、公園、熱區；等時圈與生活圈透過 `groundPolygon()`），河川道路光帶隱藏；地面 icon 用 `CLAMP_TO_3D_TILE`。畫質 SSE 依尺度 12–32。
+- 夜景在有實景時＝藍色調的 tiles＋道路／捷運光帶＋更亮的屋頂光環。
+- 沙盒沒有 token 也連不到 Google：驗證了建立、失敗退回、地面模式切換、玻璃殼外觀（30 項斷言），真實貼圖由 Nelsen 在 Mac 上第一次確認。
+- 已知：等時圈／生活圈的線仍是固定高度；YouBike 站點未貼附網格。
+
+### 19.3 視覺語言（`src/layers/icons.js`、`funraise.js`、`style.css`、`src/ui/insights.js`）
+
+- icon 改玻璃晶片（細環＋12% 底色＋字形＋柔光暈），P／A 級 34 px、其餘 26 px；商辦、未來供給、上市櫃交易有 1 px 針腳；聚合泡泡改霜面玻璃圓加 mono 數字。
+- 標籤一律膠囊底（暗色 78%／日間白 88%），一個標籤只講一件事；都更多邊形 8% 填色＋邊緣呼吸脈衝、重劃改細環、公園 6%；熱區更柔更大。
+- HUD 玻璃系統：面板 72% 加 18 px 模糊、1 px 邊線、頂部藍本藍高光線、圓角 14、雙層陰影；「AI 思考中」流光；hover 小卡有圖層色的側邊條。
+- 標註模式多一條「洞察 · INSIGHTS」列：依相機下的行政區從快照與時序資料算出最多 5 張晶片（公司數與成長率、當年成交與年增率、A 級租金、未來供給、上市櫃交易），點了就飛過去進說明模式；沉浸模式上下 6vh 遮幕。
+
+### 19.4 實測回饋修正
+
+- AI 模式在 server 有模型時自動開啟並記住選擇；AI 一句失敗改用內建 agent 回答該句，不再整個切回內建；內建的「聽不懂」會提示切到 AI 模式。
+- MCP refresh token 綁定取得它的 client：換埠（8787→8790）後不再因重新註冊 client 而 400「Client ID mismatch」；refresh 被拒就清 token 並提示重新授權。
+- `/setup` 說明 ion token 就能開實景，Google 金鑰可選。
