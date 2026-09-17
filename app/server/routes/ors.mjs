@@ -109,7 +109,9 @@ async function callOrs(env, profile, lon, lat, minutes) {
  */
 export function createOrsRoutes(env) {
   const cache = createLru(CACHE_MAX, CACHE_TTL_MS);
-  const allow = createRateGuard(RATE_MAX_PER_MIN, RATE_WINDOW_MS);
+  // RATE_WALKSHED_PER_MIN is optional — same override convention server/index.mjs already uses for
+  // RATE_AGENT_PER_MIN / RATE_TTS_PER_MIN; unset (the default) keeps the spec'd 30/min.
+  const allow = createRateGuard(+(env.RATE_WALKSHED_PER_MIN || RATE_MAX_PER_MIN), RATE_WINDOW_MS);
 
   async function walkshed({ url }) {
     const lon = numParam(url, 'lon'), lat = numParam(url, 'lat');

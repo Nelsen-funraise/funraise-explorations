@@ -14,6 +14,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createLLM } from './llm.mjs';
 import { createSetup } from './setup.mjs';
+import { createOrsRoutes } from './routes/ors.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -148,6 +149,8 @@ const CAMERA_TOOLS = [
   { name: 'start_tool', description: '啟動量測／畫基地工具：distance 量距離、area 量面積、site 畫基地（完成後自動用手繪範圍模擬容積量體）；off 關閉。使用者要量多遠、量面積、自己畫基地時使用。', input_schema: { type: 'object', properties: { mode: { type: 'string', enum: ['distance', 'area', 'site', 'off'] } }, required: ['mode'] } },
   { name: 'floor_view', description: '樓層視角：第一人稱走進一棟大樓的第幾層向外看。給 key（stock:<building_id>）或 lon/lat＋floors；floor 省略自動挑約 12 樓；exit:true 離開。', input_schema: { type: 'object', properties: { key: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, floors: { type: 'integer' }, floor: { type: 'integer' }, heading: { type: 'number' }, exit: { type: 'boolean' } } } },
   { name: 'show_isochrone', description: '畫出從一個點出發、N 分鐘內搭捷運可到的等時圈（走到站＋每站停靠＋轉乘罰時，內建捷運路網計算，不需外部 API）：範圓圈、可達站、實際路線。用於「從○○搭捷運 20 分鐘能到哪」「等時圈」「通勤圈」。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名或站名（沒有座標時用它解析）' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, maxMin: { type: 'integer', minimum: 5, maximum: 60 } } } },
+  { name: 'show_walkshed', description: '步行／騎車／開車 N 分鐘的真實路網生活圈（OpenRouteService；沒有 ORS_API_KEY 時退回固定速度估算圈，回傳 source 會標明）。用於「這裡走路 15 分鐘能到哪」「生活圈」「騎車 10 分鐘範圍」。', input_schema: { type: 'object', properties: { place: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, name: { type: 'string' }, profile: { type: 'string', enum: ['foot-walking', 'cycling-regular', 'driving-car'] }, minutes: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 60 }, maxItems: 3 } } } },
+  { name: 'clear_walkshed', description: '收起生活圈。', input_schema: { type: 'object', properties: {} } },
   { name: 'clear_isochrone', description: '收起等時圈。', input_schema: { type: 'object', properties: {} } },
   { name: 'presenter', description: '展示模式（投影用）：隱藏編輯 HUD、放大字幕、←→ 切場景。on 省略則切換。', input_schema: { type: 'object', properties: { on: { type: 'boolean' } } } },
   { name: 'play_trips', description: '播放「企業遷徙動線」動畫：公司登記地址異動的弧線（原址→新址）依序飛行，落地有漣漪與公司名稱。可指定 year（預設目前時間軸年份；快照只有 2026 的異動）。', input_schema: { type: 'object', properties: { year: { type: 'integer', minimum: 2012, maximum: 2030 } } } },
@@ -170,7 +173,7 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 3. 回答簡潔：3 句內講結論與數字，最後一行用「來源：<工具>·<資料期間>」標註。沒有資料就明說，不要編造。
 4. 台北市行政區、商圈與捷運站名用正體中文；金額用「億／萬」；面積用坪並附 m²。
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
-6. 專用工具：等時圈／通勤圈／幾分鐘能到 → show_isochrone；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
+6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
 
 function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
@@ -207,6 +210,7 @@ if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e =
 // abuse guard for a shared/hosted server: per-IP sliding window (agent 30/min, tts 60/min, others 240/min)
 const GATE_FREE = new Set(['/api/health', '/api/mcp/callback']); const rateBuckets = new Map();
 function rateOk(ip, pathname) { const limit = pathname === '/api/agent' ? +(env.RATE_AGENT_PER_MIN || 30) : pathname === '/api/tts' ? +(env.RATE_TTS_PER_MIN || 60) : 240; const key = ip + '|' + (pathname === '/api/agent' || pathname === '/api/tts' ? pathname : 'other'); const now = Date.now(); const arr = (rateBuckets.get(key) || []).filter(t => now - t < 60000); arr.push(now); rateBuckets.set(key, arr); if (rateBuckets.size > 5000) rateBuckets.clear(); return arr.length <= limit; }
+const ORS = createOrsRoutes(env);
 const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root });
 if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
   http.createServer(async (req, res) => {
@@ -226,6 +230,7 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
       if (url.pathname === '/api/mcp/callback') { const err = url.searchParams.get('error'); if (err) return html(res, 400, CALLBACK_PAGE(false, `${err}: ${url.searchParams.get('error_description') || ''}`)); try { await finishAuthorize(url.searchParams.get('code'), url.searchParams.get('state')); const m = await mcpProbe(true); return html(res, 200, CALLBACK_PAGE(m.status === 'live', m.status === 'live' ? `已連上 ${m.server && m.server.name ? m.server.name : 'FUNRAISE MCP'}。` : `已取得 token，但探測回報 ${m.status}（${m.reason || ''}）。`)); } catch (e) { return html(res, 400, CALLBACK_PAGE(false, e.message)); } }
       if (url.pathname === '/api/mcp/logout' && req.method === 'POST') { store.clear(); mcpState = { status: 'unknown', checked: 0 }; return json(res, 200, { ok: true }); }
       if (url.pathname === '/api/agent' && req.method === 'POST') { const body = await readBody(req); const t0 = Date.now(); const out = await runAgent(body); console.log(`[agent] ${out.stop_reason} · ${out.source} · ${out.usage ? out.usage.input_tokens + '→' + out.usage.output_tokens + ' tok' : ''} · ${Date.now() - t0} ms`); return json(res, 200, out); }
+      if (ORS[url.pathname]) { const r = await ORS[url.pathname]({ url, req, res, readBody }); return json(res, r.status, r.json); }
       if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'unknown route' });
       return serveStatic(req, res);
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }

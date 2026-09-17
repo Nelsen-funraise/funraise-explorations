@@ -22,6 +22,8 @@ import { createLighting } from './fx/lighting.js';
 import { createFocus } from './fx/focus.js';
 import { createSunControl } from './ui/sun.js';
 import { readState, writeState, applyView, copyLink } from './share.js';
+import { API } from './api.js';
+import { WalkshedLayer } from './analysis/walkshed.js';
 import { RenewalEnvelope } from './renewal.js';
 
 const D2R = Math.PI / 180;
@@ -46,6 +48,7 @@ async function boot() {
   const layers = new FunraiseLayers(viewer, data, basemap, osm); layers.build();
   let ground = null; try { ground = createGround(viewer, basemap); } catch (e) { console.warn('ground layer unavailable', e); }
   let trips = null; try { trips = new TripsLayer(viewer, data, layers); } catch (e) { console.warn('trips layer unavailable', e); }
+  let walkshed = null; try { walkshed = new WalkshedLayer(viewer, { api: API }); } catch (e) { console.warn('walkshed unavailable', e); }
   let isochrone = null; try { isochrone = new IsochroneLayer(viewer, new MrtNetwork(basemap), { theme: savedTheme === 'light' ? 'light' : 'dark' }); } catch (e) { console.warn('isochrone unavailable', e); }
   const rig = new CameraRig(viewer); rig.bindUserInterrupt(viewer.canvas);
   let floorWalk = null; try { floorWalk = createFloorWalk({ viewer, rig, osm, layers }); } catch (e) { console.warn('floor walk unavailable', e); }
@@ -59,6 +62,7 @@ async function boot() {
   /* ---- map facade shared by the rule-based agent, Claude tool executor and the scene director ---- */
   const map = {
     data, basemap, osm, rig, envelope, lighting, ground, focus, trips, isochrone, floorWalk,
+    walkshed, showWalkshed: (o) => walkshed ? walkshed.show(o) : null, clearWalkshed: () => walkshed && walkshed.clear(), get walkshedActive() { return !!(walkshed && walkshed.active); },
     showIsochrone: (o) => isochrone ? isochrone.show(o) : null, clearIsochrone: () => isochrone && isochrone.clear(), get isochroneActive() { return !!(isochrone && isochrone.active); },
     layerKeys: Object.keys(LAYERS), layerName: k => (LAYERS[k] || { name: k }).name,
     get year() { return timeline.year; }, setYear: y => timeline.set(y),
@@ -134,7 +138,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, presenter, floorWalk, measure, viewerApi: api };
+  window.PL = { Cesium, viewer, map, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, viewerApi: api };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {
