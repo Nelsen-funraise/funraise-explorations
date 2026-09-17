@@ -109,7 +109,7 @@ export const SCENES = [
 ];
 
 export class SceneDirector {
-  constructor(ctx) { this.c = ctx; this.playing = null; this.paused = false; this.stopFlag = false; this.stepIndex = 0; this._snapshot = null; this._resumeFn = null; this._torndown = true; }
+  constructor(ctx) { this.c = ctx; this.playing = null; this.paused = false; this.stopFlag = false; this.stepIndex = 0; this._snapshot = null; this._resumeFn = null; this._torndown = true; this._token = 0; }
 
   /* ---- state the scene borrows from the user (§18.2 舞台接管): look/density/visible layers/year/lens/camera ---- */
   _snapshotState() {
@@ -154,14 +154,19 @@ export class SceneDirector {
    * has finished AND every due beat has resolved (+≤600ms settle) — never a fixed `hold` unless there's no narration
    * at all. Timers are polled rather than trusted (`await wait()` in a loop, re-checking performance.now() each time)
    * so this stays correct even when setInterval/setTimeout are throttled under load. Returns 'done' | 'paused'. */
-  async _runStep(sc, st, idx, total) {
+  async _runStep(sc, st, idx, total, token) {
     const { ui } = this.c; const text = st.text, stage = st.stage || {};
-    const estMs = text ? await ui.speech.duration(text).catch(() => 0) : 0;
-    const minMs = text ? Math.max(estMs, 1200) : (st.hold || 3000);
+    // §18.2 舞台接管 must be IMMEDIATE — never blocked behind a (possibly slow, real-network) TTS duration probe, or
+    // the map would sit unchanged for however long that fetch takes. Stage + beat@0 (camera) fire first; the
+    // duration probe (for pacing/lapse-sizing only) runs after, and speak() itself reuses its cached fetch anyway.
+    // Every checkpoint below checks `this._token !== token` rather than just `this.stopFlag`: stop() bumps _token,
+    // so a step orphaned behind a slow await (a scene stopped, or superseded by a new play()) can never mutate state
+    // that belongs to a later run — even one whose own stopFlag has since been reset back to false by that new play().
+    const stale = () => this._token !== token;
     ui.cine(sc.title, text, { index: idx, total });
-    await this._applyStage(stage, text, minMs + 800);
-    if (this.stopFlag) return 'done'; if (this.paused) return 'paused';
-    const stepCtx = { ...this.c, stepMs: minMs };
+    await this._applyStage(stage, text, 15000);
+    if (stale()) return 'done'; if (this.paused) return 'paused';
+    const stepCtx = { ...this.c, stepMs: 9000 }; // provisional until estMs resolves below; only a beat firing later (at>0) ever reads the corrected value
     const beats = (st.beats && st.beats.length ? st.beats : (st.run ? [{ at: 0, run: st.run }] : [])).slice().sort((a, b) => a.at - b.at);
     const fired = new Set(); let frac = 0;
     const fire = async f => {
@@ -170,14 +175,18 @@ export class SceneDirector {
         try { await b.run(stepCtx); } catch (e) { console.warn('[scene] beat failed', sc.id, idx, e); }
         console.log('[beat]', sc.id, idx, b.at, frac.toFixed(2)); }
     };
-    await fire(0); if (this.stopFlag) return 'done';
+    await fire(0); if (stale()) return 'done'; if (this.paused) return 'paused'; // camera/keys already visible at this point regardless of TTS latency
+    const estMs = text ? await ui.speech.duration(text).catch(() => 0) : 0;
+    if (stale()) return 'done'; if (this.paused) return 'paused';
+    const minMs = text ? Math.max(estMs, 1200) : (st.hold || 3000);
+    stepCtx.stepMs = minMs;
     const t0 = performance.now();
-    const timer = setInterval(() => { if (this.stopFlag || this.paused) return; fire(minMs > 0 ? (performance.now() - t0) / minMs : 1); }, 100);
+    const timer = setInterval(() => { if (stale() || this.paused) return; fire(minMs > 0 ? (performance.now() - t0) / minMs : 1); }, 100);
     const narration = text && ui.speak ? ui.speak(text, { onProgress: fire }).catch(() => ({ ms: 0, source: 'error' })) : Promise.resolve({ ms: 0, source: 'none' });
     const res = await narration; const floorMs = Math.max((res && res.ms) || 0, minMs);
-    while (!this.stopFlag && !this.paused && performance.now() - t0 < floorMs) await wait(120);
+    while (!stale() && !this.paused && performance.now() - t0 < floorMs) await wait(120);
     clearInterval(timer);
-    if (this.stopFlag) return 'done';
+    if (stale()) return 'done';
     if (this.paused) return 'paused';
     await fire(1); await wait(400);
     return 'done';
@@ -194,20 +203,21 @@ export class SceneDirector {
 
   async play(id) {
     const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop();
+    const token = ++this._token; // this run's identity — see _runStep's `stale()`
     this.playing = id; this.stopFlag = false; this.paused = false; this.stepIndex = 0; this._torndown = false;
     const { ui } = this.c; this._snapshot = this._snapshotState();
     const steps = sc.steps.map(st => this._resolveStep(st));
     ui.warmSpeech && ui.warmSpeech(steps.map(s => s.text));
     let i = 0;
-    while (i < steps.length && !this.stopFlag) {
-      if (this.paused) { await new Promise(res => { this._resumeFn = res; }); if (this.stopFlag) break; continue; } // pause landed in the gap between steps
+    while (i < steps.length && !this.stopFlag && this._token === token) {
+      if (this.paused) { await new Promise(res => { this._resumeFn = res; }); if (this.stopFlag || this._token !== token) break; continue; } // pause landed in the gap between steps
       this.stepIndex = i; let outcome;
-      try { outcome = await this._runStep(sc, steps[i], i, steps.length); } catch (e) { console.warn('scene step failed', e); outcome = 'done'; }
-      if (this.stopFlag) break;
-      if (outcome === 'paused') { await new Promise(res => { this._resumeFn = res; }); if (this.stopFlag) break; continue; }
+      try { outcome = await this._runStep(sc, steps[i], i, steps.length, token); } catch (e) { console.warn('scene step failed', e); outcome = 'done'; }
+      if (this.stopFlag || this._token !== token) break;
+      if (outcome === 'paused') { await new Promise(res => { this._resumeFn = res; }); if (this.stopFlag || this._token !== token) break; continue; }
       i++;
     }
-    this._teardown(); this.playing = null;
+    if (this._token === token) { this._teardown(); this.playing = null; } // a newer play()/stop() already owns teardown otherwise
   }
   /** §18.2 統一語音列: a user question mid-scene pauses it (stop speech, freeze beats/lapse) — resume() continues
    * from the current step (re-runs it from its start, not from the exact paused instant: simpler and robust even
@@ -216,7 +226,7 @@ export class SceneDirector {
   pause() { if (!this.playing || this.paused) return false; this.paused = true; this.c.timeline.stopLapse(); this.c.ui.speech && this.c.ui.speech.stop(); return true; }
   resume() { if (!this.playing || !this.paused) return false; this.paused = false; if (this._resumeFn) { const f = this._resumeFn; this._resumeFn = null; f(); } return true; }
   stop() {
-    const wasPlaying = !!this.playing; this.stopFlag = true;
+    const wasPlaying = !!this.playing; this.stopFlag = true; this._token++; // invalidates any _runStep still in flight (see `stale()`)
     if (this.paused && this._resumeFn) { const f = this._resumeFn; this._resumeFn = null; f(); }
     this.paused = false; this.c.timeline.stopLapse(); this.c.ui.speech && this.c.ui.speech.stop();
     if (wasPlaying) this._teardown(); this.playing = null;

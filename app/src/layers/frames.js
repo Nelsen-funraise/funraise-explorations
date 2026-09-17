@@ -82,11 +82,14 @@ export function createFrames({ viewer, osm, layers, data }) {
   }
   if (instances.length) { shellPrimitive = new Cesium.Primitive({ geometryInstances: instances, appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, closed: true, flat: false }), asynchronous: true, allowPicking: false, releaseGeometryInstances: false }); scene.primitives.add(shellPrimitive); }
 
-  /* ---- 屋頂光環＋針腳：entity，跟殼分開存放（entity 好單獨改色／改粗細，殼走 batch attribute） ---- */
+  /* ---- 屋頂光環＋針腳：entity，跟殼分開存放（entity 好單獨改色／改粗細，殼走 batch attribute）。disableDepthTestDistance
+     是刻意的：這一圈光環跟同一棟樓的 funraise.js `stock`量體幾乎貼在同一個屋頂高度上（見 buildStock() 也是用同一個
+     b._h），不加這個的話光環會被自己這棟樓的量體整個蓋住，看起來像沒畫——跟這棟樓「真的擋住別的東西」的一般情況
+     不同，這裡兩塊幾何本來就是同一棟樓，不是誰擋住誰。 ---- */
   for (const { b, foot } of matched) {
     const col = colorFor(b); const built = b._built == null || b._built <= layers.year;
-    const roof = ds.entities.add({ show: built, polyline: { positions: ringPositionsAt(foot.ring, b._h + 0.6), width: 5, material: roofMat(col, 0.9), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000) } });
-    const needle = ds.entities.add({ show: built, polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights([b.lon, b.lat, b._h, b.lon, b.lat, b._h + 10]), width: 1, material: C(col, 0.75), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000) } });
+    const roof = ds.entities.add({ show: built, polyline: { positions: ringPositionsAt(foot.ring, b._h + 0.6), width: 5, material: roofMat(col, 0.9), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
+    const needle = ds.entities.add({ show: built, polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights([b.lon, b.lat, b._h, b.lon, b.lat, b._h + 10]), width: 1, material: C(col, 0.75), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
     recs.set(b.id, { b, roof, needle });
   }
 
@@ -97,7 +100,7 @@ export function createFrames({ viewer, osm, layers, data }) {
     const h = (f.floors_above || 20) * (f.typical_floor_height || 3.6) + 4;
     const side = Math.max(22, Math.min(70, Math.sqrt(f.max_floor_area || 1000) * 1.15));
     const ring = squareRing(f.lon, f.lat, side);
-    const e = ds.entities.add({ polyline: { positions: ringPositionsAt(ring, h + 0.6), width: 3, material: new Cesium.PolylineDashMaterialProperty({ color: C('#93DCE6', .85), gapColor: C('#93DCE6', .12), dashLength: 16 }), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000) } });
+    const e = ds.entities.add({ polyline: { positions: ringPositionsAt(ring, h + 0.6), width: 3, material: new Cesium.PolylineDashMaterialProperty({ color: C('#93DCE6', .85), gapColor: C('#93DCE6', .12), dashLength: 16 }), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 20000), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
     futureRoofs.push(e);
   }
 
