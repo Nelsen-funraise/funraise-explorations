@@ -103,6 +103,41 @@ async function callOrs(env, profile, lon, lat, minutes) {
   return r.json();
 }
 
+/* ============================================================
+ * PEAKLENS_DEMO_LIVE=1 — 沒有 ORS_API_KEY 時，用 irregular 的「不規則 blob」頂替真的路網等時圈，讓
+ * walkshed.js（src/analysis/walkshed.js 的 _drawOrs）可以在沒有金鑰的環境下照樣走「真的路網」那條分支
+ * （而不是退化成同心圓估算圈），適合無頭冒煙測試／截圖。見 docs/11-v2-cesium-app.md §16.8。
+ * 真金鑰永遠優先：這段只在 callOrs() 完全不會被呼叫到的分支（ORS_API_KEY 缺席）才會用到，見下面 walkshed()。
+ * ============================================================ */
+const DEMO_ON = env => env.PEAKLENS_DEMO_LIVE === '1' || env.PEAKLENS_DEMO_LIVE === 'true';
+const DEMO_MPM = { 'foot-walking': 80, 'cycling-regular': 250, 'driving-car': 500 }; // 跟 src/analysis/walkshed.js 的 PROFILE_META.mpm 同一組假設
+/** FNV-1a → mulberry32：seed 字串固定就永遠吐出同一串 [0,1) 亂數（同一個 lon/lat/profile 重打結果一樣，適合快取與截圖比對）。 */
+function seedRng(str) {
+  let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  let t = h >>> 0;
+  return () => { t = (t + 0x6D2B79F5) | 0; let x = Math.imul(t ^ (t >>> 15), 1 | t); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+}
+/**
+ * 每個時間帶一個「不規則 blob」多邊形（不是正圓）：同一次請求的所有 band 共用同一組角度諧波（相位／振幅
+ * 只依 profile+lon+lat 決定，不含 minutes），保證半徑較大的 band 在每個角度都嚴格包住半徑較小的 band——
+ * 跟真的 ORS 等時圈一樣是同心的（見 walkshed.js 檔頭「15 分鐘那塊本身就整個蓋住 10 分鐘那塊」）。
+ * @returns {{type:'FeatureCollection', features:Array}} 形狀跟 ORS Isochrones API 的回應相容：
+ *   features[].properties.value = 秒，features[].geometry 是 GeoJSON Polygon（walkshed.js 的 polygonsOf() 認得）。
+ */
+function demoWalkshedFC(profile, lon, lat, minutesList) {
+  const mpm = DEMO_MPM[profile] || DEMO_MPM['foot-walking'];
+  const rnd = seedRng(`ws:${profile}:${lon.toFixed(4)}:${lat.toFixed(4)}`);
+  const h1 = 0.10 + rnd() * 0.08, h2 = 0.05 + rnd() * 0.05, p1 = rnd() * Math.PI * 2, p2 = rnd() * Math.PI * 2, p3 = rnd() * Math.PI * 2;
+  const shape = th => 1 + h1 * Math.sin(2 * th + p1) + h2 * Math.sin(5 * th + p2) + 0.03 * Math.sin(9 * th + p3); // 恆正（|h1|+|h2|+0.03 < 1），band 之間永遠嚴格同心
+  const mLon = 111320 * Math.cos(lat * Math.PI / 180), mLat = 110540, N = 28;
+  const features = minutesList.map(minutes => {
+    const radiusM = mpm * minutes; const ring = [];
+    for (let k = 0; k <= N; k++) { const th = (k / N) * Math.PI * 2; const r = radiusM * shape(th); ring.push([lon + (r * Math.cos(th)) / mLon, lat + (r * Math.sin(th)) / mLat]); }
+    return { type: 'Feature', properties: { value: minutes * 60, group_index: 0 }, geometry: { type: 'Polygon', coordinates: [ring] } };
+  });
+  return { type: 'FeatureCollection', features };
+}
+
 /**
  * @param {Record<string,string>} env 已合併 .env + process.env 的環境變數（見 server/index.mjs 的 loadEnv）
  * @returns {{ '/api/walkshed': (ctx: { url: URL }) => Promise<{status:number, json:any}> }}
@@ -124,7 +159,10 @@ export function createOrsRoutes(env) {
     const cached = cache.get(key);
     if (cached) return { status: 200, json: cached }; // 快取命中：不佔配額、不管有沒有金鑰
 
-    if (!env.ORS_API_KEY) return { status: 503, json: { error: 'ORS_API_KEY not set', fallback: true } };
+    if (!env.ORS_API_KEY) {
+      if (DEMO_ON(env)) { const out = { ...demoWalkshedFC(profile, lon, lat, minutes), source: 'ors', profile, minutes, demo: true }; cache.set(key, out); return { status: 200, json: out }; }
+      return { status: 503, json: { error: 'ORS_API_KEY not set', fallback: true } };
+    }
     if (!allow()) return { status: 429, json: { error: `已超過每分鐘 ${RATE_MAX_PER_MIN} 次的配額保護，稍後再試`, fallback: true } };
 
     try {

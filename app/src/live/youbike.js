@@ -20,7 +20,11 @@ async function fetchYouBike(api) {
     const r = await fetcher(url);
     if (!r || !r.ok) throw new Error('HTTP ' + (r && r.status));
     const json = await r.json();
-    return Array.isArray(json) ? json : [];
+    // 平常回傳裸陣列；PEAKLENS_DEMO_LIVE=1 時 server 改回 { stations, demo:true }（陣列裝不下 demo 旗標，
+    // JSON.stringify 一個陣列不會序列化額外欄位），兩種形狀這裡都吃。
+    if (Array.isArray(json)) return json;
+    if (json && Array.isArray(json.stations)) return json.stations;
+    return [];
   } catch (e) { console.warn('[youbike] /api/youbike fetch failed:', e.message); return null; } // null = 這次沒拿到；跟上一次的畫面保持不動，不要清空
 }
 

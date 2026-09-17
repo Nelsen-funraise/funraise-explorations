@@ -26,6 +26,22 @@ const LAYER_WORDS = [
 // alias → [lon, lat, range m]
 const ALIASES = { '信義計畫區': [121.5670, 25.0360, 2600], '內科': [121.5750, 25.0790, 3200], '內湖科技園區': [121.5750, 25.0790, 3200], '南軟': [121.6126, 25.0576, 1800], '南港軟體園區': [121.6126, 25.0576, 1800], '北車': [121.5170, 25.0478, 1500], '台北車站': [121.5170, 25.0478, 1500], '東區': [121.5490, 25.0415, 1800], '忠孝敦化': [121.5490, 25.0415, 1800], '大直': [121.5470, 25.0800, 2400], '中山北路': [121.5230, 25.0600, 2200], '台北101': [121.5645, 25.0339, 700], '101': [121.5645, 25.0339, 700], '大安森林公園': [121.5360, 25.0300, 2000], '西門町': [121.5070, 25.0430, 1600], '板橋': [121.4630, 25.0130, 5000], '新板特區': [121.4640, 25.0140, 1600], '南港': [121.6070, 25.0550, 5000], '內湖': [121.5880, 25.0690, 6500], '松山機場': [121.5520, 25.0690, 2600], '臺北機廠': [121.5610, 25.0470, 1400], '台北機廠': [121.5610, 25.0470, 1400], '雙北': [121.5300, 25.0400, 40000], '台北': [121.5450, 25.0500, 20000], '台北市': [121.5450, 25.0500, 20000] };
 
+// Apply a Look preset (§16.2): delegates to ui.setLook(name, opts) — the real implementation lives in compose.js,
+// owned by another agent, whose setLook takes an options object ({quiet}), not a raw hour — when it isn't there yet,
+// approximate it with the existing theme/sun/quality primitives so present_place / set_look / tryLocal still work.
+// Always returns a promise resolving to {ok, ...}; quiet:true avoids a redundant toast under the caller's own narration.
+export async function applyLook(ui, look, hour) {
+  if (ui.setLook) return ui.setLook(look, { hour, quiet: true });
+  if (look === 'white') { ui.setTheme('light', true); ui.setSun(null, true); ui.setQuality && ui.setQuality({ ao: false, bloom: false, hdr: false }); }
+  else if (look === 'sun') { ui.setTheme('light', true); ui.setSun(hour ?? 12, true); ui.setQuality && ui.setQuality({ ao: false, bloom: false, hdr: false }); }
+  else if (look === 'golden') { ui.setTheme('light', true); ui.setSun(hour ?? 17, true); ui.setQuality && ui.setQuality({ bloom: true, hdr: true }); }
+  else if (look === 'night') { ui.setTheme('dark', true); ui.setSun(null, true); ui.setQuality && ui.setQuality({ bloom: true, hdr: true }); }
+  else if (look === 'photoreal') { ui.setTheme('light', true); ui.setSun(null, true); }
+  return { ok: true, look };
+}
+// zh-TW data-question tells (哪些/多少/比較/為什麼/交易/租金/都更/建照/公司/開在哪…) that route straight to the LLM/MCP instead of tryLocal.
+const DATA_HINT = /哪些|多少|為什麼|開在哪|交易|租金|都更|建照|公司|租戶|誰在|進駐|歷史|實價|成交|容積|建蔽|分區|zoning|可建|供給|會長出|蓋什麼|新建案|pipeline|上市|上櫃|法人|買了|賣了|資產交易|取得|處分|資本流|比較|比一比|對比|排名|排行|遷入|遷徙|搬進|搬到|企業流動|增資|新設|盡職|生命週期|memo|備忘|簡報|總結|摘要|現在看到|這裡有什麼|狀況|更新單元|危老|規劃中|興建中/i;
+
 export class Agent {
   constructor(map, data, ui) { this.map = map; this.d = data; this.ui = ui; this.lens = 'occupier'; this.busy = false; }
   get year() { return this.map.year; }
@@ -72,8 +88,84 @@ export class Agent {
   yearsFromText(text) { const m = text.match(/(20\d{2})/); if (m) return +m[1]; const r = text.match(/(1[0-2]\d)年/); return r ? +r[1] + 1911 : null; }
   monthsFromText(text) { if (/半年/.test(text)) return 6; if (/一年|12個月|十二個月|過去一年|最近一年/.test(text)) return 12; if (/兩年|2年/.test(text)) return 24; const m = text.match(/(\d+)\s*個月/); return m ? +m[1] : null; }
   async call(turn, tool, params, fn) { const card = this.ui.toolStart(turn, tool, params); await sleep(rnd(160, 520)); const res = fn(); this.ui.toolDone(card, res.summary); return res.value; }
+  // Fast path for AI mode (Phase 9C §16.6): deterministic UI/camera/look/layer/scene intents, executed with 0 LLM round-trips.
+  // Returns true once it has created its own turn and answered; false for data questions (see DATA_HINT) or anything
+  // unrecognized, so ClaudeClient.handle falls through to the LLM. Never touches this.busy — callers own their own concurrency.
+  tryLocal(text) {
+    if (!text) return false; const t = norm(text); if (DATA_HINT.test(t)) return false; const T = () => this.ui.agentTurn();
+    if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) { this.finish(T(), '我聽得懂：「帶我去○○」、「環繞／街景／俯視／全台／時光模式」、「切到白模／日照／黃金時刻／夜景／相片級」、「沉浸／平衡／標註模式」、「顯示／隱藏 都更／建照／上市公司交易」、「釘在地圖上」、「分享這個視角」、「量距離／量面積」、「切換 投資人／開發商／選址／城市／學研 視角」。資料問題（比較、排名、租金、都更…）我會查 FUNRAISE 即時資料。'); return true; }
+    if (has(t, /沉浸|immersive|乾淨一點|清爽|只留地圖/)) { this.ui.setDensity('immersive'); this.finish(T(), '切到沉浸模式：只留地圖、鏡與指令；面板收成左右邊緣的把手，回答改用字幕。'); return true; }
+    if (has(t, /標註模式|annotated|多一點資料|資料模式|全部展開|分析模式/)) { this.ui.setDensity('annotated'); this.finish(T(), '切到標註模式：資料欄全開，接下來亮起的物件會在地圖上加編號，並對應左側「地圖標註」卡片。'); return true; }
+    if (has(t, /平衡模式|balanced|一般模式|預設密度/)) { this.ui.setDensity('balanced'); this.finish(T(), '切回平衡模式。'); return true; }
+    if (has(t, /^釘|釘在地圖|釘選|pin/)) { const s = this.map.selected; if (!s) { this.finish(T(), '先點選一個物件，再說「釘在地圖上」。'); return true; } this.ui.pin(s.item, s.layer); this.finish(T(), `已把「${s.item.name || s.item.company_name || s.key}」釘在地圖上，卡片會跟著它移動。`); return true; }
+    if (has(t, /夜視|night/i)) { this.ui.setSensor('night'); this.finish(T(), '切到夜視感測。'); return true; }
+    if (has(t, /熱感|熱像|thermal/i)) { this.ui.setSensor('thermal'); this.finish(T(), '切到熱感測：暖色代表高單價／高熱度。'); return true; }
+    if (has(t, /藍圖|blueprint/i)) { this.ui.setSensor('blueprint'); this.finish(T(), '切到藍圖感測。'); return true; }
+    if (has(t, /一般感測|正常畫面|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); this.finish(T(), '回到一般畫面。'); return true; }
+    if (/YouBike|ubike|共享單車/i.test(t) || (/腳踏車|單車/.test(t) && /站|柱|借|還|即時/.test(t))) { const on = !/關|隱藏|取消|off/i.test(t); if (this.ui.setYouBike) { this.ui.setYouBike(on); this.finish(T(), `${on ? '顯示' : '隱藏'} YouBike 2.0 即時站點：點大小是可借車數。`); return true; } }
+    if (has(t, /(走路|步行|騎車|腳踏車|單車|開車).*\d*\s*分|步行圈|生活圈|walkshed/)) { this.walkshed(text, T()); return true; }
+    if (has(t, /等時圈|通勤圈|捷運圈|((捷運|通勤).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) { this.isochrone(text, T()); return true; }
+    if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {
+      if (/取消|關掉|離開|退出|解除/.test(t)) { this.ui.focus(null, null, false); this.finish(T(), '已取消對焦，城市恢復。'); return true; }
+      const sel = this.map.selected; const byName = (this.d.buildings || []).find(b => b.name && t.includes(b.name.replace(/大樓$/, ''))) || null;
+      const item = byName || (sel && sel.item); const layer = byName ? 'stock' : (sel && sel.layer);
+      if (!item || item.lat == null) { this.finish(T(), '先點選一棟大樓，或說「對焦台北101」。'); return true; }
+      this.ui.select(item, layer); this.ui.focus(item, layer, true); this.map.flyTo(item.lon, item.lat, { range: 620, pitch: -38 });
+      this.finish(T(), `對焦「${item.name || item.company_name}」：其餘量體與標註淡出，只留這棟與 320 m 內的脈絡。說「取消對焦」恢復。`); return true;
+    }
+    if (has(t, /段籍|地段界|地籍界|建物框|公有土地|公有地|液化|道路路網|疊圖|overlay/i)) {
+      const K = [['landsect', /段籍|地段|地籍/], ['buildx', /建物框|分棟/], ['publicland', /公有/], ['liquefaction', /液化/], ['road', /道路/]]; const hit = K.filter(([, re]) => re.test(t)).map(([k]) => k); const off = /關|移除|拿掉|取消|隱藏/.test(t);
+      const names = { landsect: '段籍界', buildx: '分棟建物框', publicland: '公有土地', liquefaction: '土壤液化潛勢', road: '道路路網' };
+      if (!hit.length) { this.finish(T(), '可疊的國土測繪中心圖層：段籍界、分棟建物框、公有土地、土壤液化潛勢、道路路網。'); return true; }
+      for (const k of hit) this.ui.setOverlay(k, !off); this.finish(T(), `${off ? '移除' : '疊上'}${hit.map(k => names[k]).join('、')}。`); return true;
+    }
+    if (has(t, /底圖|basemap|正射|衛星|電子地圖|deep ?dark|dark ?matter|positron|carto/i)) {
+      const key = /衛星/.test(t) ? 'esri' : /電子地圖/.test(t) ? 'nlsc_emap' : /正射|航照/.test(t) ? 'nlsc_photo' : /dark ?matter|carto.*深|深色.*carto/i.test(t) ? 'carto_dark' : /深灰|esri.*深|深色/.test(t) ? 'esri_dark' : /positron|carto/i.test(t) ? 'carto_light' : /淺|白|灰/.test(t) ? 'esri_light' : null;
+      if (key) { this.ui.setBasemap(key); this.finish(T(), `底圖切到 ${key.replace('_', ' ')}。`); return true; }
+    }
+    if (has(t, /環境光|AO|泛光|bloom|HDR|畫質|色調映射/i)) { const on = !/關|取消|off/i.test(t); const q = {}; if (/環境光|AO/i.test(t)) q.ao = on; if (/泛光|bloom/i.test(t)) q.bloom = on; if (/HDR|色調/i.test(t)) q.hdr = on; if (!Object.keys(q).length) q.ao = on; const cur = this.ui.setQuality(q); this.finish(T(), `畫質：環境光遮蔽 ${cur.ao ? '開' : '關'} · 泛光 ${cur.bloom ? '開' : '關'} · HDR ${cur.hdr ? '開' : '關'}。`); return true; }
+    if (has(t, /分享|複製.*連結|這個視角的連結|share/i)) { this.ui.shareView && this.ui.shareView(); this.finish(T(), '已把這個視角做成連結並複製；貼給同事打開就是同一個畫面。'); return true; }
+    if (has(t, /更好.*(視角|角度)|好一點.*(視角|角度)|呈現一下|漂亮(的)?(視角|角度)|好看(的)?(視角|角度)|展示一下(這裡|這棟)?/)) {
+      const p = this.resolvePlace(text); const sel = this.map.selected; const c = p || (sel && sel.item && sel.item.lat != null ? sel.item : null) || this.map.center();
+      this.map.orbit(c.lon, c.lat, (p && p.range) || 900); this.ui.setMode('orbit'); applyLook(this.ui, 'golden');
+      this.finish(T(), `${p ? '飛到 ' + p.name + '，' : ''}切到環繞視角＋黃金時刻，這樣呈現比較好看。`); return true;
+    }
+    if (has(t, /日照|陰影|影子|黃金時刻|golden|夕陽|正午|清晨|暮色|太陽/)) {
+      if (has(t, /關|平光|取消|off/i)) { applyLook(this.ui, 'white'); this.finish(T(), '日照關閉，回到平光。'); return true; }
+      if (has(t, /一天|播放|掃過|整天|sweep/i)) { this.ui.sweepSun(); this.finish(T(), '播放一天：太陽從 06:30 走到 18:15，看陰影掃過街廓。'); return true; }
+      const hm = t.match(/(\d{1,2})\s*[:：點時]\s*(\d{2})?/); const preset = /清晨|日出|dawn/i.test(t) ? 6.5 : /上午|早上|morning/i.test(t) ? 9 : /正午|中午|noon/i.test(t) ? 12 : /暮色|傍晚|dusk|日落/i.test(t) ? 18.25 : /黃金|golden|夕陽/i.test(t) ? 17 : null;
+      const h = hm ? Math.min(19.5, Math.max(5.5, +hm[1] + (hm[2] ? +hm[2] / 60 : 0))) : (preset ?? 17); const golden = Math.abs(h - 17) < 0.01 && /黃金|golden|夕陽/i.test(t);
+      applyLook(this.ui, golden ? 'golden' : 'sun', h); this.finish(T(), `切到 ${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')} 的日照：量體投影到鄰地${golden ? '（黃金時刻，適合展示）' : ''}。`); return true;
+    }
+    if (has(t, /白模|白色量體|white ?model/i)) { applyLook(this.ui, 'white'); this.finish(T(), '切到白模：平光、白色量體，適合分析與閱讀資料。'); return true; }
+    if (has(t, /相片級|photoreal|真實感/i)) { applyLook(this.ui, 'photoreal'); this.finish(T(), '切到相片級外觀（需要 Google 3D Tiles 金鑰，沒有的話會維持白模）。'); return true; }
+    if (has(t, /夜景/) && !has(t, /夜視/)) { applyLook(this.ui, 'night'); this.finish(T(), '切到夜景：夜景窗燈、道路光帶，適合戰情室展示。'); return true; }
+    if (has(t, /日間|白天|關掉夜間|日景/)) { this.ui.setNight(false); this.finish(T(), '切到日間影像。'); return true; }
+    if (has(t, /夜間|夜色/)) { this.ui.setNight(true); this.finish(T(), '切到夜間色調。'); return true; }
+    if (has(t, /環繞|orbit|繞一圈|轉一圈/)) { const p = this.resolvePlace(text); const c = p || this.map.center(); this.map.orbit(c.lon, c.lat, p && p.kind === 'stock' ? 700 : (p ? Math.min(p.range || 1400, 2200) : 1400)); this.ui.setMode('orbit'); this.finish(T(), `進入環繞模式${p ? '，鎖定 ' + p.name : ''}。拖曳可隨時接手。`); return true; }
+    if (has(t, /街景|street|走進|地面|路面|走到/)) { const p = this.resolvePlace(text); const c = p || this.map.center(); this.map.street(c.lon, c.lat); this.ui.setMode('street'); this.finish(T(), `切到街景視角${p ? '：' + p.name : ''}。`); return true; }
+    if (has(t, /俯視|全景|拉遠|城市視角|回到上空|上空/)) { this.map.city(); this.ui.setMode('city'); this.finish(T(), '拉回城市俯視。'); return true; }
+    if (has(t, /全台|台灣全圖|globe|地球/)) { this.map.globe(); this.ui.setMode('globe'); this.finish(T(), '拉到全台。示範資料以雙北為主。'); return true; }
+    if (has(t, /時光|time.?lapse|快轉|時間軸|回到(19|20)\d{2}|回到\d{2,3}年/)) { const y = this.yearsFromText(text); if (y) { this.map.setYear(y); this.finish(T(), `時間軸移到 ${y} 年。`); return true; } this.ui.setMode('timelapse'); this.finish(T(), '啟動時光模式：從 2012 年快轉到 2030 年的供給 pipeline。'); return true; }
+    const lensHit = has(t, /投資|資本|investor|壽險|reits/) ? 'investor' : has(t, /開發商|建商|developer|都更整合|開發視角|開發鏡/) ? 'developer' : has(t, /選址|總務|occupier|租戶視角|企業視角|選址鏡/) ? 'occupier' : has(t, /政府|城市|市府|治理|city|首長/) ? 'city' : has(t, /學研|研究|學術|老師|research|校園/) ? 'research' : null;
+    if (lensHit && has(t, /視角|鏡|切換|模式|lens|角度|給我看/)) { this.setLens(lensHit); this.finish(T(), `切換到${LENSES[lensHit].name}（${LENSES[lensHit].who}）。圖層、KPI 與建議指令已重新配置。`); return true; }
+    const toggle = has(t, /隱藏|關閉|關掉|拿掉|hide/) ? false : has(t, /顯示|打開|開啟|只看|show|疊上|加上/) ? true : null;
+    if (toggle !== null) { const hits = LAYER_WORDS.filter(([, re]) => re.test(t)).map(([k]) => k); if (hits.length) { if (has(t, /只看/)) { for (const k of this.map.layerKeys) this.ui.setLayer(k, hits.includes(k) || k === 'mrt'); } else hits.forEach(k => this.ui.setLayer(k, toggle)); this.finish(T(), `${toggle ? '顯示' : '隱藏'}圖層：${hits.map(k => this.map.layerName(k)).join('、')}。`); return true; } }
+    if (has(t, /動線|播放.*遷徙|重播.*遷徙|遷徙.*動畫|migration/)) { this.tripsPlay(text, T()); return true; }
+    if (has(t, /站在|站上|從\s*(\d+)\s*[樓F].*看|第\s*(\d+)\s*樓.*(視野|看出去)|樓層視角/)) {
+      if (/離開|退出|結束/.test(t) && this.map.floorWalk) { this.map.floorWalk.exit(); this.finish(T(), '離開樓層視角。'); return true; }
+      const sel = this.map.selected && this.map.selected.item && this.map.selected.item.lat ? this.map.selected.item : null; const p = this.resolvePlace(text); const b = (p && p.kind === 'stock' && p.item) || (this.d.buildings || []).find(x => x.name && t.includes(x.name.replace(/大樓$/, ''))) || sel;
+      if (!b || b.lat == null || !this.map.floorWalk) return false;
+      const fm = text.match(/(\d+)\s*[樓F]/i); const floor = fm ? +fm[1] : null; this.map.floorWalk.enter({ lon: b.lon, lat: b.lat, name: b.name, floors: b.floor_above || 20, floor });
+      this.finish(T(), `站上${b.name || ''}${floor ? ` ${floor} 樓` : ''}向外看：拖曳看四周、滾輪換樓層、W/S 前進、A/D 轉向、Esc 離開。`); return true;
+    }
+    if (has(t, /量.*(距離|多遠)|測距|量.*面積|畫.*基地|自訂基地|手繪/)) { const mode = /畫.*基地|自訂基地|手繪/.test(t) ? 'site' : /面積/.test(t) ? 'area' : 'distance'; if (!this.ui.startTool) return false; this.ui.startTool(mode); this.finish(T(), `已切到「${{ distance: '量距離', area: '量面積', site: '畫基地' }[mode]}」：在地圖上點擊加點、雙擊完成、右鍵退一步、Esc 取消。`); return true; }
+    if (has(t, /展示模式|簡報模式|presenter|上台/)) { const willEnter = !(this.ui.presenter && this.ui.presenter.active); this.ui.presenter && this.ui.presenter.toggle(); this.finish(T(), willEnter ? '進入展示模式：←→ 切換場景、空白鍵播放或停止、Esc 離開。' : '離開展示模式。'); return true; }
+    const p = this.resolvePlace(text); if (p) { this.goto(p, T()); return true; }
+    return false;
+  }
   async handle(text) {
-    if (!text || this.busy) return; this.busy = true; const t = norm(text); this.ui.userTurn(text); const a = this.ui.agentTurn();
+    if (!text || this.busy) return; this.busy = true; this.ui.speech && this.ui.speech.stop(); const t = norm(text); this.ui.userTurn(text); const a = this.ui.agentTurn();
     try {
       if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) return this.finish(a, '我聽得懂：「模擬○○都更」、「沉浸／平衡／標註模式」、「釘在地圖上」、「帶我去 ○○」、「切換 投資人／開發商／選址／城市／學研 視角」、「顯示／隱藏 都更／建照／上市公司交易」、「這裡容積率多少」、「2028 年南港會長出什麼」、「最近半年信義區上市公司買了什麼」、「比較 A 商圈和 B 商圈的租金」、「哪些公司遷入中山區」、「環繞／街景／俯視／全台／時光模式」、「夜視／熱感／藍圖」。或按「▶ 場景」看電影式導覽。');
       if (has(t, /沉浸|immersive|乾淨一點|清爽|只留地圖/)) { this.ui.setDensity('immersive'); return this.finish(a, '切到沉浸模式：只留地圖、鏡與指令；面板收成左右邊緣的把手，回答改用字幕。'); }

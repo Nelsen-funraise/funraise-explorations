@@ -114,3 +114,44 @@ Coordinates are integers: x=round((lon-origin_lon)*1e6), y=round((lat-origin_lat
 height_dm = round(height_m*10). name (4th array element) present only when the building has a name.
 
 `osm_landmarks.json`: array of `{name, lon, lat, height_m}` polygon centroids, named buildings >=60m tall, max 300, sorted tallest first.
+
+<!-- osm-parts-section:begin -->
+## building:part 分段量體（scripts/fetch-osm-parts.mjs；最後更新 2026-09-17）
+
+Fetched from https://overpass.kumi.systems/api/interpreter — same bbox/tiling as the building footprints above (§16.7 地標形狀). Latest supplementary merge: bbox [121.535,25.055,121.545,25.065] → 308 new part(s) added (2 already present), 39 parent(s) re-checked for suppression.
+
+- Ways fetched (raw, before de-dup, cumulative across all runs): 918
+- Unique building:part ways (cumulative): 918
+- Parts kept: 11394
+- Skipped — no usable height (no height／building:levels tag), cumulative: 15
+- Skipped — degenerate ring, cumulative: 2
+- Matched to a parent building footprint: 10399 · standalone (no parent match): 995
+- Suppressed parents (parts cover >=60% of footprint area, parent box no longer drawn — only the parts render): 1819
+- Sub-tiles missing (still failing after retries + adaptive splitting): 16 — [[121.565,25.015,121.575,25.025],[121.62,25.015,121.625,25.025],[121.62,25.025,121.625,25.035],[121.525,25.035,121.535,25.045],[121.575,25.065,121.585,25.075],[121.595,25.055,121.605,25.065],[121.615,25.055,121.62,25.065],[121.62,25.055,121.625,25.065],[121.615,25.065,121.62,25.075],[121.505,25.075,121.515,25.085],[121.495,25.085,121.505,25.095],[121.525,25.075,121.535,25.085],[121.565,25.075,121.575,25.085],[121.555,25.085,121.565,25.095],[121.575,25.085,121.585,25.095],[121.585,25.085,121.595,25.095]]
+
+### Top landmarks by tallest part
+
+- 台北101 — 508.0 m (suppressed parent — parent box replaced by parts)
+- 台北天空塔 — 280.0 m (suppressed parent — parent box replaced by parts)
+- 新光人壽保險摩天大樓 — 237.7 m (suppressed parent — parent box replaced by parts)
+- 國泰置地廣場 — 192.0 m (suppressed parent — parent box replaced by parts)
+- 遠東國際大飯店 — 164.7 m (parent box kept alongside parts)
+- 統一國際大樓 — 153.8 m (suppressed parent — parent box replaced by parts)
+- 南山廣場 — 153.6 m (suppressed parent — parent box replaced by parts)
+- 市府轉運站 — 153.4 m (suppressed parent — parent box replaced by parts)
+- 聯合報辦公大樓 — 145.6 m (suppressed parent — parent box replaced by parts)
+- 南港車站 — 139.0 m (parent box kept alongside parts)
+- 和平大苑 — 128.0 m (suppressed parent — parent box replaced by parts)
+- 台北中華大樓 — 127.4 m (suppressed parent — parent box replaced by parts)
+- 台電大樓 — 114.5 m (suppressed parent — parent box replaced by parts)
+- 國貿大樓 — 112.0 m (suppressed parent — parent box replaced by parts)
+- 遠雄金融中心 — 105.6 m (suppressed parent — parent box replaced by parts)
+- 琢白 — 105.6 m (suppressed parent — parent box replaced by parts)
+- 國泰金融中心 — 105.0 m (suppressed parent — parent box replaced by parts)
+- Qinmei Puzhen — 102.4 m (suppressed parent — parent box replaced by parts)
+- Jingwang — 102.4 m (suppressed parent — parent box replaced by parts)
+- 新光信義傑仕堡 — 102.0 m (parent box kept alongside parts)
+<!-- osm-parts-section:end -->
+
+
+

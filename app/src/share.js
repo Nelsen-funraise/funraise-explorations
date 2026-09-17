@@ -1,12 +1,12 @@
-// View-state deep links: the URL hash carries camera + lens + year + theme + density + layers (+ sun hour, scene) so a view can be shared or bookmarked.
-// #v=lon,lat,height,heading,pitch&lens=investor&y=2026&t=light&d=balanced&L=stock,mops&sun=17&scene=investor
+// View-state deep links: the URL hash carries camera + lens + year + theme + density + layers (+ sun hour, look, scene) so a view can be shared or bookmarked.
+// #v=lon,lat,height,heading,pitch&lens=investor&y=2026&t=light&d=balanced&L=stock,mops&sun=17&look=golden&scene=investor
 import * as Cesium from 'cesium';
 const D2R = Math.PI / 180;
 
 export function readState(hash = location.hash) {
   const h = String(hash || '').replace(/^#/, ''); if (!h) return null; const p = new URLSearchParams(h); const st = {};
   const v = p.get('v'); if (v) { const a = v.split(',').map(Number); if (a.length === 5 && a.every(Number.isFinite)) st.view = { lon: a[0], lat: a[1], height: a[2], heading: a[3], pitch: a[4] }; }
-  for (const k of ['lens', 't', 'd', 'scene']) if (p.get(k)) st[k] = p.get(k);
+  for (const k of ['lens', 't', 'd', 'scene', 'look']) if (p.get(k)) st[k] = p.get(k);
   if (p.get('y') && Number.isFinite(+p.get('y'))) st.year = +p.get('y');
   if (p.get('L')) st.layers = p.get('L').split(',').filter(Boolean);
   if (p.get('sun') && Number.isFinite(+p.get('sun'))) st.sun = +p.get('sun');
@@ -18,6 +18,7 @@ export function writeState({ map, ui, agent }) {
   const parts = [`v=${lon.toFixed(5)},${lat.toFixed(5)},${Math.round(h)},${(+map.heading).toFixed(1)},${(+map.pitch).toFixed(1)}`];
   if (agent && agent.lens) parts.push('lens=' + agent.lens);
   parts.push('y=' + map.year, 't=' + (ui.theme || 'light'), 'd=' + (ui.density || 'balanced'));
+  if (map.compose && map.compose.look) parts.push('look=' + map.compose.look);
   const L = ui.visibleLayers ? ui.visibleLayers() : []; if (L.length) parts.push('L=' + L.join(','));
   if (ui.sunHour != null) parts.push('sun=' + (+ui.sunHour).toFixed(2).replace(/\.?0+$/, ''));
   const url = location.pathname + location.search + '#' + parts.join('&');

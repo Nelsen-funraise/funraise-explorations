@@ -11,10 +11,11 @@ God's Eye View 同款底座：**57,458 棟 OpenStreetMap 3D 建物 × 國土測�
 
 ```bash
 cd app && npm ci && npm run dev        # http://localhost:5173
-npm run server                          # 選配：Claude 模式 agent server（.env 設 ANTHROPIC_API_KEY / FUNRAISE_MCP_*）
+npm run server                          # 選配：AI agent server（OpenAI 或 Anthropic 金鑰、氣象／AQI／TDX／ORS 金鑰都貼在 http://localhost:8790/setup）
+# Mac：Finder 進 app/ 雙擊 PeakLens.command 即可（自動安裝、建置、啟動並開設定頁）
 ```
 - 線上版（GitHub Pages，需在 repo Settings → Pages 選 GitHub Actions 後由 `main` 自動部署）：https://nelsen-funraise.github.io/funraise-explorations/
-- 說明、架構、資料授權與 **給 Mike 的 8 分鐘 demo 腳本**：[`docs/11-v2-cesium-app.md`](docs/11-v2-cesium-app.md)
+- 說明、架構、資料授權與 **給 Mike 的 8 分鐘 demo 腳本**：[`docs/11-v2-cesium-app.md`](docs/11-v2-cesium-app.md)；金鑰怎麼放（§14）、Mac／純網頁／自架 server 評估（§15）、**視圖語法與合成規則**（§16–17：尺度預算、Look 預設、說明模式、快照優先的 agent、價值時光機、台北101 分段量體）
 
 ![v2 overview](docs/assets/v2-overview.jpg)
 

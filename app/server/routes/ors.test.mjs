@@ -109,5 +109,47 @@ console.log('\n=== 5) ORS 回錯（例如額度用盡）→ 原樣傳回 status 
   }
 }
 
+console.log('\n=== 6) PEAKLENS_DEMO_LIVE=1：沒有 ORS_API_KEY 時回擬真等時圈（200 + demo:true），旗標關掉或有真金鑰都不受影響 ===');
+{
+  console.log('-- 6a) 沒有金鑰、demo 旗標關掉（預設）→ 跟第 1 節一樣還是 503，行為不變 --');
+  const routesOff = createOrsRoutes({});
+  const rOff = await routesOff['/api/walkshed']({ url: urlOf('lon=121.5645&lat=25.0339&minutes=5,10,15') });
+  check('demo off: status', rOff.status, 503);
+  assert('demo off: no demo flag leaks in', rOff.json.demo === undefined);
+
+  console.log('-- 6b) 沒有金鑰、demo 旗標開 → 200，GeoJSON 形狀跟 walkshed.js 的 polygonsOf()/_drawOrs() 期待的一致 --');
+  const routesDemo = createOrsRoutes({ PEAKLENS_DEMO_LIVE: '1' });
+  const q = 'lon=121.5645&lat=25.0339&profile=foot-walking&minutes=5,10,15';
+  const r1 = await routesDemo['/api/walkshed']({ url: urlOf(q) });
+  check('demo on: status', r1.status, 200);
+  check('demo on: source', r1.json.source, 'ors');
+  check('demo on: demo flag', r1.json.demo, true);
+  check('demo on: minutes echoed back (parsed/sorted)', r1.json.minutes, [5, 10, 15]);
+  assert('demo on: one feature per band', Array.isArray(r1.json.features) && r1.json.features.length === 3);
+  assert('demo on: each feature is a Polygon with a closed-enough ring (>=4 pts) and properties.value in seconds',
+    r1.json.features.every((f, i) => f.geometry.type === 'Polygon' && f.geometry.coordinates[0].length >= 4 && f.properties.value === [5, 10, 15][i] * 60));
+  const maxDistM = ring => { let best = 0; for (const [lo, la] of ring) { const d = Math.hypot((lo - 121.5645) * 111320 * Math.cos(25.0339 * Math.PI / 180), (la - 25.0339) * 110540); if (d > best) best = d; } return best; };
+  const radii = r1.json.features.map(f => maxDistM(f.geometry.coordinates[0]));
+  assert('demo on: bands nest (5min radius < 10min radius < 15min radius, same angular shape)', radii[0] < radii[1] && radii[1] < radii[2]);
+
+  console.log('-- 6c) 同樣的 lon/lat/profile 但换一個全新的 routes 實例（沒有共用快取）→ 種子化偽隨機仍算出同一組 blob --');
+  const routesDemo2 = createOrsRoutes({ PEAKLENS_DEMO_LIVE: '1' });
+  const r2 = await routesDemo2['/api/walkshed']({ url: urlOf(q) });
+  check('demo on: deterministic across fresh instances (no shared cache)', r2.json, r1.json);
+
+  console.log('-- 6d) 有真金鑰時 demo 旗標不該蓋掉真資料（never override real keys）：一律照樣打 ORS --');
+  const realFetch = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; return { ok: true, status: 200, json: async () => ({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { value: 300 }, geometry: { type: 'Polygon', coordinates: [[[121.56, 25.03], [121.561, 25.03], [121.561, 25.031], [121.56, 25.03]]] } }] }) }; };
+  try {
+    const routesKeyed = createOrsRoutes({ ORS_API_KEY: 'real-key', PEAKLENS_DEMO_LIVE: '1' });
+    const r3 = await routesKeyed['/api/walkshed']({ url: urlOf('lon=25&lat=25&minutes=5') });
+    check('real key + demo on: status', r3.status, 200);
+    assert('real key + demo on: real ORS actually called', calls === 1);
+    assert('real key + demo on: response is NOT the demo fixture', r3.json.demo === undefined);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

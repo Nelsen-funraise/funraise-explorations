@@ -79,8 +79,8 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 .brand .name{font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--gray-50)}
 .brand .name em{font-style:normal;color:var(--blue-400);font-weight:600}
 .brand .sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase}
-.lenses{display:flex;gap:4px;margin-left:8px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur)}
-.lens-btn{padding:5px 11px;font-size:12px;font-weight:500;border-radius:999px;border-color:transparent;display:flex;gap:6px;align-items:center;line-height:16px}
+.lenses{display:flex;gap:4px;margin-left:8px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur);white-space:nowrap;flex-shrink:0}
+.lens-btn{padding:5px 11px;font-size:12px;font-weight:500;border-radius:999px;border-color:transparent;display:flex;gap:6px;align-items:center;line-height:16px;white-space:nowrap;flex-shrink:0}
 .lens-btn .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-4)}
 .lens-btn[aria-pressed="true"]{background:var(--blue-400);color:var(--gray-950);border-color:transparent}
 .lens-btn[aria-pressed="true"] .dot{background:var(--gray-950);box-shadow:none}
@@ -186,7 +186,7 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 #timeline input[type=range]{flex:1;accent-color:var(--blue-500);min-width:0}
 #timeline .yr{font-size:14px;color:var(--blue-300);min-width:44px;text-align:right}
 #timeline .now{color:var(--ink-4)}
-#transcript{max-height:18vh;overflow:auto;margin-right:124px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:var(--blur);display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;transition:max-height .35s var(--ease)}
+#transcript{max-height:22vh;max-width:560px;overflow:auto;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:var(--blur);display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;transition:max-height .35s var(--ease)}
 #transcript:hover,#transcript:focus-within{max-height:46vh}
 #transcript:empty{display:none}
 .turn{display:flex;gap:10px;font-size:13px}
@@ -195,9 +195,13 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 .turn.agent .who{color:var(--blue-300)}
 .turn .body{flex:1;min-width:0}
 .turn.user .body{color:var(--ink-2)}
+/* older turns collapse to one ellipsized line each; only the newest exchange (last user + last agent turn) stays full */
+.turn:nth-last-child(n+3) .tools{display:none}
+.turn:nth-last-child(n+3) .answer,.turn.user:nth-last-child(n+3) .body{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tools{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
-.tools summary{list-style:none;cursor:pointer;display:inline-flex}
+.tools summary{list-style:none;cursor:pointer;display:inline-flex;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .tools summary::-webkit-details-marker{display:none}
+.tools summary.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue-400);flex:none;align-self:center;margin-right:6px;animation:blink .8s infinite}
 .tool{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--ink-3);padding:3px 6px;border-left:2px solid var(--line);background:rgba(255,255,255,.02)}
 .tool .st{width:8px;height:8px;border-radius:50%;background:var(--ink-4)}
 .tool.run .st{background:var(--blue-400);animation:blink .8s infinite}
@@ -256,7 +260,7 @@ body.d-immersive #caption.has{display:block}
 body.d-immersive .lens-btn{padding:4px 9px;font-size:11px}
 body.d-immersive .cesium-widget-credits{opacity:.5}
 body.d-annotated #inspector{width:360px;max-height:calc(100vh - 290px)}
-body.d-annotated #transcript{max-height:24vh}
+body.d-annotated #transcript:not(:hover):not(:focus-within){max-height:24vh}
 body.d-annotated #timeline{max-width:none}
 body.d-annotated #readout .coords{display:inline}
 body:not(.d-annotated) #callouts,body:not(.d-annotated) #provenance{display:none!important}
@@ -310,8 +314,16 @@ body.moving:not(.d-annotated) #inspector:hover,body.moving:not(.d-annotated) #ra
 #g-2d[aria-pressed="true"]{background:var(--blue-500);color:var(--gray-950);border-color:transparent}
 body.d-immersive #gimbal{opacity:.55} body.d-immersive #gimbal:hover{opacity:1}
 body.moving:not(.d-annotated) #gimbal{opacity:1}
-#theme,#sun,#share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
-#sun[aria-pressed="true"]{border-color:var(--warm);color:var(--warm)}
+#share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
+/* ---- Look 控制（header）：一顆緊湊 pill（顯示目前外觀）＋ 彈出選單，取代舊的 5 段式分段控制（會把 lens nav 擠到換行）
+   與更早以前的 ☀ 日照／🌙 夜／☀︎ 日間 三顆 pill（compose.js §16.2）。日照／黃金的時刻子面板沿用 #sunmenu，
+   兩者互斥、共用同一個錨點，一次只會有一個面板開著。 ---- */
+#look{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur);white-space:nowrap;flex-shrink:0}
+#look[aria-expanded="true"]{border-color:var(--blue-400);color:var(--blue-300)}
+#lookmenu{position:absolute;right:16px;top:58px;width:196px;padding:6px;display:flex;flex-direction:column;gap:2px;z-index:20}
+#lookmenu button{display:flex;align-items:center;gap:8px;padding:6px 10px;border:0;border-radius:var(--r-sm);text-align:left;font-size:12px;font-family:var(--sans);color:var(--ink-2);white-space:nowrap}
+#lookmenu button[aria-pressed="true"]{background:var(--blue-500);color:#fff}
+#lookmenu button[disabled]{opacity:.4;cursor:not-allowed}
 #sunmenu{position:absolute;right:16px;top:58px;width:340px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;z-index:20}
 #sunmenu .chips{display:flex;flex-wrap:wrap;gap:6px}
 #sunmenu .chip[aria-pressed="true"]{background:var(--blue-500);color:#fff;border-color:transparent}
@@ -334,7 +346,7 @@ body.theme-light{
   --panel-shadow:0 0 10px -1px rgba(3,7,18,.08), 0 8px 24px -16px rgba(3,7,18,.18);
 }
 body.theme-light{background:var(--bg);color:var(--ink)}
-body.theme-light #sunmenu,body.theme-light #hovercard,body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
+body.theme-light #sunmenu,body.theme-light #lookmenu,body.theme-light #hovercard,body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
 body.theme-light #vignette,body.theme-light #scan{display:none}
 body.theme-light #topbar{background:linear-gradient(to bottom, rgba(255,255,255,.85), rgba(255,255,255,0))}
 body.theme-light .brand .name{color:var(--gray-900)} body.theme-light .brand .name em{color:var(--blue-600)}
@@ -357,7 +369,8 @@ body.theme-light #cmdbar{background:rgba(255,255,255,.94);border-color:rgba(22,1
 body.theme-light #cmd{color:var(--gray-900)} body.theme-light #cmd::placeholder{color:var(--gray-400)}
 body.theme-light #send{background:var(--blue-600);color:#fff} body.theme-light #send:hover{background:var(--blue-500);color:#fff}
 body.theme-light #mic{background:var(--blue-600);color:#fff}
-body.theme-light #mcpstat,body.theme-light #theme{background:rgba(255,255,255,.85)}
+body.theme-light #mcpstat,body.theme-light #look{background:rgba(255,255,255,.85)}
+body.theme-light #lookmenu button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
 body.theme-light #toast{background:var(--gray-900);color:#fff;border-color:var(--gray-900)}
 body.theme-light #loading{background:var(--gray-100)} body.theme-light #loadmsg{color:var(--gray-600)}
 body.theme-light .cesium-widget-credits,body.theme-light .cesium-widget-credits a{color:var(--gray-500)!important}
@@ -374,3 +387,12 @@ body.theme-light #yearhud .y{color:var(--blue-700)}
 #yearhud .d{margin-top:6px;font-size:13px;color:var(--ink-2)} #yearhud .d b{color:var(--warm);font-family:var(--mono)} #yearhud .tot{display:block;margin-top:2px;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 #yearhud.pop{animation:hudpop .45s var(--ease)}
 @keyframes hudpop{0%{transform:translateX(-50%) translateY(-6px) scale(.96);opacity:.4}100%{transform:translateX(-50%) translateY(0) scale(1);opacity:1}}
+/* ---- Phase 9F 價值時光機：HUD 年增率箭頭（藍升／橘降／中性至今）---- */
+#yearhud .d b.up{color:var(--blue-400)}
+#yearhud .d b.down{color:var(--warm-2)}
+#yearhud .d b.ytd{color:var(--ink-3);font-weight:500}
+
+/* topbar breathing room below 1600px: the status cluster (density · Look · 展示 · 分享 · MCP · 天氣/AQI · 時間) must never run off-canvas */
+.status>*{order:0} .status #datastamp,.status #clock{order:9}
+@media (max-width:1600px){ .brand .sub{display:none} #topbar{gap:10px} .status{gap:8px} #datastamp,#clock{display:none} }
+@media (max-width:1500px){ #mcpstat span{display:none} #mcpstat{padding:4px 8px} #mcpstat i{margin:0 2px} }

@@ -52,6 +52,86 @@ function makeCache(ttlMs) {
 }
 
 /* ============================================================
+ * PEAKLENS_DEMO_LIVE=1 — 缺對應金鑰時，用固定或種子化偽隨機的擬真資料頂替，讓沒有金鑰的環境也能跑一次
+ * 「金鑰齊全」的合成畫面（無頭冒煙測試、截圖）。見 docs/11-v2-cesium-app.md §16.8。三個原則：
+ *   (1) 只在對應的金鑰缺席時介入——真金鑰／真資料永遠優先，這裡絕不覆蓋已經成功的上游結果；
+ *   (2) 三支路由（/api/env、/api/youbike、/api/tdx/s2s）各自獨立判斷，互不影響；
+ *   (3) 數值全部可重現（寫死或種子化偽隨機），同一個 server 行程內重複呼叫結果一致，適合截圖比對。
+ * ============================================================ */
+const DEMO_ON = env => env.PEAKLENS_DEMO_LIVE === '1' || env.PEAKLENS_DEMO_LIVE === 'true';
+
+/** FNV-1a 字串雜湊 → mulberry32：seed 字串固定就永遠吐出同一串 [0,1) 亂數，不需要另外存狀態。 */
+function seedRng(str) {
+  let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  let t = h >>> 0;
+  return () => { t = (t + 0x6D2B79F5) | 0; let x = Math.imul(t ^ (t >>> 15), 1 | t); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+}
+
+/** §16.8 指定的固定讀數：多雲 30°C、濕度 70%、降雨機率 20%、今日 27–33°。 */
+const demoWeather = () => ({ temp: 30, desc: '多雲', humidity: 70, pop: 20, minT: 27, maxT: 33, at: new Date().toISOString() });
+/** §16.8 指定的固定讀數：AQI 43 良好，松山站。 */
+const demoAqi = () => ({ value: 43, status: '良好', pm25: 12, site: '松山', at: new Date().toISOString() });
+
+/** taipei_basemap.json（districts/mrt_stations/mrt_lines）——YouBike／TDX 的 demo 資料都靠它算位置。讀檔失敗就回 null（呼叫端各自有備援）。 */
+function loadDemoBasemap() {
+  try { return JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'public', 'data', 'taipei_basemap.json'), 'utf8')); }
+  catch (e) { console.warn('[live] demo: taipei_basemap.json unavailable:', e.message); return null; }
+}
+
+const DEMO_DISTRICTS = ['信義區', '大安區', '松山區', '中山區'];
+/** 信義／大安／松山／中山四個行政區的合併 bbox；抓不到基圖時退回一個涵蓋這一帶的手動 bbox。 */
+function demoBbox(basemap) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  for (const d of (basemap && basemap.districts) || []) {
+    if (!DEMO_DISTRICTS.includes(d.name)) continue;
+    for (const ring of d.rings || []) for (const [lon, lat] of ring) { if (lon < w) w = lon; if (lon > e) e = lon; if (lat < s) s = lat; if (lat > n) n = lat; }
+  }
+  return Number.isFinite(w) ? [w, s, e, n] : [121.52, 25.02, 121.58, 25.07];
+}
+
+const DEMO_STREETS = ['市府路', '仁愛路', '敦化南路', '復興南路', '忠孝東路', '信義路', '和平東路', '八德路', '南京東路', '民生東路'];
+/** ~60 站，站點靠近 taipei_basemap.json 的捷運站 + 補一個 bbox 內的 jittered grid；每站可借/可還車數是種子化偽隨機（穩定，重打結果一樣）。 */
+function demoYouBikeStations(basemap) {
+  const [w, s, e, n] = demoBbox(basemap);
+  const nearMrt = ((basemap && basemap.mrt_stations) || []).filter(st => st.lon >= w && st.lon <= e && st.lat >= s && st.lat <= n);
+  const out = []; let i = 0;
+  const place = (name, lon, lat, jitter) => {
+    const rnd = seedRng('yb:' + i);
+    const total = 10 + Math.floor(rnd() * 20), bikes = Math.floor(rnd() * (total + 1));
+    const jlon = jitter ? (rnd() - .5) * 0.0006 : 0, jlat = jitter ? (rnd() - .5) * 0.0006 : 0;
+    out.push({ id: 'demo-' + i, name, lat: lat + jlat, lon: lon + jlon, total, bikes, docks: total - bikes, updated: new Date().toISOString() });
+    i++;
+  };
+  for (const st of nearMrt) place(st.name + '站', st.lon, st.lat, true);
+  const need = Math.max(0, 60 - out.length);
+  for (let g = 0; g < need; g++) { const rnd = seedRng('grid:' + g); place(`${DEMO_STREETS[g % DEMO_STREETS.length]} YouBike`, w + rnd() * (e - w), s + rnd() * (n - s), false); }
+  return out;
+}
+
+/** 貪婪最近鄰排序（一條線的車站幾何上大致是一條路徑，不需要真的重建路網圖——demo 資料只求「順著線走」的合理順序）。 */
+function chainStations(list) {
+  const rem = list.slice(); if (rem.length < 2) return rem;
+  const cx = rem.reduce((a, p) => a + p.lon, 0) / rem.length, cy = rem.reduce((a, p) => a + p.lat, 0) / rem.length;
+  let si = 0, sd = -1; rem.forEach((p, i) => { const d = haversine(p.lon, p.lat, cx, cy); if (d > sd) { sd = d; si = i; } });
+  const chain = [rem.splice(si, 1)[0]];
+  while (rem.length) { const last = chain[chain.length - 1]; let bi = 0, bd = Infinity; rem.forEach((p, i) => { const d = haversine(last.lon, last.lat, p.lon, p.lat); if (d < bd) { bd = d; bi = i; } }); chain.push(rem.splice(bi, 1)[0]); }
+  return chain;
+}
+/** 每條 MRT 線的車站串成一條鏈，相鄰站兩兩產生一筆 hop；runSec 用直線距離 ÷ 35km/h 估（跟 isochrone.js 的 RIDE_KMH 同一個假設），stopSec 固定 30 秒。 */
+function demoTdxHops(basemap) {
+  const hops = [];
+  for (const line of (basemap && basemap.mrt_lines) || []) {
+    const stations = ((basemap && basemap.mrt_stations) || []).filter(s => (s.lines || []).includes(line.name));
+    const chain = chainStations(stations);
+    for (let i = 0; i + 1 < chain.length; i++) {
+      const d = haversine(chain[i].lon, chain[i].lat, chain[i + 1].lon, chain[i + 1].lat);
+      hops.push({ from: chain[i].name, to: chain[i + 1].name, line: line.name, runSec: Math.round(d / (35000 / 3600)), stopSec: 30 });
+    }
+  }
+  return { hops, fetched_at: new Date().toISOString(), demo: true };
+}
+
+/* ============================================================
  * 中央氣象署（CWA）：現在天氣觀測 O-A0003-001 ＋ 36 小時預報 F-C0032-001
  * ============================================================ */
 // CWA 缺測常見用 -99 / -990 / -999 這類負值代表「沒有值」；台北的氣溫、濕度物理上不可能低於 -90，用這條線擋掉。
@@ -222,6 +302,8 @@ export function createLiveRoutes(env) {
   const aqiCache = makeCache(10 * 60 * 1000);
   const youbikeCache = makeCache(60 * 1000);
   let tdxToken = null; // { access_token, expires_at } — 記憶體快取到 expiry − 60s
+  let demoBasemapCache, demoBasemapLoaded = false; // 惰性讀一次 taipei_basemap.json，只有真的用得到 demo 資料時才讀
+  const demoBasemap = () => { if (!demoBasemapLoaded) { demoBasemapCache = loadDemoBasemap(); demoBasemapLoaded = true; } return demoBasemapCache; };
 
   function readTdxCache({ freshOnly }) {
     try {
@@ -259,23 +341,34 @@ export function createLiveRoutes(env) {
         weatherCache.get(() => fetchCwaWeather(env)),
         aqiCache.get(() => fetchAqiList(env)),
       ]);
+      // PEAKLENS_DEMO_LIVE：天氣／AQI 各自獨立判斷，只在「這部分」的真金鑰缺席時才頂替（見上方 §16.8 區塊）；
+      // 缺 key 時 fetchCwaWeather/fetchAqiList 本來就回 null，這裡不會蓋掉任何「金鑰有效但上游剛好失敗」的情況。
+      const demoW = !env.CWA_API_KEY && DEMO_ON(env);
+      const demoA = !env.MOENV_AQI_API_KEY && DEMO_ON(env);
+      const aqi = pickAqiSite(aqiList, lon, lat);
       return {
         status: 200,
         json: {
-          weather: weather || null,
-          aqi: pickAqiSite(aqiList, lon, lat),
+          weather: weather || (demoW ? demoWeather() : null),
+          aqi: aqi || (demoA ? demoAqi() : null),
           available: { cwa: !!env.CWA_API_KEY, moenv: !!env.MOENV_AQI_API_KEY },
+          ...(demoW || demoA ? { demo: true } : {}),
         },
       };
     },
-    /** YouBike 2.0 即時站點（台北市 bbox 內），60 秒快取。 */
+    /** YouBike 2.0 即時站點（台北市 bbox 內），60 秒快取。YouBike 沒有金鑰可言，PEAKLENS_DEMO_LIVE=1 時
+     *  把旗標本身當「缺席的金鑰」處理，開了就一律走 demoYouBikeStations()，不看真上游（見 §16.8）。 */
     async '/api/youbike'() {
+      if (DEMO_ON(env)) return { status: 200, json: { stations: demoYouBikeStations(demoBasemap()), demo: true } };
       const list = await youbikeCache.get(fetchYouBike);
       return { status: 200, json: list };
     },
-    /** 捷運站間實際搭乘秒數（TDX），24h 磁碟快取；缺 TDX key 或上游失敗都回 503 + fallback:true。 */
+    /** 捷運站間實際搭乘秒數（TDX），24h 磁碟快取；缺 TDX key 時：demo 開了給擬真 hops、沒開回 503 + fallback:true。 */
     async '/api/tdx/s2s'() {
-      if (!env.TDX_CLIENT_ID || !env.TDX_CLIENT_SECRET) return { status: 503, json: { error: 'TDX_CLIENT_ID/TDX_CLIENT_SECRET not set', fallback: true } };
+      if (!env.TDX_CLIENT_ID || !env.TDX_CLIENT_SECRET) {
+        if (DEMO_ON(env)) return { status: 200, json: demoTdxHops(demoBasemap()) };
+        return { status: 503, json: { error: 'TDX_CLIENT_ID/TDX_CLIENT_SECRET not set', fallback: true } };
+      }
       const fresh = readTdxCache({ freshOnly: true });
       if (fresh) return { status: 200, json: fresh };
       try {
