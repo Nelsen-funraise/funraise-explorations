@@ -94,7 +94,7 @@ export class TimeMachine {
       for (const d of this._districts) { const s = this.seriesFor(metric, d.name); this.years.forEach((y, i) => { if (this._excludedFromRange(metric, y)) return; const v = s[i]; if (v < mn) mn = v; if (v > mx) mx = v; }); }
       if (!isFinite(mn)) mn = 0; if (!isFinite(mx) || mx <= mn) mx = mn + 1; this._range[metric] = { min: mn, max: mx }; } }
   heightFor(metric, value, scale) { const r = this._range[metric] || { min: 0, max: 1 }; const t = Math.max(0, Math.min(1, (value - r.min) / ((r.max - r.min) || 1))); const span = scale === 'S2' ? S2_SPAN : S1_SPAN; return span[0] + t * (span[1] - span[0]); }
-  colorFor(yoy) { if (yoy == null) return C(GRAY, .55); const sat = Math.min(1, Math.abs(yoy) / SATURATE_AT); if (yoy > FLAT_BAND) return lerpColor(C(GRAY, .55), C(BLUE, .85), sat); if (yoy < -FLAT_BAND) return lerpColor(C(GRAY, .55), C(ORANGE, .85), sat); return C(GRAY_LIGHT, .42); }
+  colorFor(yoy) { if (yoy == null) return C(GRAY, .52); const sat = Math.min(1, Math.abs(yoy) / SATURATE_AT); if (yoy > FLAT_BAND) return lerpColor(C(GRAY, .5), C(BLUE, .7), sat); if (yoy < -FLAT_BAND) return lerpColor(C(GRAY, .5), C(ORANGE, .7), sat); return C(GRAY_LIGHT, .48); }
   /** 統一計算某指標／某區／某年該顯示的值：資料涵蓋不足（sales_office < 2017）與 YTD（2026）都在這裡一次處理，
    * 高度／顏色／文字三個地方都吃同一份判斷，不會各自長出不一致的規則。 */
   _valueInfo(metric, name, year) {
@@ -126,8 +126,10 @@ export class TimeMachine {
       const centroid = this.layers.districtCentroids.get(name) || [ring[0][0], ring[0][1]];
       const key = 'tm:' + name; const item = { name, category: '區級價值面（時光機）', lat: centroid[1], lon: centroid[0] };
       const ent = this.layers.add('tm', key, item, {
-        polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: new Cesium.CallbackProperty(() => this._heightNow(name), false), material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this._colorNow(name), false)), outline: true, outlineColor: new Cesium.CallbackProperty(() => C('#FFFFFF', this.layers.isHot(key) ? .95 : .3), false), outlineWidth: new Cesium.CallbackProperty(() => this.layers.isHot(key) ? 3 : 1, false) },
-        position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(centroid[0], centroid[1], this._heightNow(name) + 30), false),
+        polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: new Cesium.CallbackProperty(() => this._heightNow(name), false), material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this._colorNow(name), false)), outline: true, outlineColor: new Cesium.CallbackProperty(() => C('#FFFFFF', this.layers.isHot(key) ? .95 : .5), false), outlineWidth: new Cesium.CallbackProperty(() => this.layers.isHot(key) ? 3 : 1, false) },
+        // +60 且不低於 200m：buildDistricts() 既有的行政區名稱純文字標籤固定釘在 80m，這裡留出安全間距，
+        // 避免我們的「區名 · 件數 · 年增率」標籤在數值很低（甚至「資料涵蓋不足」拉到最低值）時跟它疊在一起。
+        position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(centroid[0], centroid[1], Math.max(this._heightNow(name) + 60, 200)), false),
         label: mkLabel(new Cesium.CallbackProperty(() => this._labelText(name), false), { fill, outline: ink, bg }),
       });
       ent._imp = 0.92; this._entities.set(name, ent);
@@ -138,7 +140,7 @@ export class TimeMachine {
   _onYear(year, prev) {
     for (const d of this._districts) {
       const name = d.name; const info = this._valueInfo(this.metric, name, year);
-      const c1 = info.insufficient ? C(GRAY, .32) : this.colorFor(info.yoy);
+      const c1 = info.insufficient ? C(GRAY, .28) : this.colorFor(info.yoy);
       const had = this._anim.has(name); const curV = had ? this._curValue(name) : 0; const curC = had ? this._colorNow(name) : C(GRAY, .55);
       this._anim.set(name, { v0: curV, v1: info.v, c0: curC, c1, t0: performance.now() });
       if (prev != null && year > prev) this.layers.pulse('tm:' + name, PULSE_MS);
