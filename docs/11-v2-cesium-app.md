@@ -450,3 +450,9 @@ OSM 對台北 101、南山廣場等地標有 `building:part`（分段量體，�
 - 實測（mock OpenAI，重現真實請求形狀）「信義區最近一年上市公司買了什麼」：從 5–15 次 MCP 呼叫、約 98 秒，變成 2 次模型呼叫、1 次快照查詢、0 次 MCP。
 - `cache.mjs`：LRU＋TTL（`MCP_CACHE_TTL_S`，預設 600 s），目前用於快照查詢結果；MCP 呼叫在 OpenAI 端由 hosted mcp tool 執行、Anthropic 端由 API 端執行，server 都看不到，所以還快取不到，註解裡有寫。
 - 測試：`node server/snapshot.test.mjs`（74 項）、整合測試（mock OpenAI 19 項）、`ors.test.mjs` 40 項無回歸。
+
+### 17.5 地標分段量體與 DEMO_LIVE（`scripts/fetch-osm-parts.mjs`、`src/layers/osmBuildings.js`、`server/routes/*`）
+
+- `fetch-osm-parts.mjs` 從 Overpass 抓 bbox 內所有 `building:part`（0.02° 分格、逾時自動四分、ODbL 標示），高度只採 `height` 或 `building:levels × 3.2`，沒有就不畫；以點在多邊形內比對母建物，母建物被分段覆蓋 ≥ 60% 面積就不再畫成單一柱體。結果 `public/data/osm_parts_taipei.json`：10,526 段、1,688 棟母建物改畫分段（台北101 508 m、台北天空塔 280 m、國泰置地廣場 192 m…）。載入器把分段與建物當同一組 primitive 管理，調色、窗燈、對焦、相片級隱藏都一起生效；`osm.partCount`、`osm.setVisible(on)`。
+- 抓取當天 Overpass 不穩，20 個子格失敗（列在 `meta.tiles_missing`），其中含南山廣場那一格；補抓模式 `--bbox … --merge` 可只補該格並合併。
+- `PEAKLENS_DEMO_LIVE=1`：缺金鑰時 `/api/env`、`/api/youbike`（60 站）、`/api/tdx/s2s`（106 段站間時間）、`/api/walkshed` 回帶 `demo: true` 的擬真資料，角標顯示「DEMO」；有真金鑰一律優先。只用於無頭測試與截圖。測試：`live.test.mjs` 35 項、`ors.test.mjs` 40 項。
