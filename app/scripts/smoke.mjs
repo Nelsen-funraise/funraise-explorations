@@ -120,7 +120,7 @@ try {
   await page.evaluate(() => { window.PL.ui.setOverlay('landsect', false); window.PL.ui.setOverlay('publicland', false); window.PL.ui.setTheme('dark'); window.PL.map.flyTo(121.51, 25.07, { range: 5200, pitch: -48, heading: 135, duration: 0.2 }); }); await wait(4000); await page.screenshot({ path: path.join(out, 'shot-21-night-rivers.jpg'), type: 'jpeg', quality: 84 });
   console.log('night', JSON.stringify(await page.evaluate(() => ({ quality: window.PL.viewerApi.quality, bloom: window.PL.viewer.scene.postProcessStages.bloom.enabled, roadsShown: window.PL.ground ? window.PL.ground.roads.filter(p => p.show).length : 0, basemapYear: window.PL.viewerApi.basemapYear }))));
   await page.evaluate(() => { window.PL.map.setYear(2016); }); await wait(600); console.log('vintage', JSON.stringify(await page.evaluate(() => ({ year: window.PL.map.year, basemapYear: window.PL.viewerApi.basemapYear })))); await page.evaluate(() => window.PL.map.setYear(2026));
-  await page.evaluate(() => window.PL.director.play('investor')); await wait(9000); await page.screenshot({ path: path.join(out, 'shot-8-scene.jpg'), type: 'jpeg', quality: 84 });
+  await page.evaluate(() => { window.PL.director.play('investor'); }); await wait(9000); // block body: sample the scene, never await its whole run await page.screenshot({ path: path.join(out, 'shot-8-scene.jpg'), type: 'jpeg', quality: 84 });
   const cine = await page.evaluate(() => document.querySelector('#cine-text').textContent); console.log('scene text:', cine);
   await page.evaluate(() => window.PL.director.stop());
   await page.evaluate(() => window.PL.map.globe()); await wait(4000); await page.screenshot({ path: path.join(out, 'shot-9-globe.jpg'), type: 'jpeg', quality: 84 });
