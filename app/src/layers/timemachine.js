@@ -35,7 +35,7 @@ const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const lerpColor = (c1, c2, t) => Cesium.Color.lerp(c1, c2, Math.max(0, Math.min(1, t)), new Cesium.Color());
 const pctNorm = v => v == null ? null : (Math.abs(v) > 1.5 ? v / 100 : v); // 防禦 yoy 是「12」還是「0.12」兩種可能寫法
-const mkLabel = (textCB, o = {}) => ({ text: textCB, font: '600 13px "Inter","Noto Sans TC",sans-serif', fillColor: C(o.fill || '#F3F4F6'), outlineColor: C(o.outline || '#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -12), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 55000), showBackground: true, backgroundColor: C(o.bg || '#030712', .6), backgroundPadding: new Cesium.Cartesian2(6, 3) });
+const mkLabel = (textCB, o = {}) => ({ text: textCB, font: '600 13px "Inter","Noto Sans TC",sans-serif', fillColor: C(o.fill || '#F3F4F6'), outlineColor: C(o.outline || '#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -26), verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 55000), showBackground: true, backgroundColor: C(o.bg || '#030712', .6), backgroundPadding: new Cesium.Cartesian2(6, 3) });
 const fetchTimeout = async (url, ms) => { const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms); try { return await fetch(url, { signal: ctrl.signal }); } finally { clearTimeout(t); } };
 
 export class TimeMachine {
