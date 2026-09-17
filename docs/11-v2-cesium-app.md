@@ -325,6 +325,9 @@ npm run server              # http://localhost:8790
 | ![focus](assets/v2-focus.jpg) 對焦／X-ray：其餘量體退色，只留台北101 與周邊脈絡 | ![measure](assets/v2-measure-area.jpg) 量面積：m²／坪／周長，畫基地可直接跑容積量體 |
 | ![isochrone](assets/v2-isochrone.jpg) 捷運 20 分鐘等時圈（內建路網計算） | ![trips](assets/v2-trips.jpg) 企業遷徙動線：弧線飛行、落地漣漪與公司名 |
 | ![presenter](assets/v2-presenter.jpg) 展示模式：只留字幕與場景進度 | ![overlays](assets/v2-overlays.jpg) 國土測繪中心疊圖：段籍界 + 公有土地 |
+| ![explain](assets/v2-explain.jpg) 說明模式：回答提到的物件自動編號、引線、暈影與說明卡（Phase 9） | ![101 parts](assets/v2-101-parts.jpg) 台北101 改用 OSM building:part 分段量體，階梯狀輪廓（Phase 9） |
+| ![white S3](assets/v2-white-s3.jpg) 白模 Look · 街廓尺度：視野內優先的標籤預算（≤ 24） | ![night S1](assets/v2-night-s1.jpg) 夜景 Look · 城市尺度：合成器強制關閉泛光／HDR，不再糊成一片 |
+| ![golden S4](assets/v2-golden-s4.jpg) 黃金時刻 Look · 建物尺度：泛光與 HDR 只在 S3–S4 開 | ![time machine](assets/v2-timemachine.jpg) 價值時光機 2.0：12 區依年度成交件數長高、依年增率上色，HUD 即時計數 |
 
 ## 16. 視圖語法與合成規則（Phase 9 設計，2026-09-17）
 
