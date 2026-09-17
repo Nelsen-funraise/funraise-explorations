@@ -36,7 +36,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- FUNRAISE MCP status pill: live / unauthorized → authorize / unreachable / no server ---- */
   const pill = $('#mcpstat');
   ui.setMcp = (h) => {
-    const m = (h && h.mcp) || { status: 'noserver' }; ui.mcp = { ...m, serverOk: !!(h && h.ok), model: h && h.model };
+    const m = (h && h.mcp) || { status: 'noserver' }; ui.mcp = { ...m, serverOk: !!(h && h.ok), model: h && h.model, provider: h && h.provider };
     pill.className = m.status === 'live' ? 'live' : m.status === 'unauthorized' ? 'auth' : 'down';
     const label = { live: 'FUNRAISE MCP · LIVE', unauthorized: 'FUNRAISE MCP · 點此授權', unreachable: 'FUNRAISE MCP 連不上 · 快照', error: 'FUNRAISE MCP 錯誤 · 快照', noserver: 'FUNRAISE MCP · 快照（本地）' }[m.status] || 'FUNRAISE MCP · 快照';
     pill.querySelector('span').textContent = label;

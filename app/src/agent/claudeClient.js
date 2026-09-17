@@ -10,7 +10,7 @@ export class ClaudeClient {
     let rounds = 0; let messages = this.history.slice(-12);
     try {
       while (rounds++ < 6) {
-        const card = this.ui.toolStart(turn, 'claude.messages', { model: 'server', turn: rounds });
+        const card = this.ui.toolStart(turn, (this.ui.mcp && this.ui.mcp.provider ? this.ui.mcp.provider : 'llm') + '.turn', { model: (this.ui.mcp && this.ui.mcp.model) || 'server', turn: rounds });
         const res = await fetch(API + '/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages, view: this.viewState() }) });
         if (!res.ok) { this.ui.toolDone(card, 'HTTP ' + res.status); throw new Error('agent server ' + res.status); }
         const data = await res.json(); this.ui.source = data.source === 'live' ? 'LIVE' : '快照'; this.ui.toolDone(card, `${data.stop_reason} · ${data.source || ''} · ${data.usage ? data.usage.output_tokens + ' tok' : ''}`);
