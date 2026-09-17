@@ -391,3 +391,8 @@ body.theme-light #yearhud .y{color:var(--blue-700)}
 #yearhud .d b.up{color:var(--blue-400)}
 #yearhud .d b.down{color:var(--warm-2)}
 #yearhud .d b.ytd{color:var(--ink-3);font-weight:500}
+
+/* topbar breathing room below 1600px: the status cluster (density · Look · 展示 · 分享 · MCP · 天氣/AQI · 時間) must never run off-canvas */
+.status>*{order:0} .status #datastamp,.status #clock{order:9}
+@media (max-width:1600px){ .brand .sub{display:none} #topbar{gap:10px} .status{gap:8px} #datastamp,#clock{display:none} }
+@media (max-width:1500px){ #mcpstat span{display:none} #mcpstat{padding:4px 8px} #mcpstat i{margin:0 2px} }
