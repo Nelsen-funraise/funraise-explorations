@@ -441,3 +441,12 @@ OSM 對台北 101、南山廣場等地標有 `building:part`（分段量體，�
 - **參數清洗**：server 依工具 schema 丟掉未知欄位、字串轉數字／布林，JSON 壞掉回 `{ _error }` 讓模型重試（實測那個 `}！！=` key 就是這樣被吃掉的）。
 - **語音**：每次提問先 `speech.stop()`；只念前兩句、去條列與「來源：」、上限 110 字；工具有動作但沒文字時念合成摘要。
 - **對話 dock**：左下角、最寬 560 px、最高 22vh（hover 46vh）；工具卡收成一行即時進度（「查詢…第 N 步 · X s」），點開才展開；舊的對話收成一行；連續提問排隊執行、打字互不干擾。
+
+### 17.4 快照優先的資料層（`server/snapshot.mjs`、`server/cache.mjs`）
+
+- server 啟動時載入 `peaklens.json` 與 `timeseries.json`，建好行政區／名稱／年份索引；新工具 `query_snapshot`（kind：buildings、mops、licenses、renewal、future、moves、zones、infra、parks、areas、districts、timeseries、summary）回傳 ≤ 12 筆精簡列與可點亮的 keys，每次 ≤ 4 KB。
+- 模型呼叫 `query_snapshot` 時 **server 自己執行並在同一次請求內把結果餵回模型**（最多 4 次），不再繞回瀏覽器；串流路徑以 `tool` 事件讓對話框看得到。混合回合（快照＋鏡頭工具）則原樣回瀏覽器。
+- 系統提示改成快照優先：快照涵蓋的東西一律先查快照並標「來源：快照 日期」，FUNRAISE MCP 只用在快照沒有的物件、即時價格／地號／公司登記／謄本、或使用者明說「最新／即時」，且每回合最多 3 個 MCP 工具。`## 快照內容` 一段告訴模型快照裡有什麼。畫面狀態壓縮、歷史只留最近 8 輪。
+- 實測（mock OpenAI，重現真實請求形狀）「信義區最近一年上市公司買了什麼」：從 5–15 次 MCP 呼叫、約 98 秒，變成 2 次模型呼叫、1 次快照查詢、0 次 MCP。
+- `cache.mjs`：LRU＋TTL（`MCP_CACHE_TTL_S`，預設 600 s），目前用於快照查詢結果；MCP 呼叫在 OpenAI 端由 hosted mcp tool 執行、Anthropic 端由 API 端執行，server 都看不到，所以還快取不到，註解裡有寫。
+- 測試：`node server/snapshot.test.mjs`（74 項）、整合測試（mock OpenAI 19 項）、`ors.test.mjs` 40 項無回歸。
