@@ -210,6 +210,8 @@ export function createSpeech({ api = '' } = {}) {
           u.onboundary = e => { gotBoundary = true; if (e.charIndex != null) onProgress && onProgress(clamp01(e.charIndex / len)); };
           u.onstart = () => { const est = estimateMs(u.text), t1 = performance.now(); timer = setInterval(() => { if (gotBoundary) { clearInterval(timer); return; } onProgress && onProgress(Math.min(0.98, (performance.now() - t1) / est)); }, 100); };
           u.onend = () => finish('system'); u.onerror = () => finish('error');
+          // Safety net: headless or background tabs (and some engines with no zh voice) never fire onend — resolve at 1.5× the estimated length so scenes can never hang on narration.
+          const guard = setTimeout(() => finish('timeout'), estimateMs(u.text) * 1.5 + 1500); const finish0 = finish; const finishOnce = src => { clearTimeout(guard); finish0(src); }; u.onend = () => finishOnce('system'); u.onerror = () => finishOnce('error'); st.onStop = () => { try { speechSynthesis.cancel(); } catch { /* ignore */ } finishOnce('stopped'); };
           st.utter = u; speechSynthesis.speak(u);
         } catch { onProgress && onProgress(1); resolve({ ms: 0, source: 'error' }); }
       });
