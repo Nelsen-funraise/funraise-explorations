@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { testOrs } from './routes/ors.mjs';
+import { testLive } from './routes/live.mjs';
 
 export const KEYS = [
   { k: 'OPENAI_API_KEY', label: 'OpenAI API key', group: 'AI agent（對城市說話的大腦）', hint: 'Responses API + FUNRAISE MCP 工具；有這把就會自動用 OpenAI', test: 'llm' },
@@ -38,9 +39,9 @@ async function testKey(key, env, getLLM) {
     switch (KEYS.find(x => x.k === key)?.test) {
       case 'llm': { const llm = getLLM(); if (!llm) return { ok: false, detail: '沒有可用的 LLM 金鑰' }; const res = await llm.test(); return { ...res, detail: `${llm.provider} · ${llm.model} · ${res.detail}` }; }
       case 'fish': { if (!env.FISH_API_KEY) return { ok: false, detail: '未設定' }; const { r, j } = await t('https://api.fish.audio/model?self=true&page_size=3', { headers: { authorization: `Bearer ${env.FISH_API_KEY}` } }); return r.ok ? { ok: true, detail: `帳號內 ${j && j.total != null ? j.total : '?'} 個聲音模型` } : { ok: false, detail: `HTTP ${r.status}` }; }
-      case 'cwa': { if (!env.CWA_API_KEY) return { ok: false, detail: '未設定' }; const { r, j } = await t(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${encodeURIComponent(env.CWA_API_KEY)}&locationName=${encodeURIComponent('臺北市')}`); const ok = r.ok && j && (j.success === 'true' || j.success === true); return ok ? { ok: true, detail: '36 小時預報可用' } : { ok: false, detail: `HTTP ${r.status} ${(j && (j.message || (j.result && j.result.message))) || ''}`.trim() }; }
-      case 'moenv': { if (!env.MOENV_AQI_API_KEY) return { ok: false, detail: '未設定' }; const { r, j } = await t(`https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=${encodeURIComponent(env.MOENV_AQI_API_KEY)}&limit=1&format=JSON`); const ok = r.ok && j && Array.isArray(j.records); return ok ? { ok: true, detail: `AQI 資料可用（${j.records.length ? j.records[0].sitename + ' AQI ' + j.records[0].aqi : '無測站'}）` } : { ok: false, detail: `HTTP ${r.status} ${typeof j === 'object' && j ? JSON.stringify(j).slice(0, 80) : ''}` }; }
-      case 'tdx': { if (!env.TDX_CLIENT_ID || !env.TDX_CLIENT_SECRET) return { ok: false, detail: 'client_id / client_secret 都要有' }; const { r, j } = await t('https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'client_credentials', client_id: env.TDX_CLIENT_ID, client_secret: env.TDX_CLIENT_SECRET }) }); return r.ok && j && j.access_token ? { ok: true, detail: `token 取得成功（${j.expires_in}s）` } : { ok: false, detail: `HTTP ${r.status} ${(j && (j.error_description || j.error)) || ''}`.trim() }; }
+      case 'cwa': { if (!(env.CWA_API_KEY)) return { ok: false, detail: '未設定' }; const all = await testLive(env); return all.cwa || { ok: false, detail: '無回應' }; }
+      case 'moenv': { if (!(env.MOENV_AQI_API_KEY)) return { ok: false, detail: '未設定' }; const all = await testLive(env); return all.moenv || { ok: false, detail: '無回應' }; }
+      case 'tdx': { if (!(env.TDX_CLIENT_ID && env.TDX_CLIENT_SECRET)) return { ok: false, detail: '未設定' }; const all = await testLive(env); return all.tdx || { ok: false, detail: '無回應' }; }
       case 'ors': { if (!env.ORS_API_KEY) return { ok: false, detail: '未設定' }; return testOrs(env); }
       case 'mapillary': { if (!env.MAPILLARY_ACCESS_TOKEN) return { ok: false, detail: '未設定' }; const { r, j } = await t(`https://graph.mapillary.com/images?access_token=${encodeURIComponent(env.MAPILLARY_ACCESS_TOKEN)}&fields=id&bbox=121.56,25.03,121.57,25.04&limit=1`); return r.ok ? { ok: true, detail: `影像 API 可用（${j && j.data ? j.data.length : 0} 張）` } : { ok: false, detail: `HTTP ${r.status}` }; }
       case 'ion': { if (!env.VITE_CESIUM_ION_TOKEN) return { ok: false, detail: '未設定' }; const { r, j } = await t('https://api.cesium.com/v1/me', { headers: { authorization: `Bearer ${env.VITE_CESIUM_ION_TOKEN}` } }); return r.ok ? { ok: true, detail: `ion 帳號 ${j && (j.username || j.email) || ''} · 記得重新 build` } : { ok: false, detail: `HTTP ${r.status}` }; }

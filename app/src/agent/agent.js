@@ -85,6 +85,8 @@ export class Agent {
       if (has(t, /熱感|熱像|thermal/)) { this.ui.setSensor('thermal'); return this.finish(a, '切到熱感測：暖色代表高單價／高熱度。'); }
       if (has(t, /藍圖|blueprint/)) { this.ui.setSensor('blueprint'); return this.finish(a, '切到藍圖感測。'); }
       if (has(t, /一般感測|正常畫面|normal|關掉感測|關閉感測/)) { this.ui.setSensor('normal'); return this.finish(a, '回到一般畫面。'); }
+      if (/YouBike|ubike|共享單車/i.test(t) || (/腳踏車|單車/.test(t) && /站|柱|借|還|即時/.test(t))) { const on = !/關|隱藏|取消|off/i.test(t); if (this.ui.setYouBike) { this.ui.setYouBike(on); return this.finish(a, `${on ? '顯示' : '隱藏'} YouBike 2.0 即時站點：點大小是可借車數，藍色 ≥5 台、橘色 1–4 台、灰色 0 台；拉近 1.2 km 內看到可借／可還。來源：臺北市資料大平臺即時 JSON（server 代理）。`); } }
+      if (/天氣|下雨|氣溫|空氣品質|AQI|空污|幾度/i.test(t)) { const d = this.map.envBadge && this.map.envBadge.data; if (!d || (!d.weather && !d.aqi)) return this.finish(a, '目前沒有即時天氣／空氣品質：server 未啟動或尚未在 /setup 貼上中央氣象署／環境部金鑰。'); const bits = []; if (d.weather) bits.push(`台北現在${d.weather.desc || ''}，${d.weather.temp ?? '—'}°，濕度 ${d.weather.humidity ?? '—'}%${d.weather.pop != null ? `，降雨機率 ${d.weather.pop}%` : ''}${d.weather.minT != null ? `，今日 ${d.weather.minT}–${d.weather.maxT}°` : ''}`); if (d.aqi) bits.push(`AQI ${d.aqi.value ?? '—'}（${d.aqi.status || '—'}，${d.aqi.site || ''}測站${d.aqi.pm25 != null ? `，PM2.5 ${d.aqi.pm25}` : ''}）`); return this.finish(a, bits.join('；') + '。\n來源：中央氣象署／環境部即時開放資料'); }
       if (has(t, /(走路|步行|騎車|腳踏車|單車|開車).*\d*\s*分|步行圈|生活圈|walkshed/)) return this.walkshed(text, a);
       if (has(t, /等時圈|通勤圈|捷運圈|((捷運|通勤).*\d+\s*分)|(\d+\s*分(鐘)?.*(捷運|通勤|可到|能到|到哪|去哪|範圍))/)) return this.isochrone(text, a);
       if (has(t, /對焦|只看這棟|聚焦|x-?ray|其餘淡出/i)) {

@@ -196,6 +196,8 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 
 **步行／騎車／開車生活圈（OpenRouteService）**：資料卡「🚶 步行 15 分圈」或說「這裡走路 15 分鐘能到哪」「騎車 10 分鐘範圍」——server 帶 `ORS_API_KEY` 呼叫 OpenRouteService 真實路網等時圈（含 MultiPolygon 與洞），三段帶狀著色、面積 km²；server 沒金鑰或掛掉時自動退回固定速度（步行 80、騎車 250、開車 500 m/分）的估算圈並標示「估算」。Claude／OpenAI 工具 `show_walkshed`。
 
+**即時資料（需 server 與金鑰）**：右上角多一顆「☁ 28° · AQI 42 良好」角標——中央氣象署現在天氣與 36 小時預報、環境部最近測站 AQI，每 10 分鐘更新，下雨或 AQI ≥ 100 時大氣會略微變灰；圖層欄多「YouBike 即時」（點大小＝可借車數，藍 ≥5、橘 1–4、灰 0，1.2 km 內看可借／可還）；若 server 有交通部 TDX 金鑰，捷運等時圈的站間時間會換成 TDX 的真實行車＋停靠秒數（主控台會印出配對到幾條邊）。對城市說「現在天氣」「空氣品質」「顯示 YouBike」也行。工具 `get_environment`、`set_live_layer`。
+
 ## 11. 智慧都更模擬（first cut）與地號資料
 
 **做了什麼**：用 FUNRAISE MCP 的 `land-info` 工具，對 6 個政府主導都更單元（信義 兒福B1-2及B3-2、逸仙二小段、兒福B1-1；大安 忠孝懷生、敦南安和；中山 長安市民）在單元多邊形內做格點取樣 → `find_taipei_land_at_point` 反查地號與地籤 polygon → `taipei_zoning_at_point` 帶回使用分區與法定容積率／建蔽率 → `taipei_bldg_overlay_at_point` 帶回建照套繪（民國年 → 屋齡）。共 17 筆地號、7 張建照，存於 `app/data/raw/parcels.json`，併入快照。
