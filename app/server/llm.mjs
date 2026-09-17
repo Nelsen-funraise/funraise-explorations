@@ -50,6 +50,10 @@ function anthropicLLM(env) {
     provider: 'anthropic', model,
     async run({ system, messages, tools, mcp, final }) {
       const t = [...tools]; const extra = {};
+      // Phase 9G note: the mcp_servers beta below makes Anthropic itself call the remote FUNRAISE MCP server and fold
+      // the result back into THIS SAME response — this adapter never sees the individual MCP request/response pair,
+      // so server/cache.mjs's LRU (wired up for query_snapshot in index.mjs) can't key an entry on it. Caching only
+      // becomes possible here if this server starts proxying MCP calls itself instead of delegating them via mcp_servers.
       if (mcp && !final) { t.push({ type: 'mcp_toolset', mcp_server_name: mcp.name || 'funraise' }); extra.mcp_servers = [{ type: 'url', url: mcp.url, name: mcp.name || 'funraise', authorization_token: mcp.token }]; extra.betas = ['mcp-client-2025-11-20']; }
       if (final) extra.tool_choice = { type: 'none' };
       const res = await client.beta.messages.create({ model, max_tokens: 6000, thinking: { type: 'adaptive' }, system, messages, tools: t, ...extra });
@@ -101,8 +105,14 @@ export function fromOpenAIOutput(res, tools) {
 }
 
 // Shared request-body builder for the plain and streaming OpenAI calls.
+// query_snapshot rides along here as an ordinary `function` tool (fnTools below) — it's just another entry in
+// CAMERA_TOOLS, executed server-side by index.mjs's snapshotSubLoop() rather than by the browser (see its comment).
 function openaiBody(model, env, { system, messages, tools, mcp, final }, extra) {
   const fnTools = tools.map(t => ({ type: 'function', name: t.name, description: t.description, parameters: t.input_schema || { type: 'object', properties: {} }, strict: false }));
+  // Phase 9G note: the hosted `mcp` tool below makes OpenAI itself call the remote FUNRAISE MCP server and fold the
+  // result into THIS SAME Responses API call — this adapter never sees the individual MCP request/response pair, so
+  // server/cache.mjs's LRU (wired up for query_snapshot in index.mjs) can't key an entry on it. Caching only becomes
+  // possible here if this server starts proxying MCP calls itself instead of handing the tool to OpenAI.
   if (mcp && !final) fnTools.push({ type: 'mcp', server_label: mcp.name || 'funraise', server_url: mcp.url, headers: { Authorization: `Bearer ${mcp.token}` }, require_approval: 'never' });
   return { model, instructions: system, input: toOpenAIInput(messages), tools: fnTools, tool_choice: final ? 'none' : 'auto', parallel_tool_calls: true, store: false, max_output_tokens: 4000, ...(isReasoningModel(model) ? { reasoning: { effort: env.OPENAI_REASONING || 'low' }, text: { verbosity: 'low' } } : {}), ...extra };
 }

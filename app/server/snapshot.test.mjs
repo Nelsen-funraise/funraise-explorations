@@ -25,7 +25,7 @@ assert('loaded real peaklens.json (156 buildings)', snap.stats.counts.buildings 
 assert('stats.date looks like a YYYY-MM-DD', /^\d{4}-\d{2}-\d{2}$/.test(snap.stats.date), snap.stats.date);
 assert('describe() is a non-empty zh-TW string mentioning 快照', typeof snap.describe() === 'string' && snap.describe().includes('快照') && snap.describe().length > 50);
 assert('describe() stays near the ~600-token budget (< 1200 chars, generous margin)', snap.describe().length < 1200, snap.describe().length);
-assert('real data dir has no timeseries.json yet (other agent hasn\'t landed it)', snap.stats.hasTimeseries === false);
+assert('stats.hasTimeseries reflects whether public/data/timeseries.json is present right now', typeof snap.stats.hasTimeseries === 'boolean', snap.stats.hasTimeseries);
 
 console.log('\n=== buildings: kind returns rows, district/name/grade filters ===');
 {
@@ -122,17 +122,28 @@ console.log('\n=== summary: one paragraph, no keys ===');
   assert('summary: no highlight keys', s.keys.length === 0);
 }
 
+const PEAKLENS_JSON_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'public', 'data', 'peaklens.json');
+
 console.log('\n=== timeseries: graceful null when the file is absent ===');
 {
-  const t = snap.query({ kind: 'timeseries', district: '信義區' });
+  // Own tmp dir with ONLY peaklens.json (no timeseries.json) — deterministic regardless of whether the real
+  // app/public/data already has one by the time this test runs (it's built by a separate, concurrent process).
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'peaklens-snap-test-absent-'));
+  fs.copyFileSync(PEAKLENS_JSON_PATH, path.join(tmp, 'peaklens.json'));
+  const snapAbsent = createSnapshot({ dataDir: tmp });
+  assert('timeseries.json absent → stats.hasTimeseries is false', snapAbsent.stats.hasTimeseries === false);
+  const t = snapAbsent.query({ kind: 'timeseries', district: '信義區' });
   assert('timeseries (absent): count 0, empty rows, a helpful note — never throws', t.count === 0 && t.rows.length === 0 && typeof t.note === 'string', t);
+  fs.rmSync(tmp, { recursive: true, force: true });
 }
 
-console.log('\n=== timeseries: yoy math + peaks when the file IS present (synthetic fixture) ===');
+console.log('\n=== timeseries: yoy math + peaks when the file IS present (synthetic fixture, real confirmed schema) ===');
 {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'peaklens-snap-test-'));
-  fs.copyFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'public', 'data', 'peaklens.json'), path.join(tmp, 'peaklens.json'));
-  const fixture = { meta: { years: [2023, 2024, 2025] }, by_district: { 信義區: { sales_all: { 2023: 100, 2024: 150, 2025: 120 }, sales_office: { 2023: 10, 2024: 20, 2025: 15 }, licenses: { 2023: 5, 2024: 5, 2025: 10 } } } };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'peaklens-snap-test-present-'));
+  fs.copyFileSync(PEAKLENS_JSON_PATH, path.join(tmp, 'peaklens.json'));
+  // Shape matches the real app/public/data/timeseries.json: meta.years is the index → district/city series are plain
+  // arrays position-aligned to it (not year-keyed objects) — see snapshot.mjs's normalizeTimeseries() header comment.
+  const fixture = { meta: { years: [2023, 2024, 2025] }, districts: ['信義區'], sales_all: { 信義區: [100, 150, 120] }, sales_office: { 信義區: [10, 20, 15] }, licenses: { 信義區: [5, 5, 10] }, city: { sales_all: [100, 150, 120], sales_office: [10, 20, 15], licenses: [5, 5, 10] } };
   fs.writeFileSync(path.join(tmp, 'timeseries.json'), JSON.stringify(fixture));
   const snap2 = createSnapshot({ dataDir: tmp });
   assert('timeseries (present): stats.hasTimeseries true', snap2.stats.hasTimeseries === true);
@@ -143,15 +154,28 @@ console.log('\n=== timeseries: yoy math + peaks when the file IS present (synthe
   check('timeseries yoy: 2025 sales_all yoy = (120-150)/150 = -0.2', r2025.sales_all_yoy, -0.2);
   check('timeseries: 2023 yoy is null (no prior year in range)', q.rows.find(r => r.year === 2023).sales_all_yoy, null);
   assert('timeseries: peak year for sales_all is 2024 (value 150)', q.peaks.sales_all.year === 2024 && q.peaks.sales_all.value === 150, q.peaks);
+  check('timeseries: rows come back newest-year-first', q.rows.map(r => r.year), [2025, 2024, 2023]);
   const since = snap2.query({ kind: 'timeseries', district: '信義區', since: '2024-06-01' });
-  check('timeseries: since filters to years >= 2024', since.rows.map(r => r.year), [2024, 2025]);
+  check('timeseries: since filters to years >= 2024, newest first', since.rows.map(r => r.year), [2025, 2024]);
   const year = snap2.query({ kind: 'timeseries', district: '信義區', year: 2025 });
   check('timeseries: year filter returns exactly that year', year.rows.map(r => r.year), [2025]);
-  const city = snap2.query({ kind: 'timeseries' }); // no district → city totals, auto-summed from the one district in the fixture
+  const city = snap2.query({ kind: 'timeseries' }); // no district → city totals (from fixture's own `city` block)
   check('timeseries: city totals (single-district fixture) mirror that district', city.rows.map(r => r.sales_all), q.rows.map(r => r.sales_all));
   const missing = snap2.query({ kind: 'timeseries', district: '中山區' });
   assert('timeseries: unknown district in the fixture → graceful empty + note, not a throw', missing.count === 0 && typeof missing.note === 'string', missing);
   fs.rmSync(tmp, { recursive: true, force: true });
+}
+
+console.log('\n=== timeseries: sanity-checked against the REAL public/data/timeseries.json (when present) ===');
+if (snap.stats.hasTimeseries) {
+  const q = snap.query({ kind: 'timeseries', district: '信義區', top: 20 });
+  assert('real timeseries: 信義區 has 15 yearly rows (2012–2026)', q.count === 15 && q.rows.length === 15, q.count);
+  assert('real timeseries: newest-first order (first row is the max year)', q.rows[0].year === Math.max(...q.rows.map(r => r.year)), q.rows.map(r => r.year));
+  assert('real timeseries: default top:12 truncates to the 12 MOST RECENT years, not the oldest', snap.query({ kind: 'timeseries', district: '信義區' }).rows.every(r => r.year >= 2015), snap.query({ kind: 'timeseries', district: '信義區' }).rows.map(r => r.year));
+  const city = snap.query({ kind: 'timeseries', top: 20 });
+  assert('real timeseries: city-total sales_all for the newest row is a positive number', typeof city.rows[0].sales_all === 'number' && city.rows[0].sales_all > 0, city.rows[0]);
+} else {
+  console.log('(skipped — real timeseries.json not present in this checkout)');
 }
 
 console.log('\n=== envelope shape, unknown kind, size budget ===');
@@ -162,7 +186,7 @@ console.log('\n=== envelope shape, unknown kind, size budget ===');
   assert('query(undefined) does not throw', (() => { try { snap.query(); return true; } catch { return false; } })());
   const top3 = snap.query({ kind: 'buildings', district: '信義區', top: 3 });
   assert('top: limits rows to 3 and sets truncated when more exist', top3.rows.length === 3 && top3.truncated === true, top3);
-  for (const kind of ['buildings', 'mops', 'licenses', 'renewal', 'future', 'moves', 'zones', 'infra', 'parks', 'areas', 'districts']) {
+  for (const kind of ['buildings', 'mops', 'licenses', 'renewal', 'future', 'moves', 'zones', 'infra', 'parks', 'areas', 'districts', 'timeseries']) {
     const size = JSON.stringify(snap.query({ kind, top: 12 })).length;
     assert(`size budget: kind=${kind} default call stays under ~4.2 KB`, size < 4300, size);
   }

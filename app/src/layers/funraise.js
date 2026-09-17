@@ -19,6 +19,7 @@ export const LAYERS = {
   heat:     { name: '商圈行情',        color: '#FCBE83', glyph: 'heat', icon: 'coin',    desc: '商圈租金／售價熱度', scales: ['S1', 'S2', 'S3'], labelScales: ['S1', 'S2', 'S3'] },
   parcels:  { name: '地號（都更模擬）',  color: '#93DCE6', glyph: 'polygon', icon: 'parcel', desc: '台北市地籤圖：選定都更單元內的地號、面積、使用分區（FUNRAISE MCP land-info）', scales: ['S2', 'S3', 'S4'], labelScales: ['S3', 'S4'] },
   mrt:      { name: '捷運路網',        color: '#99A1AF', glyph: 'line', icon: 'metro',    desc: '台北捷運 6 線（OSM）', scales: ['S1', 'S2', 'S3', 'S4'], labelScales: ['S2', 'S3', 'S4'] },
+  tm:       { name: '價值面',          color: '#16A4C0', glyph: 'polygon', desc: '區級價值時光機 · 成交／建照隨年份長高，藍升橘降（Phase 9F）', scales: ['S1', 'S2'], labelScales: ['S1', 'S2'] },
 };
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const MRT_COLOR = { '文湖線': '#C48C31', '淡水信義線': '#E3002C', '松山新店線': '#008659', '中和新蘂線': '#F8B61C', '中和新蘆線': '#F8B61C', '板南線': '#0070BD', '環狀線': '#FFDB00' };
@@ -196,13 +197,20 @@ export class FunraiseLayers {
     this.prevYear = prev; this.yearChangedAt = performance.now(); const fx = this.ds.fx; fx.entities.removeAll(); if (year <= prev) return;
     const born = (this.d.buildings || []).filter(b => b.lat && b._built != null && b._built > prev && b._built <= year).slice(0, 24);
     const t0 = performance.now();
+    // Phase 9F：光柱＋樓層數標籤壽命拉到 2.5s（成長 900ms 到頂，維持到 1.8s，再淡出到 2.5s）——比舊版的 1.1s/1.5s
+    // 更容易「看到它在哪裡長出來」；光柱顏色沿用 PickPeak 藍本藍／人文橘兩個色族，依目前鏡頭（investor 鏡＝橘／
+    // 其餘＝藍）挑一個，讀 window.PL.agent.lens（此時 boot() 早已跑完，一定有值；沒有就預設藍）。
+    const lens = () => { try { return (window.PL && window.PL.agent && window.PL.agent.lens) || null; } catch { return null; } };
     for (const b of born) { const h = b._h || 40; const side = Math.max(22, Math.min(64, Math.sqrt((b.total_floor_area || 6000) / Math.max(1, (b.floor_above || 8))) * 1.5));
-      const prog = () => Math.min(1, (performance.now() - t0) / 1100); const ease = () => 1 - Math.pow(1 - prog(), 3);
-      fx.entities.add({ position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h * 1.35 * ease() / 2), false), box: { dimensions: new Cesium.CallbackProperty(() => new Cesium.Cartesian3(side, side, Math.max(1, h * 1.35 * ease())), false), material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#FCBE83', 0.55 * (1 - prog())), false)), outline: true, outlineColor: C('#FFDAA0', .9) } });
-      fx.entities.add({ position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h + 30 + 40 * ease()), false), label: { text: `+ ${b.name}`, font: MONO, fillColor: new Cesium.CallbackProperty(() => C('#FFDAA0', 1 - prog() * 0.6), false), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scale: 1 } }); }
+      const grow = () => Math.min(1, (performance.now() - t0) / 900); const ease = () => 1 - Math.pow(1 - grow(), 3);
+      const vis = () => { const el = performance.now() - t0; return el < 1800 ? 1 : Math.max(0, 1 - (el - 1800) / 700); }; // 滿 2.5s 才整批清掉（見下方 setTimeout）
+      const beamCol = lens() === 'investor' ? '#F29628' : '#50C0D4'; const beamH = Math.max(150, Math.min(400, (b.floor_above || 8) * 5));
+      fx.entities.add({ position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h * 1.35 * ease() / 2), false), box: { dimensions: new Cesium.CallbackProperty(() => new Cesium.Cartesian3(side, side, Math.max(1, h * 1.35 * ease())), false), material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#FCBE83', 0.55 * vis()), false)), outline: true, outlineColor: C('#FFDAA0', .9) } });
+      fx.entities.add({ position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h + beamH * ease() / 2), false), cylinder: { topRadius: 2.5, bottomRadius: 2.5, length: new Cesium.CallbackProperty(() => Math.max(1, beamH * ease()), false), material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(beamCol, 0.5 * vis()), false)), outline: false } });
+      fx.entities.add({ position: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h + beamH * ease() + 14), false), label: { text: `+ ${b.name} · ${b.floor_above || '?'}F`, font: MONO, fillColor: new Cesium.CallbackProperty(() => C('#FFDAA0', vis()), false), outlineColor: C('#030712', .9), outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scale: 1 } }); }
     for (const m of this.d.mops || []) if (m.lat && m._year === year) this.pulse('mops:' + m.id, 4000);
     for (const f of this.d.future_dev || []) if (f.lat && f._year === year) this.pulse('future:' + f.id, 4000);
-    setTimeout(() => { if (this.yearChangedAt === t0 || performance.now() - t0 > 1400) fx.entities.removeAll(); }, 1500);
+    setTimeout(() => { if (this.yearChangedAt === t0 || performance.now() - t0 > 2600) fx.entities.removeAll(); }, 2500);
   }
   yearStats(year) { const d = this.d; return { stock: (d.buildings || []).filter(b => b._built === year).length, licenses: (d.building_licenses || []).filter(l => l._year === year).length, mops: (d.mops || []).filter(m => m._year === year).length, future: (d.future_dev || []).filter(f => f._year === year).length, total: (d.buildings || []).filter(b => b._built == null || b._built <= year).length }; }
   /* ---- 未來供給（幽靈建物，隨時間長高）---- */

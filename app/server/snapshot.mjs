@@ -145,7 +145,7 @@ export function createSnapshot({ dataDir } = {}) {
     let years = timeseries.years;
     if (q.year) years = years.filter(y => y === +q.year);
     if (q.since) { const sy = yearOf(q.since) || +String(q.since).slice(0, 4); if (sy) years = years.filter(y => y >= sy); }
-    const rows = years.map(y => {
+    const rows = [...years].reverse().map(y => { // newest year first so a `top` cap keeps the recent end of the trend, not 2012
       const i = timeseries.idx.get(y); const row = { year: y };
       for (const s of SERIES) { const arr = arrOf(s); const cur = arr ? arr[i] ?? null : null; const pi = timeseries.idx.get(y - 1); const prev = (arr && pi != null) ? arr[pi] : null; row[s] = cur; row[`${s}_yoy`] = (cur != null && prev) ? round((cur - prev) / prev, 3) : null; }
       return row;
