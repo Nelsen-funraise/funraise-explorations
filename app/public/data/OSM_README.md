@@ -115,18 +115,19 @@ height_dm = round(height_m*10). name (4th array element) present only when the b
 
 `osm_landmarks.json`: array of `{name, lon, lat, height_m}` polygon centroids, named buildings >=60m tall, max 300, sorted tallest first.
 
-## building:part 分段量體（2026-09-17，scripts/fetch-osm-parts.mjs）
+<!-- osm-parts-section:begin -->
+## building:part 分段量體（scripts/fetch-osm-parts.mjs；最後更新 2026-09-17）
 
-Fetched from https://overpass.kumi.systems/api/interpreter — same bbox/tiling as the building footprints above (§16.7 地標形狀).
+Fetched from https://overpass.kumi.systems/api/interpreter — same bbox/tiling as the building footprints above (§16.7 地標形狀). Latest supplementary merge: bbox [121.585,25.025,121.595,25.035] → 0 new part(s) added (0 already present), 0 parent(s) re-checked for suppression.
 
-- Ways fetched (raw, before de-dup): 10685
-- Unique building:part ways: 10618
-- Parts kept: 10526
-- Skipped — no usable height (no height／building:levels tag): 61
-- Skipped — degenerate ring: 31
-- Matched to a parent building footprint: 9558 · standalone (no parent match): 968
-- Suppressed parents (parts cover >=60% of footprint area, parent box no longer drawn — only the parts render): 1688
-- Sub-tiles missing (still failing after retries + adaptive splitting down to depth 1): 20 — [[121.565,25.015,121.575,25.025],[121.565,25.025,121.575,25.035],[121.585,25.025,121.595,25.035],[121.62,25.015,121.625,25.025],[121.62,25.025,121.625,25.035],[121.525,25.035,121.535,25.045],[121.515,25.045,121.525,25.055],[121.535,25.055,121.545,25.065],[121.575,25.065,121.585,25.075],[121.595,25.055,121.605,25.065],[121.615,25.055,121.62,25.065],[121.62,25.055,121.625,25.065],[121.615,25.065,121.62,25.075],[121.505,25.075,121.515,25.085],[121.495,25.085,121.505,25.095],[121.525,25.075,121.535,25.085],[121.565,25.075,121.575,25.085],[121.555,25.085,121.565,25.095],[121.575,25.085,121.585,25.095],[121.585,25.085,121.595,25.095]]
+- Ways fetched (raw, before de-dup, cumulative across all runs): 174
+- Unique building:part ways (cumulative): 174
+- Parts kept: 10679
+- Skipped — no usable height (no height／building:levels tag), cumulative: 1
+- Skipped — degenerate ring, cumulative: 0
+- Matched to a parent building footprint: 9708 · standalone (no parent match): 971
+- Suppressed parents (parts cover >=60% of footprint area, parent box no longer drawn — only the parts render): 1710
+- Sub-tiles missing (still failing after retries + adaptive splitting): 18 — [[121.565,25.015,121.575,25.025],[121.62,25.015,121.625,25.025],[121.62,25.025,121.625,25.035],[121.525,25.035,121.535,25.045],[121.515,25.045,121.525,25.055],[121.535,25.055,121.545,25.065],[121.575,25.065,121.585,25.075],[121.595,25.055,121.605,25.065],[121.615,25.055,121.62,25.065],[121.62,25.055,121.625,25.065],[121.615,25.065,121.62,25.075],[121.505,25.075,121.515,25.085],[121.495,25.085,121.505,25.095],[121.525,25.075,121.535,25.085],[121.565,25.075,121.575,25.085],[121.555,25.085,121.565,25.095],[121.575,25.085,121.585,25.095],[121.585,25.085,121.595,25.095]]
 
 ### Top landmarks by tallest part
 
@@ -135,6 +136,7 @@ Fetched from https://overpass.kumi.systems/api/interpreter — same bbox/tiling 
 - 國泰置地廣場 — 192.0 m (suppressed parent — parent box replaced by parts)
 - 遠東國際大飯店 — 164.7 m (parent box kept alongside parts)
 - 統一國際大樓 — 153.8 m (suppressed parent — parent box replaced by parts)
+- 南山廣場 — 153.6 m (suppressed parent — parent box replaced by parts)
 - 市府轉運站 — 153.4 m (suppressed parent — parent box replaced by parts)
 - 聯合報辦公大樓 — 145.6 m (suppressed parent — parent box replaced by parts)
 - 南港車站 — 139.0 m (parent box kept alongside parts)
@@ -143,10 +145,11 @@ Fetched from https://overpass.kumi.systems/api/interpreter — same bbox/tiling 
 - 台電大樓 — 114.5 m (suppressed parent — parent box replaced by parts)
 - 國貿大樓 — 112.0 m (suppressed parent — parent box replaced by parts)
 - 遠雄金融中心 — 105.6 m (suppressed parent — parent box replaced by parts)
+- 琢白 — 105.6 m (suppressed parent — parent box replaced by parts)
 - 國泰金融中心 — 105.0 m (suppressed parent — parent box replaced by parts)
 - Qinmei Puzhen — 102.4 m (suppressed parent — parent box replaced by parts)
+- 新光信義傑仕堡 — 102.0 m (parent box kept alongside parts)
 - 中央百世大樓 — 99.2 m (suppressed parent — parent box replaced by parts)
 - 雙塔大樓 — 99.2 m (suppressed parent — parent box replaced by parts)
-- 微風松高 — 98.8 m (suppressed parent — parent box replaced by parts)
-- 華新麗華大樓 — 96.0 m (suppressed parent — parent box replaced by parts)
-- 君悅酒店 — 92.8 m (suppressed parent — parent box replaced by parts)
+<!-- osm-parts-section:end -->
+
