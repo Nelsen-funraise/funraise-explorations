@@ -412,3 +412,32 @@ OSM 對台北 101、南山廣場等地標有 `building:part`（分段量體，�
 ### 16.8 金鑰齊全情境的模擬
 
 `PEAKLENS_DEMO_LIVE=1` 讓 server 在缺金鑰時回傳標記為 DEMO 的擬真資料（天氣、AQI、YouBike 站點、TDX 站間時間、ORS 生活圈），角標顯示「DEMO」。用途只有一個：讓無頭冒煙測試與截圖能在金鑰齊全的完整合成下驗證外觀。
+
+## 17. Phase 9 落地紀錄（2026-09-17）
+
+§16 的規則實作在以下模組；每一項都有無頭冒煙測試或子任務的 Playwright 驗證。
+
+### 17.1 合成器 `src/compose.js`
+
+- 相機停止移動 250 ms 後判定尺度 S0–S4（15% 遲滯），對每個圖層套用 `scales`／`labelScales` 遮罩（與使用者開關分開存放，拉遠自動隱藏、拉近自動出現，不必重按）。
+- 標籤預算改成**視野內優先**：以 `rig.bounds()` 加 25% 邊界先排視野內的候選，再依重要度補滿；原本是全台排名，常常一個都不在畫面上。實測 S1 12、S3 24、S4 只留選取／釘選／說明標註。
+- Look 預設 `white / sun / golden / night / photoreal` 各是一組完整設定（主題、底圖、日照、窗燈、後製）；尺度約束優先：S0–S1 一律關泛光／HDR／AO。header 上原本的「☀ 日照」「🌙 夜」「主題」三顆 pill 合併成一顆 Look pill 加彈出選單，時刻滑桿是日照／黃金底下的子控制；Shift+L 循環。
+- 相容矩陣：地面疊圖最多兩層（第三層自動關掉最舊的並提示）、疊圖開啟時熱區退到 25%、等時圈與生活圈互斥、分析圈開啟時圈外點位退到 30%、對焦進入時清分析圈、遷徙動線播放中隱藏交易／建照標籤並把商辦 icon 淡到 40%（結束 3 秒後還原）。
+- `ui.setTheme/setSun/setBasemap/setNight/setQuality/setOverlay` 仍可呼叫（agent 工具與舊程式碼都在用），但都經過合成器：手動微調視為覆寫，下一次換 Look 整組重設；被尺度修正的請求回傳 `{ adjusted: true, note }`。
+- 分享連結多了 `look=`。
+
+### 17.2 說明模式 `src/explain.js`
+
+- 回答完成（`ui.type` 與串流 `typeStream.done` 共用的 `settle`）時，從 `layers.highlight` 收集被點亮的物件 key；有物件就進入說明模式 12 秒：取景（單點 900 m、多點 `BoundingSphere` 1.4 倍邊界）、非相關 OSM 量體退灰（沿用對焦模組）、無關 FUNRAISE 圖層淡到 25%、徑向暈影、編號 ①–⑧ 引線標註（不論密度）、右側說明卡（沉浸模式改字幕列）。
+- 使用者一動滑鼠、滾輪或鍵盤就退出；編號保留到下一個問題。
+- 為了不和合成器的標籤預算打架，被提到的物件同時以 `layers.pulse` 標為 hot，預算重算時永遠保留。
+
+### 17.3 AI 迴圈與語音（`src/agent/claudeClient.js`、`server/llm.mjs`、`server/index.mjs`）
+
+- **一定有回覆**：迴圈連續兩回合只有鏡頭工具、或跑滿回合數時，client 以 `final: true` 再叫一次 server，server 用 `tool_choice: none` 且不掛 MCP，逼模型收尾；再失敗就由 client 依已執行的工具合成一句（「已飛到台北101並切到黃金時刻。」）。
+- **快速路由**：`Agent.tryLocal(text)` 先處理純鏡頭／外觀／圖層／密度／鏡別／場景指令（0 ms、不打 LLM）；含「哪些／多少／比較／交易／租金／都更／建照／公司／開在哪」等資料字眼的問題才送 LLM。
+- **少回合**：系統提示要求畫面工具同回合平行呼叫；新增 `present_place`（飛行＋環繞＋Look 一次完成）與 `set_look`；OpenAI 端 `parallel_tool_calls: true`，推理模型 `reasoning.effort` 預設 low（可設 `OPENAI_REASONING=minimal`）、`text.verbosity: low`。
+- **串流**：`/api/agent` 帶 `stream: true` 回 SSE（`text` delta、`tool`、`done`、`error`），client 邊收邊打字，第一個句號就開始念；任何不對就退回非串流路徑。Anthropic 路徑目前整段一次送出。
+- **參數清洗**：server 依工具 schema 丟掉未知欄位、字串轉數字／布林，JSON 壞掉回 `{ _error }` 讓模型重試（實測那個 `}！！=` key 就是這樣被吃掉的）。
+- **語音**：每次提問先 `speech.stop()`；只念前兩句、去條列與「來源：」、上限 110 字；工具有動作但沒文字時念合成摘要。
+- **對話 dock**：左下角、最寬 560 px、最高 22vh（hover 46vh）；工具卡收成一行即時進度（「查詢…第 N 步 · X s」），點開才展開；舊的對話收成一行；連續提問排隊執行、打字互不干擾。
