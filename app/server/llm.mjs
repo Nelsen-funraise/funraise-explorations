@@ -54,7 +54,7 @@ function anthropicLLM(env) {
       // the result back into THIS SAME response — this adapter never sees the individual MCP request/response pair,
       // so server/cache.mjs's LRU (wired up for query_snapshot in index.mjs) can't key an entry on it. Caching only
       // becomes possible here if this server starts proxying MCP calls itself instead of delegating them via mcp_servers.
-      if (mcp && !final) { t.push({ type: 'mcp_toolset', mcp_server_name: mcp.name || 'funraise' }); extra.mcp_servers = [{ type: 'url', url: mcp.url, name: mcp.name || 'funraise', authorization_token: mcp.token }]; extra.betas = ['mcp-client-2025-11-20']; }
+      if (mcp && !final) { t.push({ type: 'mcp_toolset', mcp_server_name: mcp.name || 'funraise' }); extra.mcp_servers = [{ type: 'url', url: mcp.url, name: mcp.name || 'funraise', authorization_token: mcp.token, ...(mcp.allowedTools && mcp.allowedTools.length ? { tool_configuration: { enabled: true, allowed_tools: mcp.allowedTools } } : {}) }]; extra.betas = ['mcp-client-2025-11-20']; }
       if (final) extra.tool_choice = { type: 'none' };
       const res = await client.beta.messages.create({ model, max_tokens: 6000, thinking: { type: 'adaptive' }, system, messages, tools: t, ...extra });
       for (const b of res.content) if (b.type === 'tool_use') b.input = sanitizeArgs(b.input, schemaFor(tools, b.name));
@@ -113,7 +113,7 @@ function openaiBody(model, env, { system, messages, tools, mcp, final }, extra) 
   // result into THIS SAME Responses API call — this adapter never sees the individual MCP request/response pair, so
   // server/cache.mjs's LRU (wired up for query_snapshot in index.mjs) can't key an entry on it. Caching only becomes
   // possible here if this server starts proxying MCP calls itself instead of handing the tool to OpenAI.
-  if (mcp && !final) fnTools.push({ type: 'mcp', server_label: mcp.name || 'funraise', server_url: mcp.url, headers: { Authorization: `Bearer ${mcp.token}` }, require_approval: 'never' });
+  if (mcp && !final) fnTools.push({ type: 'mcp', server_label: mcp.name || 'funraise', server_url: mcp.url, headers: { Authorization: `Bearer ${mcp.token}` }, require_approval: 'never', ...(mcp.allowedTools && mcp.allowedTools.length ? { allowed_tools: mcp.allowedTools } : {}) }); // allowed_tools keeps the ~150-tool FUNRAISE catalogue out of every turn (~22k tokens observed)
   return { model, instructions: system, input: toOpenAIInput(messages), tools: fnTools, tool_choice: final ? 'none' : 'auto', parallel_tool_calls: true, store: false, max_output_tokens: 4000, ...(isReasoningModel(model) ? { reasoning: { effort: env.OPENAI_REASONING || 'low' }, text: { verbosity: 'low' } } : {}), ...extra };
 }
 // Parses one `\n\n`-delimited SSE record into { type, json }; the OpenAI Responses stream repeats the event name in both
