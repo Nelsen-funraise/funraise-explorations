@@ -84,16 +84,25 @@ export function createSpeech({ api = '' } = {}) {
       try { const r = await apiFetch('/api/voices'); if (r.ok) { const j = await r.json(); st.fishLive = !!j.fish; if (j.voices && j.voices.length) st.voices = j.voices; } } catch { /* no server */ }
       st.ready = true; return sp.voices();
     },
-    // URL for a (chunk of) text in the current voice: pre-rendered file, else server TTS (cached as blob per chunk
-    // hash — every chunk is its own /api/tts call and its own cache entry), else null.
-    async source(text) {
+    // Pre-rendered file for `text` in the current voice, checked WITHOUT ever falling through to a live fetch — used
+    // to prefer a whole-narration pre-rendered file (built by scripts/prerender-tts.mjs from the exact, un-chunked
+    // scene text) over chunked live synthesis, so the offline/keyless build still plays scene narration from a single
+    // static file exactly as before; only text that ISN'T pre-rendered (dynamic scene lines, AI answers, anything a
+    // live server must synthesize) goes through the new sanitize+chunk path below.
+    manifestUrl(text) {
       const v = st.voice; if (v === 'system') return null; const key = fnv1a(text);
-      if (st.manifest && st.manifest.voices && st.manifest.voices[v] && st.manifest.voices[v].includes(key)) return `./audio/${v}/${key}.mp3`;
-      if (!st.fishLive) return null; const ck = v + '|' + key; if (st.warm.has(ck)) return st.warm.get(ck);
+      return (st.manifest && st.manifest.voices && st.manifest.voices[v] && st.manifest.voices[v].includes(key)) ? `./audio/${v}/${key}.mp3` : null;
+    },
+    // URL for a (chunk of) text in the current voice: pre-rendered file, else live server TTS (cached as a blob per
+    // chunk hash — every chunk is its own /api/tts call and its own server-side cache entry), else null.
+    async source(text) {
+      const pre = sp.manifestUrl(text); if (pre) return pre;
+      const v = st.voice; if (v === 'system') return null; if (!st.fishLive) return null;
+      const key = fnv1a(text); const ck = v + '|' + key; if (st.warm.has(ck)) return st.warm.get(ck);
       const p = apiFetch('/api/tts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, voice: v }) }).then(async r => { if (!r.ok) throw new Error('tts ' + r.status); return URL.createObjectURL(await r.blob()); });
       st.warm.set(ck, p); p.catch(() => st.warm.delete(ck)); return p;
     },
-    warm(texts) { for (const t of texts || []) for (const c of splitChunks(speakable(t))) sp.source(c).catch(() => {}); },
+    warm(texts) { for (const t of texts || []) { const clean = speakable(t); sp.manifestUrl(clean) ? null : splitChunks(clean).forEach(c => sp.source(c).catch(() => {})); } },
     // Verification hook (never called by the app itself): fn(text) => ms|null|Promise<ms|null>. When TTS is entirely
     // unavailable (headless/CI, no speechSynthesis voices), this lets a test make duration()/speak() deterministic
     // without needing a real voice — e.g. window.PL.speech.setTestHook(t => t.length * 90).
@@ -104,34 +113,44 @@ export function createSpeech({ api = '' } = {}) {
       if ('speechSynthesis' in window) try { speechSynthesis.cancel(); } catch { /* ignore */ }
       if (st.onStop) { const f = st.onStop; st.onStop = null; f(); } // unblocks whatever chunk is currently awaited — it would otherwise hang forever
     },
-    // Preloads the audio for `text` (sanitized + chunked, same as speak()) and resolves the TOTAL length in ms
-    // WITHOUT playing it (no autoplay-policy risk): all chunks are probed in parallel, bounded by a timeout; any
-    // failure/timeout on ANY chunk falls back to a single char-count estimate over the whole sanitized text.
+    // resolves one URL's real duration in ms via loadedmetadata, bounded by a timeout; used by duration() below.
+    _probeMs(url) {
+      return new Promise((resolve, reject) => {
+        const a = new Audio(); const to = setTimeout(() => reject(new Error('timeout')), 4000);
+        a.addEventListener('loadedmetadata', () => { clearTimeout(to); resolve(a.duration * 1000); }, { once: true });
+        a.onerror = () => { clearTimeout(to); reject(new Error('audio error')); }; a.src = url;
+      });
+    },
+    // Preloads the audio for `text` and resolves its length in ms WITHOUT playing it (no autoplay-policy risk).
+    // Prefers a whole-text pre-rendered file (matches speak()'s own preference below); only when there isn't one does
+    // it fall back to the sanitized+chunked live path, probing all chunks in parallel. Any failure/timeout falls back
+    // to a single char-count estimate over the whole sanitized text.
     async duration(text) {
       const clean = speakable(text).slice(0, 2000); if (!clean) return 0;
       if (st.testHook) { try { const ms = await st.testHook(clean); if (ms != null) return ms; } catch { /* fall through */ } }
+      const pre = sp.manifestUrl(clean);
+      if (pre) { try { const ms = await sp._probeMs(pre); if (ms > 0) return ms; } catch { /* fall through to estimate */ } return estimateMs(clean); }
       const chunks = splitChunks(clean);
       try {
         const urls = await Promise.all(chunks.map(c => sp.source(c).catch(() => null)));
         if (urls.length && urls.every(u => u)) {
-          const per = await Promise.all(urls.map(u => new Promise((resolve, reject) => {
-            const a = new Audio(); const to = setTimeout(() => reject(new Error('timeout')), 4000);
-            a.addEventListener('loadedmetadata', () => { clearTimeout(to); resolve(a.duration * 1000); }, { once: true });
-            a.onerror = () => { clearTimeout(to); reject(new Error('audio error')); }; a.src = u;
-          })));
+          const per = await Promise.all(urls.map(u => sp._probeMs(u)));
           const total = per.reduce((s, m) => s + (isFinite(m) ? m : 0), 0);
           if (total > 0) return total;
         }
       } catch { /* fall through to estimate */ }
       return estimateMs(clean);
     },
-    // resolves when every chunk has finished playing (or immediately when nothing could be played); onProgress(frac)
-    // fires ~every 100ms while it plays, weighted by each chunk's share of the total sanitized character count
-    // (frac∈[0,1], always ends with a final 1) so callers can drive subtitles/beats without polling audio themselves.
+    // resolves when the narration has finished playing (or immediately when nothing could be played); onProgress(frac)
+    // fires ~every 100ms while it plays (frac∈[0,1], always ends with a final 1). Prefers a whole-text pre-rendered
+    // file when scripts/prerender-tts.mjs already baked one for this EXACT (sanitized) narration — the offline/keyless
+    // build keeps playing scene narration from one static file, unchanged; only text that needs LIVE synthesis (no
+    // pre-render) goes through the new sanitize+chunk queue, which is exactly where "long sentence garbles" happens.
     async speak(text, { onProgress } = {}) {
       sp.stop();
       const clean = speakable(text).slice(0, 2000); if (!clean) { onProgress && onProgress(1); return { ms: 0, source: 'none' }; }
       if (st.testHook) { const ms = await Promise.resolve(st.testHook(clean)).catch(() => null); if (ms != null) return sp._fakePlay(ms, onProgress); }
+      const pre = sp.manifestUrl(clean); if (pre) return sp.playAudio(pre, onProgress);
       return sp.playQueue(splitChunks(clean), onProgress);
     },
     /** Plays chunks strictly in order, one utterance/audio at a time, prefetching chunk i+1's audio (`sp.source`)

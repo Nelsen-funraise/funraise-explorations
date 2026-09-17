@@ -389,7 +389,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     orb.classList.remove('busy');
     // Phase 10Q: the AI answer's first sentence now goes through the unified #voicebar instead of the old #caption
     // strip; while a scene is paused waiting on this very question, also surface the way back in.
-    if (ui.voicebar) { ui.voicebar.say(text, { mode: 'agent' }); if (director && director.paused) ui.voicebar.showResume(); }
+    if (ui.voicebar) { ui.voicebar.say(text, { mode: 'agent' }); if (director && director.paused) setTimeout(() => { if (director.paused) ui.voicebar.showResume(); }, 3200); } // let the answer stay readable a moment before offering the way back in
     const prov = $('#provenance'); const cards = [...turn.querySelectorAll('.tool')]; if (cards.length) { prov.innerHTML = `<div class="eyebrow">來源與工具呼叫 · Provenance</div>${cards.map(c => `<div class="prov"><i></i><span class="n"><b>${escapeHtml(c._name || '')}</b></span><span class="r">${escapeHtml(c._summary || '')} · ${c._ms || 0} ms</span></div>`).join('')}`; prov.classList.remove('hidden'); }
     try { if (ui.explain && !ui.sceneId) ui.explain.onAnswer(turn, text); } catch (e) { console.warn('explain', e); }
   }
