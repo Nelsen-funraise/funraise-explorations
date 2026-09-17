@@ -41,7 +41,7 @@ export class FunraiseLayers {
     // compose.js state: mask = scale gate (separate from vis, the user's own toggle); scale/labelBudget/selectedKey drive
     // recomputeLabels(); _ringActive/_tripsDim are transient compat-matrix modes (§16.3); _themeLight mirrors setTheme().
     this.mask = Object.fromEntries(Object.keys(LAYERS).map(k => [k, true]));
-    this.scale = 'S3'; this.labelBudget = 24; this.selectedKey = null; this._densityMinImp = 0; this._themeLight = true; this._ringActive = false; this._tripsDim = false; this._ring = null;
+    this.scale = 'S3'; this.labelBudget = 24; this.selectedKey = null; this._densityMinImp = 0; this._themeLight = true; this._ringActive = false; this._tripsDim = false; this._ring = null; this._viewBounds = null;
     for (const k of [...Object.keys(LAYERS), 'labels', 'markers', 'fx']) { this.ds[k] = new Cesium.CustomDataSource(k); viewer.dataSources.add(this.ds[k]); }
     this.prevYear = this.year; this.yearChangedAt = 0;
     this.districtCentroids = new Map(); for (const d of this.base.districts || []) { const r = d.rings && d.rings[0]; if (!r) continue; let x = 0, y = 0; for (const p of r) { x += p[0]; y += p[1]; } this.districtCentroids.set(d.name, [x / r.length, y / r.length]); }
@@ -78,7 +78,9 @@ export class FunraiseLayers {
   /** §16.3 分析圈（等時圈／生活圈）active: dim out-of-ring icons on the point layers to 30%, hide heat/zones (mask),
    * renewal keeps polygons only (its label is gated in recomputeLabels()). origin=null clears back to normal. */
   setRingDim(origin, radiusM) {
-    const POINT_LAYERS = ['stock', 'future', 'licenses', 'mops', 'moves', 'infra', 'parks'];
+    // 'markers' (not 'stock'): the stock layer's own ds only holds the extruded polygon/box volumes — its billboard
+    // icon lives in the separate cluster/marker ds built by buildMarkers(), which is what actually needs dimming here.
+    const POINT_LAYERS = ['markers', 'future', 'licenses', 'mops', 'moves', 'infra', 'parks'];
     this._ring = origin ? { lon: origin[0], lat: origin[1], r: radiusM || 1200 } : null;
     for (const k of POINT_LAYERS) { const ds = this.ds[k]; if (!ds) continue;
       for (const e of ds.entities.values) { if (!e.billboard) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; const it = pl && pl.item;
@@ -93,12 +95,31 @@ export class FunraiseLayers {
   setTripsDim(on) { this._tripsDim = !!on; this.setFlatAlpha('markers', on ? 0.4 : 1); this.recomputeLabels(); }
   setSelected(key) { this.selectedKey = key || null; this.recomputeLabels(); }
   setLabelBudget(n) { this.labelBudget = n; this.recomputeLabels(); }
+  /** compose.js passes rig.bounds() here on every apply() (not just on scale change) so the budget ranks labels that
+   * are actually near the current camera first — a *global* top-N by importance (the previous behaviour) could easily
+   * pick 24 labels scattered anywhere in Taipei, none of them on screen. null clears back to unscoped/global ranking. */
+  setViewBounds(b) { this._viewBounds = b; }
+  /** Entity → [lon,lat] for the view-bounds check in recomputeLabels() below: prefers the FUNRAISE item's own
+   * lon/lat (or renewal-style centroid `_c`), falls back to reading the entity's own (static) position — mirrors
+   * fx/focus.js's itemLonLat(). */
+  _entityLonLat(e, pl) {
+    if (pl && pl.item) { if (pl.item.lat != null) return [pl.item.lon, pl.item.lat]; if (pl.item._c) return pl.item._c; }
+    if (e.position) { try { const c = e.position.getValue ? e.position.getValue(this.viewer.clock.currentTime) : e.position; if (c) { const carto = Cesium.Cartographic.fromCartesian(c); return [carto.longitude / D2R, carto.latitude / D2R]; } } catch { /* dynamic/unresolvable */ } }
+    return null;
+  }
   /** Unified label visibility pass (§16.1 label budget + §16.3 exclusions), replacing the old inline `e.label.show =`
    * in setDensity(): selected (map.selected, via compose's ui.select wrap) and highlighted (isHot(), pulse()) entities
    * always show and never count against the budget; everything else is gated by its layer's labelScales, the transient
-   * ring/trips modes, the density importance floor, and finally ranked by importance() against the numeric budget. */
+   * ring/trips modes, the density importance floor, and finally ranked in-view-first by importance() against the
+   * numeric budget (see setViewBounds() above — off-screen candidates only fill leftover budget, never crowd it out). */
   recomputeLabels() {
-    const scale = this.scale, minImp = this._densityMinImp ?? 0, tripsDim = !!this._tripsDim, ringActive = !!this._ringActive; const ranked = [];
+    const scale = this.scale, minImp = this._densityMinImp ?? 0, tripsDim = !!this._tripsDim, ringActive = !!this._ringActive;
+    // §16.1 budget must reflect what's actually on screen: rank in-view candidates first, only spill into
+    // off-screen ones (sorted the same way) if the budget isn't filled — a *global* top-N could fill the whole
+    // budget with e.g. mops deals or district names scattered anywhere in Taipei, none of them near the camera.
+    const b = this._viewBounds; const padLon = b ? (b[2] - b[0]) * 0.25 : 0, padLat = b ? (b[3] - b[1]) * 0.25 : 0;
+    const inBounds = (lon, lat) => !b || (lon >= b[0] - padLon && lon <= b[2] + padLon && lat >= b[1] - padLat && lat <= b[3] + padLat);
+    const inView = [], outView = [];
     for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) {
       if (!e.label) continue;
       const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; const key = pl ? pl.key : null; const layer = pl ? pl.layer : null;
@@ -109,11 +130,13 @@ export class FunraiseLayers {
       if (ringActive && layer === 'renewal') { e.label.show = false; continue; }
       if (tripsDim && (layer === 'mops' || layer === 'licenses')) { e.label.show = false; continue; }
       const imp = e._imp == null ? 1 : e._imp; if (imp < minImp) { e.label.show = false; continue; }
-      ranked.push({ e, imp });
+      const pos = this._entityLonLat(e, pl);
+      (pos && !inBounds(pos[0], pos[1]) ? outView : inView).push({ e, imp });
     }
-    ranked.sort((a, b) => b.imp - a.imp);
-    const budget = this.labelBudget == null ? Infinity : this.labelBudget;
-    ranked.forEach((r, i) => { r.e.label.show = i < budget; });
+    inView.sort((a, c) => c.imp - a.imp); outView.sort((a, c) => c.imp - a.imp);
+    const budget = this.labelBudget == null ? Infinity : this.labelBudget; let shown = 0;
+    for (const r of inView) { r.e.label.show = shown < budget; shown++; }
+    for (const r of outView) { r.e.label.show = shown < budget; shown++; }
   }
   /* Density budget (Direction C): scale label reach and hide low-importance labels when immersive. */
   setTheme(theme) { // light: darker text on white halo + white-disc icons (PickPeak); dark: original glow colours on dark halo

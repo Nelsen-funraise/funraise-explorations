@@ -6,7 +6,7 @@
 // points to ~22–25% so context stays legible, per the spec). OSM building recede is reused as-is via `map.osm.focus()`
 // (the same call fx/focus.js makes) over a bounding circle that covers every referenced point.
 import * as Cesium from 'cesium';
-import { LAYERS, fmtInt, fmtMoney } from './layers/funraise.js';
+import { fmtInt, fmtMoney } from './layers/funraise.js';
 import './explain.css';
 
 const D2R = Math.PI / 180;
@@ -106,14 +106,18 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
   }
   function keyMatches(plKey, keeps) { for (const k of keeps) if (plKey === k || plKey.startsWith(k + ':') || k.startsWith(plKey + ':')) return true; return false; } // bidirectional: a renewal unit's several ring entities are keyed 'renewal:id:ringN' while its one label/billboard entity keeps the bare 'renewal:id' — a keep-key picked from either form (e.g. straight out of layers.byKey) must still reach the other
   function sampleColor(mat) { try { const c = mat && mat.color && mat.color.getValue && mat.color.getValue(viewer.clock.currentTime); if (c) return c.clone(new Cesium.Color()); } catch { /* dynamic material without a plain colour */ } return Cesium.Color.GRAY.clone(); }
-  function applyMask(keeps) {
-    const dimmed = [], billboardSaved = [], materialSaved = [], bumped = []; const keepEntities = new Map();
+  function applyMask(keeps, pulseMs) {
+    const dimmed = [], billboardSaved = [], materialSaved = [], bumped = [];
     for (const ds of Object.values(layers.ds)) for (const e of ds.entities.values) {
       const plProp = e.properties && e.properties.pl; if (!plProp) continue; const pl = plProp.getValue(); if (!pl) continue;
-      if (keyMatches(pl.key, keeps)) { // referenced: bump to the front, remember for the callout list
-        if (!keepEntities.has(pl.key)) keepEntities.set(pl.key, []); keepEntities.get(pl.key).push(e);
-        if (e.label) { bumped.push([e, 'label', e.label.disableDepthTestDistance, e.label.eyeOffset]); e.label.disableDepthTestDistance = Number.POSITIVE_INFINITY; e.label.eyeOffset = new Cesium.Cartesian3(0, 0, -14); }
+      if (keyMatches(pl.key, keeps)) { // referenced: bump to the front (the callout list itself is built separately, from `resolved` in enter())
+        if (e.label) { bumped.push([e, 'label', e.label.disableDepthTestDistance, e.label.eyeOffset, e.label.show]); e.label.disableDepthTestDistance = Number.POSITIVE_INFINITY; e.label.eyeOffset = new Cesium.Cartesian3(0, 0, -14); e.label.show = true; } // force-show: compose.js's own scale/label-budget gate may have hidden this label before it became "referenced"
         if (e.billboard) { bumped.push([e, 'billboard', e.billboard.disableDepthTestDistance, e.billboard.eyeOffset]); e.billboard.disableDepthTestDistance = Number.POSITIVE_INFINITY; e.billboard.eyeOffset = new Cesium.Cartesian3(0, 0, -14); }
+        // layers.recomputeLabels() (compose.js §16.1: scale/budget/ring/trips gates) can re-run at any time on its own
+        // triggers (e.g. a scale change from THIS module's own camera flight) and would otherwise overwrite the label
+        // show/eyeOffset we just set; pulsing this entity's own key makes recomputeLabels' own isHot() branch keep it
+        // shown+biased regardless, so the two systems don't fight — a no-op if layers.pulse isn't present (older layers.js).
+        if (layers.pulse && pulseMs) layers.pulse(pl.key, pulseMs);
         continue;
       }
       if (pl.layer === 'mrt') continue; // 捷運站永遠不淡出（沿用 fx/focus.js 的既有規則）
@@ -121,14 +125,14 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
       if (e.billboard) { const c0 = e.billboard.color, s0 = e.billboard.scale; billboardSaved.push([e, c0, s0]); e.billboard.color = Cesium.Color.WHITE.withAlpha(0.25); e.billboard.scale = Math.min(evalNum(s0, 1), 0.85) * 0.55; }
       for (const kind of ['polygon', 'box', 'ellipse', 'cylinder']) { const g = e[kind]; if (g && g.material) { const orig = g.material; materialSaved.push([e, kind, orig]); g.material = new Cesium.ColorMaterialProperty(sampleColor(orig).withAlpha(0.22)); } }
     }
-    return { dimmed, billboardSaved, materialSaved, bumped, keepEntities };
+    return { dimmed, billboardSaved, materialSaved, bumped };
   }
   function undoMask(m) {
     if (!m) return;
     for (const [e, kind, orig] of m.dimmed) try { if (kind === 'label' && e.label) e.label.show = orig; } catch { /* entity removed since */ }
     for (const [e, c0, s0] of m.billboardSaved) try { if (e.billboard) { e.billboard.color = c0; e.billboard.scale = s0; } } catch { /* ignore */ }
     for (const [e, kind, orig] of m.materialSaved) try { if (e[kind]) e[kind].material = orig; } catch { /* ignore */ }
-    for (const [e, kind, d0, eo0] of m.bumped) try { if (kind === 'label' && e.label) { e.label.disableDepthTestDistance = d0; e.label.eyeOffset = eo0; } else if (kind === 'billboard' && e.billboard) { e.billboard.disableDepthTestDistance = d0; e.billboard.eyeOffset = eo0; } } catch { /* ignore */ }
+    for (const [e, kind, d0, eo0, show0] of m.bumped) try { if (kind === 'label' && e.label) { e.label.disableDepthTestDistance = d0; e.label.eyeOffset = eo0; e.label.show = show0; } else if (kind === 'billboard' && e.billboard) { e.billboard.disableDepthTestDistance = d0; e.billboard.eyeOffset = eo0; } } catch { /* ignore */ }
   }
 
   /* ---- 標註 numbered callouts — always rendered regardless of ui.density (that gate lives only in ui.js's own annotated-mode list) ---- */
@@ -194,7 +198,7 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
     const points = resolved.map(r => r.pos);
     frameAll(points);
     savedOsmFocus = osmRecede(points);
-    mask = applyMask(resolved.map(r => r.key));
+    mask = applyMask(resolved.map(r => r.key), (opts.durationMs ?? 12000) + 4000);
     buildCallouts(resolved);
     document.body.classList.add('explaining'); vignette.classList.add('show'); showCard(opts.text || '');
     active = true; armExit(opts.durationMs ?? 12000);

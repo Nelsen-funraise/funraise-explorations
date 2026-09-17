@@ -121,26 +121,41 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
      底圖是否要跟著換交給 compose.js（一換主題就照目前尺度挑一個合理的底圖，除非使用者已手動覆寫過底圖） ---- */
   ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
 
-  /* ---- Look 控制（header，取代舊的「☀ 日照」「🌙 夜」「☀︎ 日間」三顆 pill）：白模 · 日照 · 黃金 · 夜景 · 相片。
-     真正的邏輯在 compose.js（ui.setLook 由它接管，見 createCompose()）；這裡只管按鈕 DOM／視覺與「已經在日照或黃金
-     時再點一次＝開關時刻子面板」。相片沒有 Google 金鑰時整顆停用。 ---- */
-  const lookBox = $('#look');
+  /* ---- Look 控制（header）：一顆緊湊 pill（顯示目前外觀，例如「☀ 日照」）＋ 彈出選單，取代先前的 5 段式分段控制——
+     那個控制在 1440 寬時會把 lens nav 擠到逐字換行。真正的邏輯在 compose.js（ui.setLook 由它接管，見 createCompose()）；
+     這裡只管 pill 文字／彈出選單，以及「日照／黃金的時刻子面板沿用 #sunmenu，兩者互斥、共用同一個錨點」。
+     相片沒有 Google 金鑰時整顆停用。API 對外不變：ui.setLook(name,opts) / ui.paintLook(name)。 ---- */
+  const lookBtn = $('#look');
   const LOOK_DEFS = [
-    ['white', '白模', '白模：白色量體、平光 — 分析、閱讀資料（預設）'],
-    ['sun', '日照', '日照：可選時刻或播放一天 — 日照權、量體研究'],
-    ['golden', '黃金', '黃金時刻：17:00 暖色，弱泛光＋HDR — 展示、簡報'],
-    ['night', '夜景', '夜景：深色底圖、窗燈與泛光 — 戰情室、夜間展示'],
-    ['photoreal', '相片', viewerApi.hasGoogleKey ? '相片級：Google Photorealistic 3D Tiles' : '需要 Google Maps 金鑰（/setup）'],
+    ['white', '◻', '白模', '白模：白色量體、平光 — 分析、閱讀資料（預設）'],
+    ['sun', '☀', '日照', '日照：可選時刻或播放一天 — 日照權、量體研究'],
+    ['golden', '🌇', '黃金', '黃金時刻：17:00 暖色，弱泛光＋HDR — 展示、簡報'],
+    ['night', '🌙', '夜景', '夜景：深色底圖、窗燈與泛光 — 戰情室、夜間展示'],
+    ['photoreal', '📷', '相片', viewerApi.hasGoogleKey ? '相片級：Google Photorealistic 3D Tiles' : '需要 Google Maps 金鑰（/setup）'],
   ];
-  for (const [id, nm, title] of LOOK_DEFS) {
-    const b = el('button', null, nm); b.dataset.look = id; b.title = title; b.setAttribute('aria-pressed', 'false');
+  const LOOK_TEXT = Object.fromEntries(LOOK_DEFS.map(([id, ic, nm]) => [id, `${ic} ${nm}`]));
+  const lookMenu = el('div', 'panel hidden'); lookMenu.id = 'lookmenu'; document.getElementById('stage').appendChild(lookMenu);
+  for (const [id, ic, nm, title] of LOOK_DEFS) {
+    const b = el('button', null, `${ic} ${nm}`); b.dataset.look = id; b.title = title; b.setAttribute('aria-pressed', 'false');
     if (id === 'photoreal' && !viewerApi.hasGoogleKey) b.disabled = true;
-    b.onclick = () => { if (map.compose && map.compose.look === id && (id === 'sun' || id === 'golden')) { ui.toggleSunMenu && ui.toggleSunMenu(); return; } ui.setLook(id); };
-    lookBox.appendChild(b);
+    b.onclick = () => { ui.closeLookMenu(); ui.setLook(id); };
+    lookMenu.appendChild(b);
   }
-  ui.paintLook = (name) => { lookBox.querySelectorAll('button[data-look]').forEach(b => b.setAttribute('aria-pressed', b.dataset.look === name)); };
-  // 合成器就緒前的暫時實作（開機那極短的同步視窗）；main.js 建立 compose 後，這個名字會被 compose.js 換成真正的實作。
+  ui.paintLook = (name) => {
+    if (lookBtn) lookBtn.textContent = LOOK_TEXT[name] || LOOK_TEXT.white;
+    lookMenu.querySelectorAll('button[data-look]').forEach(b => b.setAttribute('aria-pressed', b.dataset.look === name));
+  };
+  ui.openLookMenu = () => { ui.closeSunMenu && ui.closeSunMenu(); lookMenu.classList.remove('hidden'); lookBtn.setAttribute('aria-expanded', 'true'); };
+  ui.closeLookMenu = () => { lookMenu.classList.add('hidden'); lookBtn.setAttribute('aria-expanded', 'false'); };
+  ui.toggleLookMenu = () => { if (lookMenu.classList.contains('hidden')) ui.openLookMenu(); else ui.closeLookMenu(); };
+  lookBtn.onclick = () => ui.toggleLookMenu();
+  document.addEventListener('pointerdown', e => { if (!lookMenu.classList.contains('hidden') && !lookMenu.contains(e.target) && e.target !== lookBtn) ui.closeLookMenu(); });
+  // 合成器就緒前的暫時實作（開機那極短的同步視窗）；main.js 建立 compose 後，這個名字會被 compose.js 換成真正的實作，
+  // 但它在切換時仍會呼叫回 ui.paintLook／ui.openSunMenu／ui.closeSunMenu，所以上面幾個定義順序不能反過來。
   ui.setLook = async (name, opts) => { if (!map.compose) return { ok: false, reason: 'not-ready' }; return map.compose.setLook(name, opts); };
+  ui.cycleLook = () => { const ids = LOOK_DEFS.map(d => d[0]).filter(id => id !== 'photoreal' || viewerApi.hasGoogleKey); const cur = (map.compose && map.compose.look) || 'white'; const i = ids.indexOf(cur); ui.setLook(ids[(i + 1 + ids.length) % ids.length]); };
+  // Shift+L 循環切換 Look（一般的 L 已經是換 lens——見下方共用鍵盤區——用 stopImmediatePropagation 搶先攔截，不動那段共用程式碼）。
+  document.addEventListener('keydown', e => { if (e.target === cmd || e.metaKey || e.ctrlKey || e.altKey) return; if (e.shiftKey && e.key.toLowerCase() === 'l') { e.preventDefault(); e.stopImmediatePropagation(); ui.cycleLook(); } });
 
   /* ---- camera gimbal ---- */
   const rose = $('#compass-rose'), tiltIn = $('#g-tilt'), g2d = $('#g-2d');

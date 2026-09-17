@@ -14,7 +14,7 @@ export function createSunControl({ ui, lighting, stage, onChange }) {
   ui.setSun = (h, quiet) => { lighting.set(h); paint(); onChange && onChange(); if (!quiet) ui.toast(h == null ? '日照關閉：回到平光' : `日照 ${fmtHour(lighting.hour)}：陰影開啟`); return lighting.hour; };
   ui.sweepSun = () => { if (lighting.sweeping) { lighting.set(lighting.hour); paint(); return; } ui.toast('播放一天：06:30 → 18:15'); lighting.sweep({ onTick: paint, onDone: () => { paint(); onChange && onChange(); } }); };
   Object.defineProperty(ui, 'sunHour', { get: () => lighting.hour });
-  ui.openSunMenu = () => { menu.classList.remove('hidden'); paint(); };
+  ui.openSunMenu = () => { ui.closeLookMenu && ui.closeLookMenu(); menu.classList.remove('hidden'); paint(); };
   ui.closeSunMenu = () => menu.classList.add('hidden');
   ui.toggleSunMenu = () => { if (menu.classList.contains('hidden')) ui.openSunMenu(); else ui.closeSunMenu(); };
   menu.querySelectorAll('[data-p]').forEach(b => { b.onclick = () => ui.setSun(b.dataset.p === 'off' ? null : SUN_PRESETS[b.dataset.p].hour); });

@@ -69,16 +69,21 @@ export function createCompose(ctx) {
   function reapplyYouBike() { if (!youbike) return; const eff = state.youbikeWanted && youBikeScaleOK(state.scale); if (!!youbike.visible !== eff) youbike.setVisible(eff); }
   function applyBasemapForScale() { if (state.overrides.basemap) return; if (state.look === 'white' || state.look === 'sun') realSetBasemap(basemapForLook(state.look, state.scale)); }
 
-  /** 相機停止移動（debounce）或外部明確呼叫時：重新判定尺度，套用到圖層遮罩／標籤預算／白模日照底圖／後製約束。*/
+  /** 相機停止移動（debounce）或外部明確呼叫時：重新判定尺度，套用到圖層遮罩／標籤預算／白模日照底圖／後製約束。
+   * 視野範圍（rig.bounds()）每次都重新量，即使尺度沒變也要重跑標籤（相機在同一尺度內平移，標籤預算也該跟著換）；
+   * 比較重的東西（遮罩、預算「數字」、畫質、底圖、YouBike）只在尺度真的換了或 force 時才動。*/
   function apply(force) {
     const h = rig.lonlat[2]; const next = scaleFor(h, state.scale); const changed = next !== state.scale;
+    state.scale = next;
+    layers.setViewBounds(rig.bounds());
     if (changed || force) {
-      state.scale = next;
       layers.applyScale(next);
       layers.setLabelBudget(LABEL_BUDGET[next] ?? 24);
       applyBasemapForScale();
       reapplyQuality();
       reapplyYouBike();
+    } else {
+      layers.recomputeLabels();
     }
     return { scale: state.scale, changed };
   }
@@ -179,8 +184,9 @@ export function createCompose(ctx) {
     }, 300);
   }
 
-  /* ---- 開機預設：白模（日間主題）／夜景（夜間主題），由已還原的主題決定；套一次目前的尺度 ---- */
+  /* ---- 開機預設：白模（日間主題）／夜景（夜間主題），由已還原的主題決定；套一次目前的尺度與視野 ---- */
   state.scale = scaleFor(rig.lonlat[2], null);
+  layers.setViewBounds(rig.bounds());
   layers.applyScale(state.scale); layers.setLabelBudget(LABEL_BUDGET[state.scale] ?? 24);
   setLook(ui.theme === 'light' ? 'white' : 'night', { quiet: true }).catch(() => {});
 

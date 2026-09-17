@@ -40,10 +40,13 @@ const OVERPASS_URL = 'https://overpass.kumi.systems/api/interpreter';
 const UA = 'PeakLens-fetch-osm-parts/1.0 (+https://github.com/; contact: nelsen.chen@funraise.com.tw)';
 const BBOX = [121.495, 25.015, 121.625, 25.095]; // [west, south, east, north] — 跟 osm_buildings_taipei.json 同一個核心區
 const TILE_DEG = 0.02;
-const FETCH_TIMEOUT_MS = 75000; // 留給伺服器內部 timeout:60 一點餘裕
-const MAX_RETRIES = 2; // 加上第一次共 3 次嘗試
+const FETCH_TIMEOUT_MS = 45000; // 留給伺服器內部 timeout:35 一點餘裕；實測今天這個公用實例常態性壅塞（部分區塊連 75s 都換不到一次成功），
+                                 // 寧可犧牲一點「這個 tile 本來給更多時間就會成功」的機會，換一個有界、可預期的總執行時間。
+const MAX_RETRIES = 1; // 加上第一次共 2 次嘗試（原本 3 次；同一個理由：有界時間優先於窮盡重試）
 const TILE_PAUSE_MS = 700; // 禮貌性間隔：這是公用的 Overpass 實例，不要把它打爆
-const MAX_SPLIT_DEPTH = 2; // 一個 tile 重試 3 次還是失敗 → 切成 4 個象限再各自試（實測公用實例常態性壅塞，縮小查詢範圍比死磕同一個查詢有用）；最多切兩層（0.02°→0.01°→0.005°)
+const MAX_SPLIT_DEPTH = 1; // 一個 tile 重試完還是失敗 → 切成 4 個象限再各自試一輪；只切一層（0.02°→0.01°），不再往下切——
+                            // 實測今天的壅塞是「整個伺服器忽快忽慢」而不是「這個查詢太貴」，切更細不會讓它變快，只會讓單一問題
+                            // tile 的總等待時間指數增加，所以深度砍半，多切出來的小格子若還是失敗就直接記進 missingTiles。
 const SUPPRESS_RATIO = 0.6;
 const GRID_CELL_DEG = 0.001; // ≈100m at this latitude — 跟 osmBuildings.js 的 nearest() 網格同尺度
 
@@ -58,7 +61,7 @@ function tiles([w, s, e, n], step) {
   return out;
 }
 
-const overpassQuery = ([w, s, e, n]) => `[out:json][timeout:60];way["building:part"](${s},${w},${n},${e});out body geom;`;
+const overpassQuery = ([w, s, e, n]) => `[out:json][timeout:35];way["building:part"](${s},${w},${n},${e});out body geom;`;
 
 /** 打一個 tile；重試 MAX_RETRIES 次都失敗回傳 null（呼叫端自己決定要不要切更小再試，或整塊記進 missingTiles）。 */
 async function fetchTile(bbox, label) {

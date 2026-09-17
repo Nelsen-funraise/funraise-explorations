@@ -142,7 +142,7 @@ async function boot() {
   /* ---- go ---- */
   agent.setLens('occupier'); ui.setSensor('normal');
   $('#loading').classList.add('done');
-  if (st) { if (st.lens) agent.setLens(st.lens); if (st.year) timeline.set(st.year); if (st.t) ui.setTheme(st.t, true); if (st.d) ui.setDensity(st.d, true); if (st.layers) for (const k of map.layerKeys) ui.setLayer(k, st.layers.includes(k)); if (st.sun != null) ui.setSun(st.sun, true); }
+  if (st) { if (st.lens) agent.setLens(st.lens); if (st.year) timeline.set(st.year); if (st.look) ui.setLook(st.look, { quiet: true }); if (st.t) ui.setTheme(st.t, true); if (st.d) ui.setDensity(st.d, true); if (st.layers) for (const k of map.layerKeys) ui.setLayer(k, st.layers.includes(k)); if (st.sun != null) ui.setSun(st.sun, true); }
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (st && st.view) { applyView(viewer, st.view); ui.updateReadout(true); }
   else if (reduce) rig.flyTo(HOME.lon, HOME.lat, { range: 9500, pitch: -55, heading: 20, duration: 1.2, done: () => ui.updateReadout(true) });

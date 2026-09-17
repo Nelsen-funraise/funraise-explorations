@@ -79,8 +79,8 @@ button[aria-pressed="true"],button.on{border-color:var(--blue-500);color:var(--b
 .brand .name{font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--gray-50)}
 .brand .name em{font-style:normal;color:var(--blue-400);font-weight:600}
 .brand .sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase}
-.lenses{display:flex;gap:4px;margin-left:8px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur)}
-.lens-btn{padding:5px 11px;font-size:12px;font-weight:500;border-radius:999px;border-color:transparent;display:flex;gap:6px;align-items:center;line-height:16px}
+.lenses{display:flex;gap:4px;margin-left:8px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur);white-space:nowrap;flex-shrink:0}
+.lens-btn{padding:5px 11px;font-size:12px;font-weight:500;border-radius:999px;border-color:transparent;display:flex;gap:6px;align-items:center;line-height:16px;white-space:nowrap;flex-shrink:0}
 .lens-btn .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-4)}
 .lens-btn[aria-pressed="true"]{background:var(--blue-400);color:var(--gray-950);border-color:transparent}
 .lens-btn[aria-pressed="true"] .dot{background:var(--gray-950);box-shadow:none}
@@ -315,11 +315,15 @@ body.moving:not(.d-annotated) #inspector:hover,body.moving:not(.d-annotated) #ra
 body.d-immersive #gimbal{opacity:.55} body.d-immersive #gimbal:hover{opacity:1}
 body.moving:not(.d-annotated) #gimbal{opacity:1}
 #share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
-/* ---- Look 控制（header）：白模 · 日照 · 黃金 · 夜景 · 相片 — 取代舊的 ☀ 日照／🌙 夜／☀︎ 日間 三顆 pill（compose.js §16.2） ---- */
-.look{display:flex;gap:2px;padding:2px;border-radius:999px;background:var(--panel);border:1px solid var(--line);backdrop-filter:var(--blur)}
-.look button{padding:4px 11px;font-size:12px;font-weight:500;line-height:16px;border:0;border-radius:999px;font-family:var(--sans);color:var(--ink-2);white-space:nowrap}
-.look button[aria-pressed="true"]{background:var(--blue-500);color:#fff}
-.look button[disabled]{opacity:.4;cursor:not-allowed}
+/* ---- Look 控制（header）：一顆緊湊 pill（顯示目前外觀）＋ 彈出選單，取代舊的 5 段式分段控制（會把 lens nav 擠到換行）
+   與更早以前的 ☀ 日照／🌙 夜／☀︎ 日間 三顆 pill（compose.js §16.2）。日照／黃金的時刻子面板沿用 #sunmenu，
+   兩者互斥、共用同一個錨點，一次只會有一個面板開著。 ---- */
+#look{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur);white-space:nowrap;flex-shrink:0}
+#look[aria-expanded="true"]{border-color:var(--blue-400);color:var(--blue-300)}
+#lookmenu{position:absolute;right:16px;top:58px;width:196px;padding:6px;display:flex;flex-direction:column;gap:2px;z-index:20}
+#lookmenu button{display:flex;align-items:center;gap:8px;padding:6px 10px;border:0;border-radius:var(--r-sm);text-align:left;font-size:12px;font-family:var(--sans);color:var(--ink-2);white-space:nowrap}
+#lookmenu button[aria-pressed="true"]{background:var(--blue-500);color:#fff}
+#lookmenu button[disabled]{opacity:.4;cursor:not-allowed}
 #sunmenu{position:absolute;right:16px;top:58px;width:340px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;z-index:20}
 #sunmenu .chips{display:flex;flex-wrap:wrap;gap:6px}
 #sunmenu .chip[aria-pressed="true"]{background:var(--blue-500);color:#fff;border-color:transparent}
@@ -342,7 +346,7 @@ body.theme-light{
   --panel-shadow:0 0 10px -1px rgba(3,7,18,.08), 0 8px 24px -16px rgba(3,7,18,.18);
 }
 body.theme-light{background:var(--bg);color:var(--ink)}
-body.theme-light #sunmenu,body.theme-light #hovercard,body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
+body.theme-light #sunmenu,body.theme-light #lookmenu,body.theme-light #hovercard,body.theme-light .panel,body.theme-light #rail,body.theme-light #inspector,body.theme-light #transcript,body.theme-light #timeline,body.theme-light #scenemenu,body.theme-light #voicemenu,body.theme-light #cinebar,body.theme-light #caption{box-shadow:var(--panel-shadow)}
 body.theme-light #vignette,body.theme-light #scan{display:none}
 body.theme-light #topbar{background:linear-gradient(to bottom, rgba(255,255,255,.85), rgba(255,255,255,0))}
 body.theme-light .brand .name{color:var(--gray-900)} body.theme-light .brand .name em{color:var(--blue-600)}
@@ -365,8 +369,8 @@ body.theme-light #cmdbar{background:rgba(255,255,255,.94);border-color:rgba(22,1
 body.theme-light #cmd{color:var(--gray-900)} body.theme-light #cmd::placeholder{color:var(--gray-400)}
 body.theme-light #send{background:var(--blue-600);color:#fff} body.theme-light #send:hover{background:var(--blue-500);color:#fff}
 body.theme-light #mic{background:var(--blue-600);color:#fff}
-body.theme-light #mcpstat,body.theme-light .look{background:rgba(255,255,255,.85)}
-body.theme-light .look button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
+body.theme-light #mcpstat,body.theme-light #look{background:rgba(255,255,255,.85)}
+body.theme-light #lookmenu button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
 body.theme-light #toast{background:var(--gray-900);color:#fff;border-color:var(--gray-900)}
 body.theme-light #loading{background:var(--gray-100)} body.theme-light #loadmsg{color:var(--gray-600)}
 body.theme-light .cesium-widget-credits,body.theme-light .cesium-widget-credits a{color:var(--gray-500)!important}
