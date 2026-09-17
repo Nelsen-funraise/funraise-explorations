@@ -23,8 +23,8 @@ const METRICS = {
   licenses: { label: '建照核發', unit: '張' },
 };
 const RELIABLE_FROM = { sales_office: 2017 }; // 早於此年視為「資料涵蓋不足」；其餘指標沒有這個限制
-const S1_SPAN = [120, 1800]; // 全台北尺度（S1）：正規化後的高度範圍（公尺）
-const S2_SPAN = [60, 950]; // 拉近到行政區尺度（S2）：同一組正規化值改用較收斂的高度，避免貼臉時過度誇張
+const S1_SPAN = [60, 700]; // 全台北尺度（S1）：正規化後的高度範圍（公尺）
+const S2_SPAN = [30, 432]; // 拉近到行政區尺度（S2）：同一組正規化值改用較收斂的高度，避免貼臉時過度誇張
 const TWEEN_MS = 350; // 年份／指標切換時的高度與顏色過渡
 const PULSE_MS = 300; // 年度前進時的一次性 emissive 閃爍
 const MOPS_FADE_MS = 2000; // MOPS 金額標籤存活時間

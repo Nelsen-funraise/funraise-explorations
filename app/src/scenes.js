@@ -38,10 +38,10 @@ export const SCENES = [
   ] },
   { id: 'time', title: '時光 · 2012 → 2030', sub: '過去與未來同框 × 12 區價值面', steps: [
     { text: '最後，把時間軸整個播一遍：2012 到 2030 年。這次不只是大樓一棟一棟長出來——先看整個台北市 12 個行政區的價值面怎麼隨時間起伏。',
-      run: async (c) => { c.agent.setLens('research'); c.ui.setLayer('tm', true); c.map.timemachine && c.map.timemachine.setMetric('sales_all'); c.map.setYear(2012); c.map.flyTo(121.560, 25.050, { range: 18000, pitch: -58, heading: 15 }); }, hold: 4500 },
+      run: async (c) => { c.agent.setLens('research'); c.ui.setLayer('tm', true); c.map.timemachine && c.map.timemachine.setMetric('sales_all'); c.map.setYear(2012); c.map.flyTo(121.560, 25.050, { range: 16000, pitch: -74, heading: 15 }); }, hold: 4500 },
     { text: (c) => { const tm = c.map.timemachine; const top = tm && tm.topMover ? tm.topMover(2019) : null; const label = tm ? tm.metricLabel(tm.metric) : '成交件數';
         return top && top.yoyPct != null ? `藍色代表${label}年增、橘色代表年減，灰色持平；高度就是當年的量。${top.name} 這幾年變化最大，來到 ${top.yoyPct > 0 ? '▲' : '▼'}${Math.abs(Math.round(top.yoyPct * 100))}%。` : `藍色代表成交量年增、橘色代表年減，灰色持平；高度就是當年的量——12 個區一起長高、一起變色。`; },
-      run: async (c) => { c.timeline.startLapse({ from: 2012, to: 2019, stepMs: 750 }); c.map.orbit(121.560, 25.050, 18000, -55, 0.02); }, hold: 10000 },
+      run: async (c) => { c.timeline.startLapse({ from: 2012, to: 2019, stepMs: 750 }); c.map.orbit(121.560, 25.050, 16000, -72, 0.02); }, hold: 10000 },
     { text: (c) => { const mopsN = (c.data.mops || []).filter(m => m.district === '信義區').length; return `拉近到信義計畫區：年份往前跳的時候，這一區的量體會跟著閃一下，當年的上市櫃公告會冒出金額標籤——信義區累積 ${mopsN} 筆上市櫃資產交易。同時繼續看大樓長出來：新完工的會有一根光柱標出樓層數。`; },
       run: async (c) => { const xy = (c.map.districtCentroid && c.map.districtCentroid('信義區')) || [121.5645, 25.0339]; c.map.flyTo(xy[0], xy[1], { range: 5200, pitch: -46, heading: 20 }); await wait(1200); c.timeline.startLapse({ from: 2019, to: 2026, stepMs: 900 }); }, hold: 14000 },
     { text: (c) => { const n = (c.data.future_dev || []).filter(f => f.district === '南港區').length; return `2026 年之後，價值面沒有實際資料可以畫了——但南港的供給 pipeline 看得到：${n} 個規劃中／興建中案，未來四年會陸續完工，幽靈量體逐年長高。`; },
