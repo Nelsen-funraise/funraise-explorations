@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const req = createRequire(process.env.PW_REQUIRE_FROM || import.meta.url);
 let pw; try { pw = req('playwright'); } catch { pw = createRequire('/opt/node22/lib/node_modules/')('playwright'); }
 const out = process.argv[2] || 'dist'; fs.mkdirSync(out, { recursive: true });
-const PORT = 8790; const server = spawn('node', ['server/index.mjs'], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'pipe'] });
+const PORT = +(process.env.SMOKE_PORT || 8790); const server = spawn('node', ['server/index.mjs'], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'pipe'] });
 server.stdout.on('data', d => process.stdout.write('[server] ' + d)); server.stderr.on('data', d => process.stdout.write('[server:err] ' + d));
 await new Promise(r => setTimeout(r, 800));
 const wait = ms => new Promise(r => setTimeout(r, ms));
