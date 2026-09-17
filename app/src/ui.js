@@ -48,7 +48,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   pill.onclick = async () => {
     const m = ui.mcp;
     if (m.status === 'unauthorized') { authWin = window.open(API + '/api/mcp/authorize', 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
-    if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 Claude 模式即可即時查詢'); return; }
+    if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 AI 模式即可即時查詢'); return; }
     if (m.status === 'noserver') { toast('先在 app/ 執行 npm run server（需 ANTHROPIC_API_KEY），再按一次即可授權 FUNRAISE MCP'); return; }
     toast('重新探測 FUNRAISE MCP…'); const h = claude ? await claude.probe(true) : null; ui.setMcp(h);
   };
@@ -135,8 +135,8 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   ui.setOverlay = (k, on) => { if (!OVERLAYS[k]) return false; viewerApi.setOverlay(k, on); const b = obox.querySelector(`[data-overlay="${k}"]`); if (b) b.setAttribute('aria-pressed', !!on); ui.updateCredits(); if (on && OVERLAYS[k].min >= 13) { const c = map.center(); if (c.height > 9000) toast(`${OVERLAYS[k].name}：拉近到街廓尺度才會顯示`); } return true; };
   ui.overlays = () => viewerApi.overlays;
   /* ---- render quality ---- */
-  const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR' };
-  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { facade: '夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）', ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
+  const qbox = $('#quality'); const QUALITY = { facade: '夜景窗燈', ao: '環境光遮蔽', bloom: '泛光', hdr: 'HDR', ...(viewerApi.terrainAvailable ? { terrain: '地形' } : {}) };
+  for (const [k, n] of Object.entries(QUALITY)) { const b = el('button', null, n); b.dataset.q = k; b.title = { facade: '夜景窗燈：5.7 萬棟量體長出窗格與暖色燈光（程序化著色器）', ao: '環境光遮蔽（AO）：量體交界處加深，白色城市更有立體感', bloom: '泛光：夜間主題的燈光與標記帶柔光', hdr: 'HDR + ACES 色調映射', terrain: 'Cesium World Terrain（ion）：山區地形；盆地平坦，量體仍貼 0 m' }[k]; b.onclick = () => ui.setQuality({ [k]: b.getAttribute('aria-pressed') !== 'true' }); qbox.appendChild(b); }
   ui.setQuality = (q) => { const cur = viewerApi.setQuality(q); if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); return cur; };
   ui.syncQuality = () => { const cur = viewerApi.quality; if (map.osm && map.osm.setFacade) map.osm.setFacade(cur.facade); qbox.querySelectorAll('[data-q]').forEach(b => b.setAttribute('aria-pressed', !!cur[b.dataset.q])); };
   /* ---- measure / draw-site tools ---- */
@@ -292,7 +292,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- transcript, tool cards, provenance, caption ---- */
   const tr = $('#transcript'); const orb = $('#orb');
   ui.userTurn = text => { ui.clearCallouts(); const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
-  ui.agentTurn = () => { orb.classList.add('busy'); const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · Claude' : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
+  ui.agentTurn = () => { orb.classList.add('busy'); const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · ' + (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
   ui.toolStart = (turn, name, params) => { const p = Object.entries(params || {}).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${typeof v === 'string' ? '"' + v + '"' : JSON.stringify(v)}`).join(', '); const c = el('div', 'tool run', `<span class="st"></span><span class="name"><b>${escapeHtml(name)}</b> (${escapeHtml(p.length > 160 ? p.slice(0, 160) + '…' : p)})</span><span class="res">…</span>`); turn.querySelector('.tools .list').appendChild(c); tr.scrollTop = tr.scrollHeight; c._t0 = performance.now(); c._name = name; return c; };
   ui.toolDone = (card, summary) => { card.classList.remove('run'); card.classList.add('ok'); card._ms = Math.round(performance.now() - card._t0); card._summary = summary; card.querySelector('.res').textContent = `${summary} · ${card._ms} ms`; };
   const provChip = (turn) => { const cards = [...turn.querySelectorAll('.tool')]; if (!cards.length) return ''; const ms = cards.reduce((s, c) => s + (c._ms || 0), 0); return `<span class="provchip${ui.source === 'LIVE' ? '' : ' snap'}"><i></i>${cards.length} 次 MCP 呼叫 · ${ms} ms · ${ui.source === 'LIVE' ? 'FUNRAISE MCP 即時' : '快照 ' + String(meta.generated_at || '').slice(0, 10)}</span>`; };
@@ -311,7 +311,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- command bar, suggestions ---- */
   $('#send').onclick = () => say(cmd.value); cmd.addEventListener('keydown', e => { if (e.key === 'Enter') say(cmd.value); });
   function renderSuggest(id) { const box = $('#suggest'); box.innerHTML = ''; for (const s of (LENSES[id] || LENSES.occupier).suggest) { const b = el('button', 'chip', s); b.onclick = () => say(s); box.appendChild(b); } }
-  orb.onclick = () => toast(ui.claudeMode ? `Claude 模式 · ${ui.mcp.model || ''} · 資料 ${ui.source} · 語音 ${speech.voice}` : `內建 agent · 本地快照 · 語音 ${speech.voice}。按「內建」切到 Claude 模式（需 server）`);
+  orb.onclick = () => toast(ui.claudeMode ? `AI 模式 · ${ui.mcp.provider || ''} ${ui.mcp.model || ''} · 資料 ${ui.source} · 語音 ${speech.voice}` : `內建 agent · 本地快照 · 語音 ${speech.voice}。按「內建」切到 AI 模式（需 server）`);
 
   /* ---- speech in / out ---- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; const mic = $('#mic'); let rec = null;
@@ -330,7 +330,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- agent mode (built-in ⇄ Claude) ---- */
   const am = $('#agentmode');
-  ui.setAgentMode = on => { ui.claudeMode = !!on; am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? 'Claude' : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
+  ui.setAgentMode = on => { ui.claudeMode = !!on; am.setAttribute('aria-pressed', ui.claudeMode); am.textContent = ui.claudeMode ? (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : '內建'; ui.source = ui.claudeMode && ui.mcp.status === 'live' ? 'LIVE' : '快照'; };
   am.onclick = async () => { if (ui.claudeMode) { ui.setAgentMode(false); toast('切回內建 agent（本地快照，模擬 MCP 呼叫）'); return; } if (!claude) return; toast('偵測 agent server…'); const h = await claude.probe(true); ui.setMcp(h); if (h.ok) { ui.setAgentMode(true); toast(`Claude 模式：${h.model}${h.mcp && h.mcp.status === 'live' ? ' + FUNRAISE MCP 即時查詢' : h.mcp && h.mcp.status === 'unauthorized' ? '（FUNRAISE MCP 未授權：先用快照，點右上角授權）' : '（FUNRAISE MCP 連不上：先用快照）'}`); } else toast('找不到 agent server。請在 app/ 執行 npm run server，並在 .env 設定 ANTHROPIC_API_KEY。'); };
 
   /* ---- scenes ---- */

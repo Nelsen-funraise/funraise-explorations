@@ -70,11 +70,12 @@ export async function createViewer(container, opts = {}) {
   };
   const credits = () => [(BASEMAPS[base.key] || {}).credit, ...[...base.overlays.keys()].map(k => OVERLAYS[k].credit), 'OpenStreetMap 建物 © OpenStreetMap contributors', 'Natural Earth II'].filter(Boolean);
   // Post-processing quality: ambient occlusion (depth in the white 日間 city), bloom (glow for the 夜間 city), HDR + ACES tonemapping.
-  const quality = { ao: false, bloom: false, hdr: false, facade: false };
+  const quality = { ao: false, bloom: false, hdr: false, facade: false, terrain: false };
   const setQuality = (q = {}) => {
     Object.assign(quality, q); const pp = scene.postProcessStages;
     try { pp.ambientOcclusion.enabled = !!quality.ao && Cesium.PostProcessStageLibrary.isAmbientOcclusionSupported(scene); if (pp.ambientOcclusion.enabled) Object.assign(pp.ambientOcclusion.uniforms, { intensity: 2.4, bias: 0.12, lengthCap: 0.26, stepSize: 1.6, blurStepSize: 0.86 }); } catch { /* unsupported */ }
     try { pp.bloom.enabled = !!quality.bloom; if (pp.bloom.enabled) Object.assign(pp.bloom.uniforms, { contrast: 112, brightness: -0.38, glowOnly: false, delta: 1.0, sigma: 2.8, stepSize: 3 }); } catch { /* unsupported */ }
+    if ('terrain' in q) setTerrain(quality.terrain);
     try { scene.highDynamicRange = !!quality.hdr; if (quality.hdr && pp.tonemapper !== undefined) pp.tonemapper = Cesium.Tonemapper.ACES; } catch { /* unsupported */ }
     return { ...quality };
   };
@@ -99,7 +100,8 @@ export async function createViewer(container, opts = {}) {
   // optional Google Photorealistic 3D Tiles
   let google = null; const gkey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   if (gkey) { try { Cesium.GoogleMaps.defaultApiKey = gkey; google = await Cesium.createGooglePhotorealistic3DTileset(); scene.primitives.add(google); } catch (e) { console.warn('Google 3D Tiles unavailable', e); } }
-  if (ionToken) { try { viewer.terrainProvider = await Cesium.createWorldTerrainAsync(); } catch (e) { console.warn('World terrain unavailable', e); } }
+  // Cesium World Terrain (needs VITE_CESIUM_ION_TOKEN) is opt-in via quality.terrain: the Taipei basin is flat and extruded footprints sit at height 0, so terrain mostly matters for wide shots of the hills.
+  let terrainOn = false; const setTerrain = async (on) => { if (!ionToken) return false; if (!!on === terrainOn) return terrainOn; terrainOn = !!on; try { viewer.terrainProvider = terrainOn ? await Cesium.createWorldTerrainAsync() : new Cesium.EllipsoidTerrainProvider(); scene.globe.depthTestAgainstTerrain = false; } catch (e) { console.warn('World terrain unavailable', e); terrainOn = false; } return terrainOn; };
 
-  return { viewer, scene, setBasemap, setYear, setOverlay, get overlays() { return [...base.overlays.keys()]; }, credits, setQuality: (q) => { quality.pinned = true; return setQuality(q); }, get quality() { return { ...quality }; }, setNight: (on) => { base.night = on; applyTint(); }, setTheme, get basemapKey() { return base.key; }, get basemapYear() { return base.year; }, get theme() { return base.theme || 'dark'; }, google };
+  return { viewer, scene, setBasemap, setYear, setOverlay, get overlays() { return [...base.overlays.keys()]; }, credits, setQuality: (q) => { quality.pinned = true; return setQuality(q); }, get quality() { return { ...quality }; }, get terrainAvailable() { return !!ionToken; }, setNight: (on) => { base.night = on; applyTint(); }, setTheme, get basemapKey() { return base.key; }, get basemapYear() { return base.year; }, get theme() { return base.theme || 'dark'; }, google };
 }

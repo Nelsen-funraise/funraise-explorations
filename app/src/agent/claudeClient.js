@@ -23,7 +23,7 @@ export class ClaudeClient {
         const results = []; for (const tu of toolUses) { const card2 = this.ui.toolStart(turn, tu.name, tu.input); const out = await this.execute(tu.name, tu.input); this.ui.toolDone(card2, out.summary || 'ok'); results.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(out) }); }
         messages = [...messages, { role: 'user', content: results }];
       }
-    } catch (e) { await this.ui.type(turn, `Claude 模式無法使用（${e.message}）。請啟動 server：\`npm run server\`（.env 需 ANTHROPIC_API_KEY；FUNRAISE MCP 用右上角按鈕授權）。已切回內建 agent，繼續用快照資料。`); this.ui.setAgentMode(false); }
+    } catch (e) { await this.ui.type(turn, `AI 模式無法使用（${e.message}）。請啟動 server：\`npm run server\`，再開 http://localhost:8790/setup 貼上 OpenAI（或 Anthropic）金鑰；FUNRAISE MCP 用右上角按鈕授權。已切回內建 agent，繼續用快照資料。`); this.ui.setAgentMode(false); }
   }
   async execute(name, input) {
     const m = this.map, ui = this.ui;

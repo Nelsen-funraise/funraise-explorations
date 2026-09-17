@@ -264,6 +264,27 @@ server/index.mjs   Node http：GET /api/health、POST /api/agent（@anthropic-ai
 所有金鑰一律放 server 端 `.env`，由 `server/index.mjs` 代理（同 Fish Audio 模式）；不要放 `VITE_*` 進前端 bundle（Google／ion 除外，那兩者本身就是前端金鑰）。
 
 
+## 14. 金鑰怎麼放：本機 `/setup` 頁（2026-09-17）
+
+線上的 GitHub Pages 版是純靜態站，任何需要金鑰的功能都由**你電腦上的 server** 代理；金鑰只寫進 `app/.env`（已 gitignore）。
+
+```bash
+git clone https://github.com/Nelsen-funraise/funraise-explorations && cd funraise-explorations/app
+npm install && npm run build
+npm run server              # http://localhost:8790
+```
+開 **http://localhost:8790/setup**：分組貼上金鑰 → 「儲存到 .env」→ 每一把旁邊有「測試」（真的打一次 API 回 ✓／✗）。這一頁只接受來自 localhost 的連線，其他 host 一律 403。
+
+| 群組 | 變數 | 生效方式 |
+|---|---|---|
+| AI agent | `OPENAI_API_KEY`（預設用它）、`OPENAI_MODEL`（預設 gpt-4.1，可填 gpt-5）、`ANTHROPIC_API_KEY`（可選）、`LLM_PROVIDER` | 存檔即生效；`/api/health` 會顯示 provider／model |
+| 語音 | `FISH_API_KEY` | 存檔即生效 |
+| 即時資料 | `CWA_API_KEY`、`MOENV_AQI_API_KEY`、`TDX_CLIENT_ID`／`TDX_CLIENT_SECRET` | 存檔即生效（天氣／AQI 角標、YouBike、捷運真實站間時間） |
+| 分析 | `ORS_API_KEY`、`MAPILLARY_ACCESS_TOKEN` | 存檔即生效（步行／開車等時圈） |
+| 前端金鑰 | `VITE_CESIUM_ION_TOKEN`、`VITE_GOOGLE_MAPS_API_KEY` | 存檔後按「重新 build」（或 `npm run build`）；要讓 Pages 線上版也有，到 repo Settings → Secrets and variables → Actions 新增同名 secret，workflow 會在 build 時帶入 |
+
+**OpenAI 模式怎麼運作**：server 走 OpenAI Responses API，把畫面工具（fly_to、set_sun、show_isochrone…）當 function tools，FUNRAISE MCP 用 OpenAI 的 hosted `mcp` tool 直接接 connector（帶你在右上角授權取得的 OAuth token）。前端迴圈不變：模型回傳的畫面工具由瀏覽器執行後回填。兩把金鑰都有時預設 OpenAI，`LLM_PROVIDER=anthropic` 可切回 Claude。
+
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 
 | | |
