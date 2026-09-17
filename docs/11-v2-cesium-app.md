@@ -456,3 +456,12 @@ OSM 對台北 101、南山廣場等地標有 `building:part`（分段量體，�
 - `fetch-osm-parts.mjs` 從 Overpass 抓 bbox 內所有 `building:part`（0.02° 分格、逾時自動四分、ODbL 標示），高度只採 `height` 或 `building:levels × 3.2`，沒有就不畫；以點在多邊形內比對母建物，母建物被分段覆蓋 ≥ 60% 面積就不再畫成單一柱體。結果 `public/data/osm_parts_taipei.json`：10,526 段、1,688 棟母建物改畫分段（台北101 508 m、台北天空塔 280 m、國泰置地廣場 192 m…）。載入器把分段與建物當同一組 primitive 管理，調色、窗燈、對焦、相片級隱藏都一起生效；`osm.partCount`、`osm.setVisible(on)`。
 - 抓取當天 Overpass 不穩，20 個子格失敗（列在 `meta.tiles_missing`），其中含南山廣場那一格；補抓模式 `--bbox … --merge` 可只補該格並合併。
 - `PEAKLENS_DEMO_LIVE=1`：缺金鑰時 `/api/env`、`/api/youbike`（60 站）、`/api/tdx/s2s`（106 段站間時間）、`/api/walkshed` 回帶 `demo: true` 的擬真資料，角標顯示「DEMO」；有真金鑰一律優先。只用於無頭測試與截圖。測試：`live.test.mjs` 35 項、`ors.test.mjs` 40 項。
+
+### 17.6 價值時光機 2.0（`src/layers/timemachine.js`、`src/scenes.js`）
+
+- 原本的時光機在 7–10 km 高度看一年長出一棟樓，看不出變化。改成 **區級價值面**：12 個行政區多邊形依當年數值長高、依年增率上色（藍升、橘降、灰平），三個指標 `sales_all` 成交件數（預設）、`sales_office` 商辦成交、`licenses` 建照核發，資料來自 `public/data/timeseries.json`（FUNRAISE MCP 抓的 2012–2026 每區每年計數，方法與註記見 `TIMESERIES_README.md`）；缺檔時退回快照計數。年份切換 350 ms 動畫，只在 S1–S2 出現（rail 開關「價值面」，圖層 key `tm`）。
+- 年度脈衝：年份前進時各區依年增率閃一下；S2–S3 掉出該年的上市櫃交易金額標籤，2 秒淡出。
+- 新建物找得到：長出來的建物多一道 150–400 m 光柱與「+ 名稱 · NF」標籤 2.5 秒。
+- HUD：`#yearhud` 顯示「2016 · 台北市成交 18,325 件 ▼17% · 商辦 13 · 建照核發 207」這種即時累計；2026 標「至今」不算年增率；商辦成交 2012–2016 標「資料涵蓋不足」（早年 main_use 標記不足，不是市場事實）。
+- 場景：「時光 2012→2030」改成五段：S1 全市 2012→2019 面量體 → S2 信義 2019→2026 脈衝、金額、光柱 → S3 南港 2026→2030 未來供給 → 回 S1；旁白讀即時資料（如「大同區這幾年變化最大」）。投資人場景第一步改在 S2 讀最近一季商圈租金。
+- 已知：指標切換目前只有 `map.timemachine.setMetric()`（agent／場景用），rail 尚無選單；S1 極遠時兩三個區的面量體標籤與區名可能靠近。

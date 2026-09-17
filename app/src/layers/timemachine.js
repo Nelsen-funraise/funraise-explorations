@@ -62,7 +62,7 @@ export class TimeMachine {
   /* ---- 資料：優先 timeseries.json，缺檔／格式不符則靜默退回快照計數，永遠不丟例外 ---- */
   async _loadTimeseries() {
     try {
-      const r = await fetchTimeout('./data/timeseries.json', 3000);
+      const r = await fetchTimeout('./data/timeseries.json', 8000);
       if (r && r.ok) { const j = await r.json(); if (j && j.sales_all && j.city) { this._ts = j; this._src = 'timeseries';
         if (Array.isArray(j.meta && j.meta.years) && j.meta.years.length) this.years = j.meta.years;
         if (j.meta && Number.isFinite(j.meta.ytd_year)) this._ytdYear = j.meta.ytd_year;
