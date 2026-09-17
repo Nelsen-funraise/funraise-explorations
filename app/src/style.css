@@ -387,3 +387,7 @@ body.theme-light #yearhud .y{color:var(--blue-700)}
 #yearhud .d{margin-top:6px;font-size:13px;color:var(--ink-2)} #yearhud .d b{color:var(--warm);font-family:var(--mono)} #yearhud .tot{display:block;margin-top:2px;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 #yearhud.pop{animation:hudpop .45s var(--ease)}
 @keyframes hudpop{0%{transform:translateX(-50%) translateY(-6px) scale(.96);opacity:.4}100%{transform:translateX(-50%) translateY(0) scale(1);opacity:1}}
+/* ---- Phase 9F 價值時光機：HUD 年增率箭頭（藍升／橘降／中性至今）---- */
+#yearhud .d b.up{color:var(--blue-400)}
+#yearhud .d b.down{color:var(--warm-2)}
+#yearhud .d b.ytd{color:var(--ink-3);font-weight:500}

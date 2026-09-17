@@ -30,6 +30,7 @@ import { WalkshedLayer } from './analysis/walkshed.js';
 import { RenewalEnvelope } from './renewal.js';
 import { createCompose } from './compose.js';
 import { createExplain } from './explain.js';
+import { TimeMachine } from './layers/timemachine.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -122,6 +123,9 @@ async function boot() {
   // youbike/isochrone/walkshed/focus/trips 與（已經疊了 syncUrl/trips/measure 三層的）ui 都齊全之後，再把自己包在最外層。
   const compose = createCompose({ viewer, rig, layers, osm, ground, youbike, focus, trips, ui, map, viewerApi: api, lighting });
   map.compose = compose;
+  // Phase 9F 價值時光機：12 區 choropleth（LAYERS.tm，funraise.js 已註冊），讀 timeseries.json（不存在就退回快照計數）。
+  // 建在 compose 之後，因為要讀 layers.scale／layers.isHot 這些 compose 才會開始驅動的狀態。
+  let timemachine = null; try { timemachine = new TimeMachine({ viewer, layers, data, basemap, timeline }); await timemachine.ready; map.timemachine = timemachine.api; } catch (e) { console.warn('timemachine unavailable', e); }
   let explain = null; try { explain = createExplain({ viewer, map, layers, ui, rig }); map.explain = explain; ui.explain = explain; } catch (e) { console.warn('explain unavailable', e); }
 
   /* ---- picking ---- */
@@ -154,7 +158,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, explain, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose };
+  window.PL = { Cesium, viewer, map, explain, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

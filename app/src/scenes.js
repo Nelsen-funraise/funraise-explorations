@@ -1,8 +1,15 @@
 // Cinematic scene director (GEV-style): narrated camera scripts over real FUNRAISE layers.
+// Phase 9F: a step's `text` may be a function `(ctx) => string` so narration can read live numbers (timeseries
+// city/district stats, mops counts, quarterly rent) instead of hard-coding them — SceneDirector.play() resolves
+// every step's text once, right before narrating and pre-warming speech, so both use the exact same string.
 const wait = ms => new Promise(r => setTimeout(r, ms));
 export const SCENES = [
   { id: 'investor', title: '資本流向 · 投資人巡航', sub: '上市櫃資產交易 × 商圈行情 × 台北101 環繞', steps: [
-    { text: '這是台北。過去十二個月，上市櫃公司在這座城市公告了幾十筆不動產取得與處分。', run: async (c) => { c.agent.setLens('investor'); c.map.flyTo(121.548, 25.047, { range: 15000, pitch: -62, heading: 10 }); }, hold: 5200 },
+    { text: (c) => { const areas = (c.data.business_areas || []).filter(a => ((a.self_series && a.self_series.rent) || a.rent_series || []).length);
+        let best = null; for (const a of areas) { const arr = (a.self_series && a.self_series.rent) || a.rent_series || []; const last = arr[arr.length - 1]; if (last && (!best || (last.year * 4 + last.quarter) > (best.q.year * 4 + best.q.quarter))) best = { a, q: last }; }
+        const n = (c.data.mops || []).length;
+        return best ? `這是台北。${best.q.year} 年第 ${best.q.quarter} 季，${(best.a.name || '').replace(/^台北市|^臺北市/, '')}平均租金約 ${Math.round(best.q.value).toLocaleString('zh-TW')} 元/坪；過去十二個月，上市櫃公司在這座城市公告了 ${n} 筆不動產取得與處分。` : `這是台北。過去十二個月，上市櫃公司在這座城市公告了幾十筆不動產取得與處分。`; },
+      run: async (c) => { c.agent.setLens('investor'); c.map.setYear(2026); c.ui.setLayer('heat', true); c.map.flyTo(121.561, 25.047, { range: 5400, pitch: -46, heading: 15 }); }, hold: 5600 },
     { text: '每一個橘色光點就是一筆公告：大小代表金額，來源是公開資訊觀測站，經 FUNRAISE 結構化解析。', run: async (c) => { c.ui.setLayer('mops', true); (c.data.mops || []).forEach(m => c.map.pulse('mops:' + m.id, 9000)); c.map.flyTo(121.560, 25.040, { range: 7000, pitch: -50, heading: 25 }); }, hold: 6000 },
     { text: '信義計畫區：安泰銀以 4.8 億取得台北101 使用權資產；富邦金控家族在遼寧街與基隆路之間調度樓層。', run: async (c) => { c.map.orbit(121.5645, 25.0339, 900, -30); }, hold: 7000 },
     { text: '把鏡頭拉到南港：雲豹能源進駐台灣人壽南港大樓 3.1 億、宜鼎處分忠孝東路商辦 1.68 億。資本正在往東流。', run: async (c) => { c.map.flyTo(121.612, 25.056, { range: 2600, pitch: -38, heading: -30 }); }, hold: 6500 },
@@ -29,17 +36,28 @@ export const SCENES = [
     { text: '都更統計：台北市 2,300 多個更新地區與單元，中山區最多。政府主導的案子用亮紫色標示。', run: async (c) => { c.ui.setLayer('renewal', true); c.map.flyTo(121.535, 25.055, { range: 6000, pitch: -52, heading: 0 }); }, hold: 6000 },
     { text: '同一張地圖，換一個鏡，就是另一份簡報。', run: async (c) => { c.map.flyTo(121.548, 25.047, { range: 15000, pitch: -62, heading: 0 }); }, hold: 3500 },
   ] },
-  { id: 'time', title: '時光 · 2012 → 2030', sub: '過去與未來同框', steps: [
-    { text: '最後，把時間軸整個播一遍：從 2012 年實價登錄上路，到 2030 年的供給 pipeline。', run: async (c) => { c.agent.setLens('research'); c.ui.setLayer('stock', true); c.ui.setLayer('future', true); c.ui.setLayer('licenses', true); c.map.flyTo(121.560, 25.045, { range: 10000, pitch: -55, heading: 20 }); }, hold: 4000 },
-    { text: '看大樓一棟一棟出現，建照脈衝亮起，幽靈建物長高。', run: async (c) => { c.timeline.startLapse({ from: 2012, to: 2030, stepMs: 700 }); c.map.orbit(121.565, 25.045, 7000, -55, 0.03); }, hold: 15000 },
-    { text: 'God\'s Eye View 做出了「現在」。睿鏡把「過去」和「未來」也放進同一個畫面。', run: async (c) => { c.map.flyTo(121.548, 25.047, { range: 15000, pitch: -62, heading: 0 }); }, hold: 4500 },
+  { id: 'time', title: '時光 · 2012 → 2030', sub: '過去與未來同框 × 12 區價值面', steps: [
+    { text: '最後，把時間軸整個播一遍：2012 到 2030 年。這次不只是大樓一棟一棟長出來——先看整個台北市 12 個行政區的價值面怎麼隨時間起伏。',
+      run: async (c) => { c.agent.setLens('research'); c.ui.setLayer('tm', true); c.map.timemachine && c.map.timemachine.setMetric('sales_all'); c.map.setYear(2012); c.map.flyTo(121.560, 25.050, { range: 18000, pitch: -58, heading: 15 }); }, hold: 4500 },
+    { text: (c) => { const tm = c.map.timemachine; const top = tm && tm.topMover ? tm.topMover(2019) : null; const label = tm ? tm.metricLabel(tm.metric) : '成交件數';
+        return top && top.yoyPct != null ? `藍色代表${label}年增、橘色代表年減，灰色持平；高度就是當年的量。${top.name} 這幾年變化最大，來到 ${top.yoyPct > 0 ? '▲' : '▼'}${Math.abs(Math.round(top.yoyPct * 100))}%。` : `藍色代表成交量年增、橘色代表年減，灰色持平；高度就是當年的量——12 個區一起長高、一起變色。`; },
+      run: async (c) => { c.timeline.startLapse({ from: 2012, to: 2019, stepMs: 750 }); c.map.orbit(121.560, 25.050, 18000, -55, 0.02); }, hold: 10000 },
+    { text: (c) => { const mopsN = (c.data.mops || []).filter(m => m.district === '信義區').length; return `拉近到信義計畫區：年份往前跳的時候，這一區的量體會跟著閃一下，當年的上市櫃公告會冒出金額標籤——信義區累積 ${mopsN} 筆上市櫃資產交易。同時繼續看大樓長出來：新完工的會有一根光柱標出樓層數。`; },
+      run: async (c) => { const xy = (c.map.districtCentroid && c.map.districtCentroid('信義區')) || [121.5645, 25.0339]; c.map.flyTo(xy[0], xy[1], { range: 5200, pitch: -46, heading: 20 }); await wait(1200); c.timeline.startLapse({ from: 2019, to: 2026, stepMs: 900 }); }, hold: 14000 },
+    { text: (c) => { const n = (c.data.future_dev || []).filter(f => f.district === '南港區').length; return `2026 年之後，價值面沒有實際資料可以畫了——但南港的供給 pipeline 看得到：${n} 個規劃中／興建中案，未來四年會陸續完工，幽靈量體逐年長高。`; },
+      run: async (c) => { const ng = (c.map.districtCentroid && c.map.districtCentroid('南港區')) || [121.610, 25.055]; c.map.flyTo(ng[0], ng[1], { range: 1500, pitch: -40, heading: -20 }); await wait(1000); c.timeline.startLapse({ from: 2026, to: 2030, stepMs: 900 }); }, hold: 10500 },
+    { text: 'God\'s Eye View 只做出了「現在」。睿鏡把「過去」和「未來」也放進同一個畫面——這就是價值時光機。', run: async (c) => { c.map.flyTo(121.548, 25.047, { range: 16000, pitch: -60, heading: 0 }); }, hold: 5000 },
   ] },
 ];
 export class SceneDirector {
   constructor(ctx) { this.c = ctx; this.playing = null; this.stopFlag = false; }
   // Each step: start narration + camera together, then wait for the narration to FINISH (plus the step's hold budget) before moving on.
-  async play(id) { const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop(); this.playing = id; this.stopFlag = false; const { ui } = this.c; ui.cine(sc.title, ''); ui.warmSpeech && ui.warmSpeech(sc.steps.map(s => s.text));
-    for (const st of sc.steps) { if (this.stopFlag) break; ui.cine(sc.title, st.text); const t0 = performance.now(); const narration = ui.speak ? ui.speak(st.text).catch(() => ({ ms: 0 })) : Promise.resolve({ ms: 0 });
+  // `text` may be a function `(ctx) => string` (Phase 9F: narration that reads live data) — resolved once here, up front,
+  // so the pre-warmed speech and the on-screen caption are always the exact same string a step actually speaks.
+  async play(id) { const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop(); this.playing = id; this.stopFlag = false; const { ui } = this.c;
+    const steps = sc.steps.map(st => { let text = st.text; if (typeof text === 'function') { try { text = text(this.c) || ''; } catch (e) { console.warn('scene text failed', e); text = ''; } } return { ...st, text }; });
+    ui.cine(sc.title, ''); ui.warmSpeech && ui.warmSpeech(steps.map(s => s.text));
+    for (const st of steps) { if (this.stopFlag) break; ui.cine(sc.title, st.text); const t0 = performance.now(); const narration = ui.speak ? ui.speak(st.text).catch(() => ({ ms: 0 })) : Promise.resolve({ ms: 0 });
       try { await st.run(this.c); } catch (e) { console.warn('scene step failed', e); }
       const res = await narration; if (this.stopFlag) break; const elapsed = performance.now() - t0; const minHold = res && res.ms ? 900 : st.hold; await wait(Math.max(minHold - Math.max(0, elapsed - (res && res.ms || 0)), 400)); }
     if (!this.stopFlag) ui.cine(null); this.playing = null; }

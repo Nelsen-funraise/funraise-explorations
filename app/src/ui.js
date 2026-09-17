@@ -90,7 +90,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- layers ---- */
   const list = $('#layers'); const visible = new Set(Object.keys(LAYERS));
-  const counts = { stock: (data.buildings || []).length, future: (data.future_dev || []).length, licenses: (data.building_licenses || []).length, renewal: (data.urban_renewal || []).length, zones: (data.development_zones || []).length, mops: (data.mops || []).length, moves: (data.registry_moves || []).length, infra: (data.public_infras || []).length, parks: (data.industrial_parks || []).length, heat: (data.business_areas || []).length, mrt: (basemap.mrt_stations || []).length };
+  const counts = { stock: (data.buildings || []).length, future: (data.future_dev || []).length, licenses: (data.building_licenses || []).length, renewal: (data.urban_renewal || []).length, zones: (data.development_zones || []).length, mops: (data.mops || []).length, moves: (data.registry_moves || []).length, infra: (data.public_infras || []).length, parks: (data.industrial_parks || []).length, heat: (data.business_areas || []).length, mrt: (basemap.mrt_stations || []).length, tm: (data.districts_analytics || []).length };
   for (const [k, L] of Object.entries(LAYERS)) { const b = el('button', 'layer', `<span class="sw ${L.glyph}" style="background:${L.color};color:${L.color}"></span><span class="lbl">${L.name}</span><span class="cnt">${counts[k] || ''}</span>`); b.dataset.layer = k; b.title = L.desc; b.setAttribute('aria-pressed', 'true'); b.onclick = () => ui.setLayer(k, !visible.has(k)); list.appendChild(b); }
   { // YouBike：使用者的「想要」與實際可見（尺度 S3–S4 才顯示，compose.js 拉高自動隱藏／拉回自動出現）分開存；
     // aria-pressed 反映「想要」，不會因為拉遠而自己跳成未按下。
@@ -208,9 +208,19 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   yr.oninput = () => { timeline.stopLapse(); map.setYear(+yr.value); };
   const yearHud = el('div', 'panel hidden'); yearHud.id = 'yearhud'; document.getElementById('stage').appendChild(yearHud); let hudT = null;
   const stats = y => layers.yearStats ? layers.yearStats(y) : {};
+  // Phase 9F：有 map.timemachine（timeseries.json 或其快照 fallback）就用台北市年度總量＋年增率當主要讀數；
+  // 2026 是 YTD（cs.ytd），標「至今」而不是算年增率箭頭。模組不在（極端情況：init 失敗）才退回舊的逐年計數文案。
+  const arrowHtml = cs => cs.ytd ? `<b class="ytd">${cs.year} 至今</b>` : cs.yoyPct == null ? '' : cs.yoyPct > 0.02 ? `<b class="up">▲${Math.round(cs.yoyPct * 100)}%</b>` : cs.yoyPct < -0.02 ? `<b class="down">▼${Math.abs(Math.round(cs.yoyPct * 100))}%</b>` : '<b>持平</b>';
   timeline.onChange((y, prev) => { yr.value = y; yl.textContent = y; updateReadout(); renderTrend(y);
-    if (timeline.lapse || Math.abs((prev || y) - y) >= 1) { const st = stats(y); const parts = []; if (st.stock) parts.push(`<b>+${st.stock}</b> 棟商辦取得使照`); if (st.licenses) parts.push(`<b>${st.licenses}</b> 張建照`); if (st.mops) parts.push(`<b>${st.mops}</b> 筆上市櫃交易`); if (st.future) parts.push(`<b>${st.future}</b> 案完工`);
-      yearHud.innerHTML = `<div class="y">${y}</div><div class="d">${parts.length ? parts.join(' · ') : (y > new Date().getFullYear() ? '供給 pipeline 中' : '—')}<span class="tot">累計商辦 ${st.total ?? ''} 棟</span></div>`; yearHud.classList.remove('hidden'); yearHud.classList.remove('pop'); void yearHud.offsetWidth; yearHud.classList.add('pop'); clearTimeout(hudT); hudT = setTimeout(() => yearHud.classList.add('hidden'), timeline.lapse ? 1400 : 2600); } });
+    if (timeline.lapse || Math.abs((prev || y) - y) >= 1) {
+      const tm = map.timemachine;
+      if (tm && tm.cityStats) { const cs = tm.cityStats(y);
+        yearHud.innerHTML = `<div class="y">${y}</div><div class="d">台北市成交 <span class="cv mono">${fmtInt(cs.salesAll)}</span> 件 ${arrowHtml(cs)} · 商辦 <span class="cv mono">${fmtInt(cs.salesOffice)}</span> · 建照核發 <span class="cv mono">${fmtInt(cs.licenses)}</span></div>`;
+      } else { const st = stats(y); const parts = []; if (st.stock) parts.push(`<b>+${st.stock}</b> 棟商辦取得使照`); if (st.licenses) parts.push(`<b>${st.licenses}</b> 張建照`); if (st.mops) parts.push(`<b>${st.mops}</b> 筆上市櫃交易`); if (st.future) parts.push(`<b>${st.future}</b> 案完工`);
+        yearHud.innerHTML = `<div class="y">${y}</div><div class="d">${parts.length ? parts.join(' · ') : (y > new Date().getFullYear() ? '供給 pipeline 中' : '—')}<span class="tot">累計商辦 ${st.total ?? ''} 棟</span></div>`; }
+      yearHud.classList.remove('hidden'); yearHud.classList.remove('pop'); void yearHud.offsetWidth; yearHud.classList.add('pop');
+      if (!reduce) yearHud.querySelectorAll('.cv').forEach(v => countUp(v));
+      clearTimeout(hudT); hudT = setTimeout(() => yearHud.classList.add('hidden'), timeline.lapse ? 1400 : 2600); } });
   yr.value = timeline.year; yl.textContent = timeline.year;
 
   /* ---- readout ---- */
