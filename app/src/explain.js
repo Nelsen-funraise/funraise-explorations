@@ -166,7 +166,7 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
   }
 
   /* ---- 說明卡 answer card (a caption strip under body.d-immersive via explain.css) ---- */
-  function showCard(text) { cardText.textContent = firstSentence(text); card.classList.remove('hidden'); requestAnimationFrame(() => card.classList.add('show')); }
+  function showCard(text) { if (document.body.classList.contains('cinema')) { card.classList.add('hidden'); card.classList.remove('show'); return; } cardText.textContent = firstSentence(text); card.classList.remove('hidden'); requestAnimationFrame(() => card.classList.add('show')); } // during a scene the voice bar carries the narration; only the numbered callouts stay
   function hideCard() { card.classList.remove('show'); }
 
   /* ---- 退出 exit triggers: duration timeout, or the first pointerdown/wheel on the canvas / keydown anywhere, ignoring #explain-card ---- */

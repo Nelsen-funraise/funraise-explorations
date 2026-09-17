@@ -142,7 +142,7 @@ export function createCompose(ctx) {
     const notes = noteFor(cfg.quality, cur);
     try { localStorage.setItem('pl.look', name); } catch { /* private mode */ }
     ui.paintLook && ui.paintLook(name);
-    if (name === 'sun' || name === 'golden') ui.openSunMenu && ui.openSunMenu(); else ui.closeSunMenu && ui.closeSunMenu();
+    if (!opts.quiet && (name === 'sun' || name === 'golden')) ui.openSunMenu && ui.openSunMenu(); else ui.closeSunMenu && ui.closeSunMenu(); // scenes/agent tools pass quiet: no popover mid-narration
     if (!opts.quiet) ui.toast && ui.toast(notes.length ? `外觀：${LOOK_LABEL[name]}（${notes.join('；')}）` : `外觀：${LOOK_LABEL[name]}`);
     return { ok: true, look: name, adjusted: notes.length > 0, note: notes.join('；') || undefined };
   }
