@@ -260,7 +260,7 @@ body.d-immersive #caption.has{display:block}
 body.d-immersive .lens-btn{padding:4px 9px;font-size:11px}
 body.d-immersive .cesium-widget-credits{opacity:.5}
 body.d-annotated #inspector{width:360px;max-height:calc(100vh - 290px)}
-body.d-annotated #transcript{max-height:24vh}
+body.d-annotated #transcript:not(:hover):not(:focus-within){max-height:24vh}
 body.d-annotated #timeline{max-width:none}
 body.d-annotated #readout .coords{display:inline}
 body:not(.d-annotated) #callouts,body:not(.d-annotated) #provenance{display:none!important}

@@ -237,7 +237,7 @@ async function main() {
     `- Skipped — degenerate ring: ${skippedDegenerate}\n` +
     `- Matched to a parent building footprint: ${matched} · standalone (no parent match): ${unmatched}\n` +
     `- Suppressed parents (parts cover >=${Math.round(SUPPRESS_RATIO * 100)}% of footprint area, parent box no longer drawn — only the parts render): ${suppress.length}\n` +
-    `- Tiles missing (failed after ${MAX_RETRIES + 1} attempts): ${missingTiles.length}${missingTiles.length ? ' — ' + JSON.stringify(missingTiles) : ''}\n\n` +
+    `- Sub-tiles missing (still failing after retries + adaptive splitting down to depth ${MAX_SPLIT_DEPTH}): ${missingTiles.length}${missingTiles.length ? ' — ' + JSON.stringify(missingTiles) : ''}\n\n` +
     `### Top landmarks by tallest part\n\n` +
     (landmarks.length ? landmarks.map(x => `- ${x.name} — ${x.h.toFixed(1)} m${x.suppressed ? ' (suppressed parent — parent box replaced by parts)' : ' (parent box kept alongside parts)'}`).join('\n') : '(none found)') + '\n';
   fs.appendFileSync(README_FILE, section);

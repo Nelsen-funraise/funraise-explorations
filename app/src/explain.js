@@ -31,9 +31,9 @@ const statFor = (layer, it) => ({
   infra: () => (it.status === 'constructing' ? '興建中' : '規劃中'), parks: () => it.park_type || '', zones: () => it.category || '',
   heat: () => (it.market_price ? fmtInt(it.market_price.actual_rent_avg) + ' 元/坪' : ''), mrt: () => (Array.isArray(it.lines) ? it.lines.join('・') : ''),
 })[layer]?.() || '';
-const firstSentence = (text, max = 90) => { // first sentence of the answer, ≤ max chars
+const firstSentence = (text, max = 90) => { // first sentence of the answer, ≤ max chars — a bare "." only ends a sentence when it isn't a decimal point (e.g. "4.9 億元")
   const s = String(text || '').replace(/\s+/g, ' ').trim(); if (!s) return '';
-  const i = s.search(/[。.!?！？\n]/); let seg = (i === -1 ? s : s.slice(0, i + 1)).trim() || s;
+  const m = s.match(/[!?！？。\n]|(?<!\d)\.(?!\d)/); let seg = (m ? s.slice(0, m.index + 1) : s).trim() || s;
   return seg.length > max ? seg.slice(0, max - 1) + '…' : seg;
 };
 
@@ -104,7 +104,7 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
     map.osm.focus({ lon: cx, lat: cy, radiusM, keepIds: [] });
     return prev;
   }
-  function keyMatches(plKey, keeps) { for (const k of keeps) if (plKey === k || plKey.startsWith(k + ':')) return true; return false; }
+  function keyMatches(plKey, keeps) { for (const k of keeps) if (plKey === k || plKey.startsWith(k + ':') || k.startsWith(plKey + ':')) return true; return false; } // bidirectional: a renewal unit's several ring entities are keyed 'renewal:id:ringN' while its one label/billboard entity keeps the bare 'renewal:id' — a keep-key picked from either form (e.g. straight out of layers.byKey) must still reach the other
   function sampleColor(mat) { try { const c = mat && mat.color && mat.color.getValue && mat.color.getValue(viewer.clock.currentTime); if (c) return c.clone(new Cesium.Color()); } catch { /* dynamic material without a plain colour */ } return Cesium.Color.GRAY.clone(); }
   function applyMask(keeps) {
     const dimmed = [], billboardSaved = [], materialSaved = [], bumped = []; const keepEntities = new Map();
@@ -162,7 +162,7 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
   }
 
   /* ---- 說明卡 answer card (a caption strip under body.d-immersive via explain.css) ---- */
-  function showCard(text) { cardText.textContent = firstSentence(text); requestAnimationFrame(() => card.classList.add('show')); }
+  function showCard(text) { cardText.textContent = firstSentence(text); card.classList.remove('hidden'); requestAnimationFrame(() => card.classList.add('show')); }
   function hideCard() { card.classList.remove('show'); }
 
   /* ---- 退出 exit triggers: duration timeout, or the first pointerdown/wheel on the canvas / keydown anywhere, ignoring #explain-card ---- */
@@ -189,7 +189,8 @@ export function createExplain({ viewer, map, layers, ui, rig }) {
     keys = [...new Set((keys || []).filter(Boolean))].slice(0, 8); if (!keys.length) return false;
     if (map.focus && map.focus.active) map.focus.exit(); // 對焦是獨佔狀態；說明模式進來時視同新的獨佔情境
     teardownVisual(); // idempotent: undo any previous explain state before recomputing from scratch
-    const resolved = keys.map(resolveKey).filter(Boolean); if (!resolved.length) return false;
+    const seenItems = new Set(); // a renewal unit's several ring keys (byKey stores 'renewal:id:ringN') resolve to the same shared item — one callout each, not one per ring
+    const resolved = keys.map(resolveKey).filter(r => r && !seenItems.has(r.item) && seenItems.add(r.item)); if (!resolved.length) return false;
     const points = resolved.map(r => r.pos);
     frameAll(points);
     savedOsmFocus = osmRecede(points);

@@ -107,7 +107,10 @@ export function createCompose(ctx) {
     state.overrides.theme = state.overrides.basemap = state.overrides.sun = state.overrides.quality = state.overrides.night = false;
     state.look = name;
     realSetTheme(cfg.theme, true);
-    const sunHour = name === 'golden' ? 17 : name === 'sun' ? (lighting.hour == null ? 12 : lighting.hour) : null;
+    // opts.hour lets a caller (agent.js's applyLook — the rule-based agent's NL routing for "17:30 的日照／黃金時刻")
+    // land on a specific hour in the same call instead of a second set_sun round-trip; omitted, sun/golden fall back
+    // to their usual default (golden fixed 17:00, sun keeps whatever hour was already set, else noon).
+    const sunHour = name === 'golden' ? (opts.hour ?? 17) : name === 'sun' ? (opts.hour ?? (lighting.hour == null ? 12 : lighting.hour)) : null;
     realSetSun(sunHour, true);
     realSetBasemap(basemapForLook(name, state.scale));
     state.requestedQuality = { ...cfg.quality };

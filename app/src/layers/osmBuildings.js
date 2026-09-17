@@ -124,8 +124,8 @@ export async function loadOsmBuildings(viewer, url, onProgress, { palette: initi
   // `parent` when present (parts), else `i` (buildings) — a part with no parent match (parent:-1) has no id to
   // look up in insideSet/keepIds, so it judges inside-ness directly from its own centroid instead.
   const isInsideOrKept = (meta) => {
-    const key = meta.parent != null ? meta.parent : meta.i;
-    if (key != null && key >= 0) return focusState.insideSet.has(key) || focusState.keepIds.has(key);
+    const ownerIdx = meta.parent != null ? meta.parent : meta.i;
+    if (ownerIdx != null && ownerIdx >= 0) return focusState.insideSet.has(ownerIdx) || focusState.keepIds.has(ownerIdx);
     if (meta.lon != null && meta.lat != null) return distM(meta.lon, meta.lat, focusState.lon, focusState.lat) <= focusState.radiusM;
     return false;
   };
