@@ -173,7 +173,7 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 6. 專用工具：等時圈／通勤圈／幾分鐘能到 → show_isochrone；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。`;
 
-function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
+function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
 function html(res, code, body) { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); res.end(body); }
 function readBody(req, limit = 2e6) { return new Promise((resolve, reject) => { let n = 0; const chunks = []; req.on('data', c => { n += c.length; if (n > limit) { reject(new Error('body too large')); req.destroy(); } else chunks.push(c); }); req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); } catch (e) { reject(e); } }); req.on('error', reject); }); }
 function sanitizeMessages(msgs) {
@@ -204,12 +204,19 @@ const CALLBACK_PAGE = (ok, msg) => `<!doctype html><meta charset="utf-8"><title>
 
 if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message })); console.log(JSON.stringify({ ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), tts: FISH_KEY_() ? 'fish:' + FISH_MODEL_() : 'none', voices: VOICES.map(v => v.id), redirect_uri: REDIRECT_URI, tools: CAMERA_TOOLS.map(t => t.name), port: PORT }, null, 2)); process.exit(0); }
 
+// abuse guard for a shared/hosted server: per-IP sliding window (agent 30/min, tts 60/min, others 240/min)
+const GATE_FREE = new Set(['/api/health', '/api/mcp/callback']); const rateBuckets = new Map();
+function rateOk(ip, pathname) { const limit = pathname === '/api/agent' ? +(env.RATE_AGENT_PER_MIN || 30) : pathname === '/api/tts' ? +(env.RATE_TTS_PER_MIN || 60) : 240; const key = ip + '|' + (pathname === '/api/agent' || pathname === '/api/tts' ? pathname : 'other'); const now = Date.now(); const arr = (rateBuckets.get(key) || []).filter(t => now - t < 60000); arr.push(now); rateBuckets.set(key, arr); if (rateBuckets.size > 5000) rateBuckets.clear(); return arr.length <= limit; }
 const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root });
 if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
   http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     try {
       if (req.method === 'OPTIONS') return json(res, 204, {});
+      if (url.pathname.startsWith('/api/') && !GATE_FREE.has(url.pathname) && !url.pathname.startsWith('/api/setup')) {
+        const code = env.PEAKLENS_ACCESS_CODE; if (code) { const given = req.headers['x-peaklens-code'] || url.searchParams.get('code') || ''; if (given !== code) return json(res, 401, { error: '這個 PeakLens server 需要存取碼', need_code: true }); }
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(); if (!rateOk(ip, url.pathname)) return json(res, 429, { error: '請求太頻繁，稍後再試' });
+      }
       if (url.pathname === '/setup') return SETUP.page(req, res);
       if (url.pathname.startsWith('/api/setup')) return SETUP.api(req, res, url, readBody, json);
       if (url.pathname === '/api/health') { const m = await mcpProbe(url.searchParams.has('force')); return json(res, 200, { ok: !!llm, provider: llm ? llm.provider : null, model: MODEL(), mcp: mcpSummary(m), tools: CAMERA_TOOLS.length, tts: FISH_KEY_() ? 'fish' : 'none', voices: VOICES.map(v => ({ id: v.id, name: v.name, desc: v.desc, gender: v.gender })) }); }
@@ -224,6 +231,6 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }
   }).listen(PORT, async () => {
     const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message }));
-    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY_() ? 'fish' : 'none'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
+    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
   });
 }

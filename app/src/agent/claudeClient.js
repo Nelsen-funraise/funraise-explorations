@@ -1,8 +1,8 @@
 // Claude mode: send the conversation + view state to server/index.mjs (/api/agent) and execute the camera/layer tool calls it returns.
-const API = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+import { apiFetch } from '../api.js';
 export class ClaudeClient {
   constructor(map, ui, agent) { this.map = map; this.ui = ui; this.agent = agent; this.history = []; this.available = null; }
-  async probe(force) { try { const r = await fetch(API + '/api/health' + (force ? '?force=1' : '')); const j = await r.json(); this.available = !!j.ok; return j; } catch { this.available = false; return { ok: false, mcp: { status: 'noserver' } }; } }
+  async probe(force) { try { const r = await apiFetch('/api/health' + (force ? '?force=1' : '')); const j = await r.json(); this.available = !!j.ok; return j; } catch { this.available = false; return { ok: false, mcp: { status: 'noserver' } }; } }
   viewState() { const c = this.map.center(); const d = this.map.districtAtCamera(); return { lon: +c.lon.toFixed(5), lat: +c.lat.toFixed(5), height_m: Math.round(c.height), district: d ? d.name : null, year: this.map.year, lens: this.agent.lens, visible_layers: this.map.visibleLayers(), density: this.ui.density, selected: this.map.selected ? { layer: this.map.selected.layer, name: this.map.selected.item.name || this.map.selected.item.company_name, id: this.map.selected.item.id } : null, in_view: this.map.countInView() };
   }
   async handle(text) {
@@ -11,7 +11,7 @@ export class ClaudeClient {
     try {
       while (rounds++ < 6) {
         const card = this.ui.toolStart(turn, (this.ui.mcp && this.ui.mcp.provider ? this.ui.mcp.provider : 'llm') + '.turn', { model: (this.ui.mcp && this.ui.mcp.model) || 'server', turn: rounds });
-        const res = await fetch(API + '/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages, view: this.viewState() }) });
+        const res = await apiFetch('/api/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages, view: this.viewState() }) });
         if (!res.ok) { this.ui.toolDone(card, 'HTTP ' + res.status); throw new Error('agent server ' + res.status); }
         const data = await res.json(); this.ui.source = data.source === 'live' ? 'LIVE' : '快照'; this.ui.toolDone(card, `${data.stop_reason} · ${data.source || ''} · ${data.usage ? data.usage.output_tokens + ' tok' : ''}`);
         for (const b of data.content) { if (b.type === 'mcp_tool_use') this.ui.toolDone(this.ui.toolStart(turn, 'funraise.' + b.name, b.input), 'via MCP'); }

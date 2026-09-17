@@ -285,6 +285,26 @@ npm run server              # http://localhost:8790
 
 **OpenAI 模式怎麼運作**：server 走 OpenAI Responses API，把畫面工具（fly_to、set_sun、show_isochrone…）當 function tools，FUNRAISE MCP 用 OpenAI 的 hosted `mcp` tool 直接接 connector（帶你在右上角授權取得的 OAuth token）。前端迴圈不變：模型回傳的畫面工具由瀏覽器執行後回填。兩把金鑰都有時預設 OpenAI，`LLM_PROVIDER=anthropic` 可切回 Claude。
 
+## 15. 在哪裡跑：Mac 本機 vs. 純網頁 vs. 自架 server（評估）
+
+| 方案 | 能用的功能 | 需要什麼 | 適合 |
+|---|---|---|---|
+| **純網頁（GitHub Pages）** | 所有免金鑰功能：3D 城市、夜景窗燈、日照、等時圈、對焦、樓層視角、量測、場景與預錄語音、快照資料 | 什麼都不用，網址直接分享 | 到處分享、隨手 demo |
+| **Mac 本機**（雙擊 `app/PeakLens.command`） | 上面全部 + OpenAI 對話、FUNRAISE MCP 即時查詢、Fish 即時語音、天氣／AQI／YouBike／捷運真實時間、ORS 步行圈 | Node 22（`brew install node`）；金鑰貼在 `/setup` | 自己用、面對面 demo |
+| **自架 server + Pages 前端**（`app/Dockerfile`） | 全部功能，而且網址可以分享 | 一個容器主機（Cloud Run／Render／Fly，免費層即可）；在主機環境變數放金鑰與 `PEAKLENS_ACCESS_CODE`；repo variable `PEAKLENS_API_BASE` 指向主機網址 | 分享給投資人／同事，不用他們裝任何東西 |
+
+**為什麼純網頁跑不動有金鑰的功能**：金鑰放進靜態網頁等於公開；所以所有金鑰只住在 server 的環境變數，前端透過 `/api/*` 代理。要「網頁能跑而且能分享」，就走第三種：server 放雲端，前端仍是 Pages。
+
+**分享安全**：server 設 `PEAKLENS_ACCESS_CODE=<任意口令>` 後，所有 `/api/*` 都要帶口令；前端第一次被拒會跳出一次輸入框並記住。另有每 IP 速率限制（agent 30 次／分、語音 60 次／分）避免被刷爆 OpenAI 額度。`ALLOWED_ORIGIN` 可限定只接受 Pages 網域。
+
+**自架步驟（以 Cloud Run 為例）**
+1. `cd app && gcloud run deploy peaklens --source . --region asia-east1 --allow-unauthenticated --set-env-vars OPENAI_API_KEY=…,FISH_API_KEY=…,CWA_API_KEY=…,MOENV_AQI_API_KEY=…,TDX_CLIENT_ID=…,TDX_CLIENT_SECRET=…,ORS_API_KEY=…,PEAKLENS_ACCESS_CODE=…,PUBLIC_URL=https://<服務網址>`（Render／Fly 用同一個 Dockerfile，環境變數在它們的介面設）。
+2. repo Settings → Secrets and variables → Actions → Variables：`PEAKLENS_API_BASE = https://<服務網址>`；Secrets：`VITE_CESIUM_ION_TOKEN`（要地形才需要）。
+3. 重跑 Pages workflow（或推一個 commit）。Pages 前端會把 `/api/*` 打到雲端 server；FUNRAISE MCP 授權按鈕會彈出 OAuth 視窗，回呼到 `PUBLIC_URL/api/mcp/callback`（動態註冊，不用預先登記）。
+4. 分享網址 + 存取碼。
+
+**Mac 本機步驟**：`git clone …`，Finder 進 `app/`，雙擊 `PeakLens.command`（第一次會 `npm install` + build，之後直接啟動並開 `/setup`）。或終端機：`cd app && npm install && npm start`。
+
 ## 7. 截圖（無頭 Chromium 冒煙測試自動產生 · PickPeak DS 版）
 
 | | |

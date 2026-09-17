@@ -15,7 +15,7 @@ const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(m >= 100000 ? 0 : 1) + ' km'
 const KEY_OF = { stock: it => 'stock:' + it.id, future: it => 'future:' + it.id, renewal: it => 'renewal:' + it.id, mops: it => 'mops:' + it.id, infra: it => 'infra:' + it.id, parks: it => 'ipark:' + it.id, zones: it => 'zone:' + it.id, heat: it => 'heat:' + it.id, mrt: it => 'mrt:' + it.name, licenses: it => 'license:' + it.license_number, moves: it => 'move:' + it.uniform_number };
 const USAGE = { office: '辦公', hotel: '旅館', house: '住宅', store: '零售', parking: '停車', others: '其他' };
 const DENSITY = { immersive: '沉浸', balanced: '平衡', annotated: '標註' };
-const API = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+import { API, apiUrl } from './api.js';
 const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
 
 export function createUI({ map, data, basemap, layers, timeline, sensors, viewerApi, cameraMode, overlay }) {
@@ -47,7 +47,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   let authWin = null;
   pill.onclick = async () => {
     const m = ui.mcp;
-    if (m.status === 'unauthorized') { authWin = window.open(API + '/api/mcp/authorize', 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
+    if (m.status === 'unauthorized') { authWin = window.open(apiUrl('/api/mcp/authorize'), 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
     if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 AI 模式即可即時查詢'); return; }
     if (m.status === 'noserver') { toast('先在 app/ 執行 npm run server（需 ANTHROPIC_API_KEY），再按一次即可授權 FUNRAISE MCP'); return; }
     toast('重新探測 FUNRAISE MCP…'); const h = claude ? await claude.probe(true) : null; ui.setMcp(h);
