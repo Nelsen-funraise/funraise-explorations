@@ -201,7 +201,7 @@ export class SceneDirector {
     this._restoreSnapshotNow().catch(() => {});
   }
 
-  async play(id) {
+  async play(id) { try { const u = (this.c && this.c.ui) || this.ui; if (u && u.select) u.select(null); } catch { /* a lingering selection card would sit on top of the scene */ }
     const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop();
     const token = ++this._token; // this run's identity — see _runStep's `stale()`
     this.playing = id; this.stopFlag = false; this.paused = false; this.stepIndex = 0; this._torndown = false;

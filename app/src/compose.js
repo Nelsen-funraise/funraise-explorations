@@ -41,7 +41,7 @@ function basemapForLook(look, scale) {
 /** 尺度約束贏過預設／使用者請求：S0–S1 一律關泛光／HDR／AO；AO 只在 S3–S4 且白模／日照；HDR 只在 S3–S4。*/
 export function effectiveQuality(requested, scale, look) {
   const s34 = scale === 'S3' || scale === 'S4', s01 = scale === 'S0' || scale === 'S1';
-  return { ...requested, bloom: !!requested.bloom && !s01, hdr: !!requested.hdr && s34, ao: !!requested.ao && s34 && (look === 'white' || look === 'sun') };
+  return { ...requested, bloom: !!requested.bloom && (s34 || (scale === 'S2' && look === 'night')), hdr: !!requested.hdr && s34, ao: !!requested.ao && s34 && (look === 'white' || look === 'sun') }; // bloom on a white daytime city at district scale just glares (seen in the scene screenshot); night keeps its S2 glow
 }
 function noteFor(requestedDelta, eff) {
   const notes = [];
