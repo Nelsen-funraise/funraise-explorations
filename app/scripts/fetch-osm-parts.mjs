@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 // 抓 OSM building:part（地標分段量體：台北101裙樓+塔樓分開建模、南山廣場…）→ public/data/osm_parts_taipei.json
-// 用法：node scripts/fetch-osm-parts.mjs
+// 用法：node scripts/fetch-osm-parts.mjs                                     — 整個 bbox 全新抓一輪，覆蓋整份輸出檔。
+//      node scripts/fetch-osm-parts.mjs --bbox W,S,E,N --merge              — 只抓這個小 bbox（同一套重試/象限切分邏
+//                                                                              輯），MERGE 進既有的輸出檔，不覆蓋其他
+//                                                                              資料。用在「city-wide 那輪有幾個 tile
+//                                                                              一直失敗、事後單獨補抓」的情境。
+//                                                                              --bbox 一定要搭 --merge（反過來單獨
+//                                                                              --bbox 會被拒絕，避免不小心把整份檔案
+//                                                                              覆蓋成只剩這一小塊）。
 // 資料 (c) OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)。
 //
 // 對照 public/data/OSM_README.md 既有建物抓取的慣例：同一個 Overpass 實例、同樣切成 0.02°×0.02°
@@ -25,6 +32,18 @@
 // 完整表達這棟樓的外形」（裙樓 part + 塔樓 part 疊起來就是整棟樓），母建物自己那根「一體成形柱體」
 // 不用再畫；反之（例如只標了屋突/水塔這種小 part）母建物跟 parts 都畫，parts 疊加在母建物上面補
 // 細節。
+//
+// --merge 模式的三個關鍵設計（跟上面全新抓取那輪共用同一套高度/幾何/母建物比對規則，差別只在輸出
+// 是「併進去」而不是「蓋掉」）：
+//   1. 去重用「環的量化座標簽章」（把 flat 整數座標點集合排序後 join 成字串），不是 OSM way id——
+//      輸出檔本來就沒存 way id，而且簽章天生不怕起點/繞向不同，同一個 tile 補抓兩次、或補抓範圍跟
+//      前一輪有重疊，都不會長出重複的 part。
+//   2. 母建物比對只對「這次新抓到的 part」做 point-in-ring；既有 parts 已經存好的 parentIndex 完全
+//      不重算。suppress 名單只針對「這次有新 part 掛進去的母建物」重新算比例（面積只會增加，已經在
+//      suppress 名單裡的不會被拿掉，只可能新增）。
+//   3. meta.tiles_missing：跟這次 --bbox 有重疊/被涵蓋的舊項目先移除，這次抓完如果還有失敗的子區塊
+//      再放回去（可能是更小的象限）。OSM_README.md 的分段量體那節改成用註解錨點框住，每次執行都是
+//      整段原地替換，不會越疊越多份。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,10 +66,14 @@ const TILE_PAUSE_MS = 700; // 禮貌性間隔：這是公用的 Overpass 實例�
 const MAX_SPLIT_DEPTH = 1; // 一個 tile 重試完還是失敗 → 切成 4 個象限再各自試一輪；只切一層（0.02°→0.01°），不再往下切——
                             // 實測今天的壅塞是「整個伺服器忽快忽慢」而不是「這個查詢太貴」，切更細不會讓它變快，只會讓單一問題
                             // tile 的總等待時間指數增加，所以深度砍半，多切出來的小格子若還是失敗就直接記進 missingTiles。
+// --merge 補抓的目標範圍本來就小很多（單一 tile 甚至更小），值得用比 city-wide 那輪更耐心的重試/切分策略。
+const MERGE_FETCH_TIMEOUT_MS = 60000;
+const MERGE_MAX_RETRIES = 3; // 加上第一次共 4 次嘗試，backoff 3s/6s/9s
+const MERGE_MAX_SPLIT_DEPTH = 2;
 const SUPPRESS_RATIO = 0.6;
 const GRID_CELL_DEG = 0.001; // ≈100m at this latitude — 跟 osmBuildings.js 的 nearest() 網格同尺度
 
-/** [w,s,e,n] → 一串 0.02°×0.02° 的子 bbox（最後一排/一列裁到原始邊界，不會超出）。 */
+/** [w,s,e,n] → 一串 0.02°×0.02° 的子 bbox（最後一排/一列裁到原始邊界，不會超出；bbox 本身比 step 小時剛好只產生 1 個）。 */
 function tiles([w, s, e, n], step) {
   const out = [];
   for (let y = s; y < n - 1e-9; y = +(y + step).toFixed(6)) {
@@ -63,41 +86,44 @@ function tiles([w, s, e, n], step) {
 
 const overpassQuery = ([w, s, e, n]) => `[out:json][timeout:35];way["building:part"](${s},${w},${n},${e});out body geom;`;
 
-/** 打一個 tile；重試 MAX_RETRIES 次都失敗回傳 null（呼叫端自己決定要不要切更小再試，或整塊記進 missingTiles）。 */
-async function fetchTile(bbox, label) {
+/** 打一個 tile；重試 opts.maxRetries 次都失敗回傳 null（呼叫端自己決定要不要切更小再試，或整塊記進 missingTiles）。 */
+async function fetchTile(bbox, label, opts = {}) {
+  const timeoutMs = opts.timeoutMs ?? FETCH_TIMEOUT_MS;
+  const maxRetries = opts.maxRetries ?? MAX_RETRIES;
   const body = 'data=' + encodeURIComponent(overpassQuery(bbox));
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const r = await fetch(OVERPASS_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': UA }, body, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+      const r = await fetch(OVERPASS_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': UA }, body, signal: AbortSignal.timeout(timeoutMs) });
       if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`HTTP ${r.status}: ${t.slice(0, 200)}`); }
       const j = await r.json();
       return Array.isArray(j.elements) ? j.elements : [];
     } catch (e) {
-      console.warn(`[fetch-osm-parts] tile ${label} attempt ${attempt + 1}/${MAX_RETRIES + 1} failed: ${e.message}`);
-      if (attempt < MAX_RETRIES) await new Promise(res => setTimeout(res, 3000 * (attempt + 1))); // 1st retry 3s, 2nd 6s
+      console.warn(`[fetch-osm-parts] tile ${label} attempt ${attempt + 1}/${maxRetries + 1} failed: ${e.message}`);
+      if (attempt < maxRetries) await new Promise(res => setTimeout(res, 3000 * (attempt + 1))); // 1st retry 3s, 2nd 6s, 3rd 9s…
     }
   }
   return null;
 }
 
 /**
- * fetchTile() 的外層：一個 tile 重試 MAX_RETRIES 次仍失敗時，切成 4 個象限各自重試（公用 Overpass 實例常態性
- * 壅塞，實測縮小查詢範圍比對同一個查詢死磕更有效）；最多切 MAX_SPLIT_DEPTH 層，再失敗就真的放棄那一小塊
- * （記進 missingTiles，讓輸出的 meta 誠實反映涵蓋範圍有缺口，不假裝完整）。
+ * fetchTile() 的外層：一個 tile 重試完仍失敗時，切成 4 個象限各自重試（公用 Overpass 實例常態性
+ * 壅塞，實測縮小查詢範圍比對同一個查詢死磕更有效）；最多切 opts.maxSplitDepth 層，再失敗就真的放棄
+ * 那一小塊（記進 missingTiles，讓輸出的 meta 誠實反映涵蓋範圍有缺口，不假裝完整）。
  * @returns {{elements:object[], missing:number[][]}}
  */
-async function fetchTileAdaptive(bbox, label, depth = 0) {
-  const els = await fetchTile(bbox, label);
+async function fetchTileAdaptive(bbox, label, depth = 0, opts = {}) {
+  const maxSplitDepth = opts.maxSplitDepth ?? MAX_SPLIT_DEPTH;
+  const els = await fetchTile(bbox, label, opts);
   if (els != null) return { elements: els, missing: [] };
   const [w, s, e, n] = bbox;
-  if (depth >= MAX_SPLIT_DEPTH) { console.warn(`[fetch-osm-parts] tile ${label} giving up at split depth ${depth} (still failing)`); return { elements: [], missing: [bbox] }; }
+  if (depth >= maxSplitDepth) { console.warn(`[fetch-osm-parts] tile ${label} giving up at split depth ${depth} (still failing)`); return { elements: [], missing: [bbox] }; }
   const midX = +((w + e) / 2).toFixed(6), midY = +((s + n) / 2).toFixed(6);
   const quads = [[w, s, midX, midY], [midX, s, e, midY], [w, midY, midX, n], [midX, midY, e, n]];
-  console.warn(`[fetch-osm-parts] tile ${label} still failing after ${MAX_RETRIES + 1} attempts — splitting into 4 quadrants and retrying each`);
+  console.warn(`[fetch-osm-parts] tile ${label} still failing after ${(opts.maxRetries ?? MAX_RETRIES) + 1} attempts — splitting into 4 quadrants and retrying each`);
   const elements = [], missing = [];
   for (let qi = 0; qi < quads.length; qi++) {
     await new Promise(res => setTimeout(res, TILE_PAUSE_MS));
-    const sub = await fetchTileAdaptive(quads[qi], `${label}.${qi + 1}/4`, depth + 1);
+    const sub = await fetchTileAdaptive(quads[qi], `${label}.${qi + 1}/4`, depth + 1, opts);
     elements.push(...sub.elements); missing.push(...sub.missing);
   }
   return { elements, missing };
@@ -143,9 +169,271 @@ function pointInRing(px, py, ring) {
   }
   return inside;
 }
+/** 環的「量化座標簽章」：flat 是已經量化過的整數座標（沿用 osm_buildings_taipei.json 的 origin/scale），
+ * 把點集合排序後 join——不管起點在哪、繞向順逆，同一個實體環一定產生同一個字串。用來在 --merge 時判斷
+ * 「這個 part 是不是已經在既有檔案裡了」，比對 OSM way id 穩：輸出檔本來就沒存 way id，而且同一個地物
+ * 偶爾會被不同的 relation/切法重複收錄到。 */
+function ringSignature(flat) {
+  const pairs = [];
+  for (let k = 0; k < flat.length; k += 2) pairs.push(flat[k] + ',' + flat[k + 1]);
+  pairs.sort();
+  return pairs.join('|');
+}
 
-/* ---------------- 主流程 ---------------- */
+/* ---------------- CLI 參數 ---------------- */
+function parseArgs(argv) {
+  const out = { merge: false, bbox: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--merge') out.merge = true;
+    else if (a === '--bbox') out.bbox = argv[++i];
+    else if (a.startsWith('--bbox=')) out.bbox = a.slice('--bbox='.length);
+  }
+  if (out.bbox) {
+    const nums = out.bbox.split(',').map(Number);
+    if (nums.length !== 4 || nums.some(x => Number.isNaN(x))) throw new Error(`--bbox must be "west,south,east,north" (got "${out.bbox}")`);
+    out.bbox = nums;
+  }
+  return out;
+}
+
+/* ---------------- OSM_README.md：分段量體那節，用註解錨點框住，每次執行整段原地替換 ---------------- */
+const README_BEGIN = '<!-- osm-parts-section:begin -->';
+const README_END = '<!-- osm-parts-section:end -->';
+function buildReadmeBody({ raw, unique, keptCount, skippedNoHeight, skippedDegenerate, matched, unmatched, suppressCount, tilesMissing, landmarks, mergeNote }) {
+  return `## building:part 分段量體（scripts/fetch-osm-parts.mjs；最後更新 ${new Date().toISOString().slice(0, 10)}）\n\n` +
+    `Fetched from ${OVERPASS_URL} — same bbox/tiling as the building footprints above (§16.7 地標形狀).${mergeNote ? ' ' + mergeNote : ''}\n\n` +
+    `- Ways fetched (raw, before de-dup, cumulative across all runs): ${raw}\n` +
+    `- Unique building:part ways (cumulative): ${unique}\n` +
+    `- Parts kept: ${keptCount}\n` +
+    `- Skipped — no usable height (no height／building:levels tag), cumulative: ${skippedNoHeight}\n` +
+    `- Skipped — degenerate ring, cumulative: ${skippedDegenerate}\n` +
+    `- Matched to a parent building footprint: ${matched} · standalone (no parent match): ${unmatched}\n` +
+    `- Suppressed parents (parts cover >=${Math.round(SUPPRESS_RATIO * 100)}% of footprint area, parent box no longer drawn — only the parts render): ${suppressCount}\n` +
+    `- Sub-tiles missing (still failing after retries + adaptive splitting): ${tilesMissing.length}${tilesMissing.length ? ' — ' + JSON.stringify(tilesMissing) : ''}\n\n` +
+    `### Top landmarks by tallest part\n\n` +
+    (landmarks.length ? landmarks.map(x => `- ${x.name} — ${x.h.toFixed(1)} m${x.suppressed ? ' (suppressed parent — parent box replaced by parts)' : ' (parent box kept alongside parts)'}`).join('\n') : '(none found)') + '\n';
+}
+function upsertReadmeSection(body) {
+  const wrapped = `${README_BEGIN}\n${body}${README_END}\n`;
+  let text = '';
+  try { text = fs.readFileSync(README_FILE, 'utf8'); } catch { text = ''; }
+  const bi = text.indexOf(README_BEGIN), ei = text.indexOf(README_END);
+  if (bi >= 0 && ei >= 0) {
+    text = text.slice(0, bi) + wrapped + text.slice(ei + README_END.length);
+  } else if (/\n## building:part 分段量體/.test(text)) {
+    // 第一次跑這個新版腳本，之前那輪留下的是沒有錨點的舊版本節——原地換成有錨點的版本，不留兩份。
+    text = text.replace(/\n## building:part 分段量體[\s\S]*$/, '\n' + wrapped);
+  } else {
+    text = text.replace(/\n?$/, '\n') + wrapped;
+  }
+  fs.writeFileSync(README_FILE, text);
+  console.log('[fetch-osm-parts] refreshed section in', README_FILE);
+}
+
+/* ---------------- 主流程：全新抓一輪（預設，無參數） ---------------- */
+async function runFresh(ctx, origin) {
+  const { ox, oy, scale, B, grid, cellOf, buildingRings, buildingAreas, typeIdxFor } = ctx;
+  const tileList = tiles(BBOX, TILE_DEG);
+  console.log(`[fetch-osm-parts] ${tileList.length} tiles (${TILE_DEG}°×${TILE_DEG}°) over bbox [${BBOX.join(', ')}]`);
+  const rawWays = []; const missingTiles = [];
+  for (let t = 0; t < tileList.length; t++) {
+    const bbox = tileList[t]; const label = `${t + 1}/${tileList.length} [${bbox.map(x => x.toFixed(3)).join(',')}]`;
+    process.stdout.write(`[fetch-osm-parts] tile ${label} … `);
+    const { elements: els, missing } = await fetchTileAdaptive(bbox, label);
+    const partWays = els.filter(el => el.type === 'way' && el.tags && el.tags['building:part']);
+    console.log(`${els.length} elements, ${partWays.length} building:part ways${missing.length ? ` (${missing.length} sub-tile(s) still missing after adaptive split)` : ''}`);
+    rawWays.push(...partWays); missingTiles.push(...missing);
+    await new Promise(r => setTimeout(r, TILE_PAUSE_MS));
+  }
+  console.log(`[fetch-osm-parts] fetched ${rawWays.length} raw building:part ways (missing sub-tiles: ${missingTiles.length})`);
+
+  // de-dupe：同一個 way 可能落在兩個相鄰 tile 的重疊處（Overpass bbox filter 抓「至少一個 node 在框內」的 way）。
+  const seen = new Set(); const ways = [];
+  for (const el of rawWays) { if (seen.has(el.id)) continue; seen.add(el.id); ways.push(el); }
+  console.log(`[fetch-osm-parts] ${ways.length} unique building:part ways after de-dup`);
+
+  const parts = []; let skippedNoHeight = 0, skippedDegenerate = 0;
+  const parentPartAreas = new Map(); // parentIndex → Σ part 面積(m²)
+
+  for (const el of ways) {
+    const ring = ringOf(el); if (!ring) { skippedDegenerate++; continue; }
+    const hh = heightsOf(el.tags || {}); if (!hh) { skippedNoHeight++; continue; }
+    const [cx, cy] = centroidOf(ring);
+    const cellCandidates = grid.get(cellOf(cx, cy)) || [];
+    let parentIndex = -1, parentArea = Infinity;
+    for (const bi of cellCandidates) { const br = buildingRings[bi]; if (br && pointInRing(cx, cy, br) && buildingAreas[bi] < parentArea) { parentArea = buildingAreas[bi]; parentIndex = bi; } }
+    if (parentIndex >= 0) {
+      const area = ringAreaSqm(ring);
+      parentPartAreas.set(parentIndex, (parentPartAreas.get(parentIndex) || 0) + area);
+    }
+    const flat = []; for (const [lon, lat] of ring) flat.push(Math.round((lon - ox) * scale), Math.round((lat - oy) * scale));
+    const name = el.tags.name || null;
+    const row = [Math.round(hh.minH * 10), Math.round(hh.h * 10), typeIdxFor(el.tags), flat, parentIndex];
+    if (name) row.push(name);
+    parts.push(row);
+  }
+
+  const suppress = [];
+  for (const [pi, areaSum] of parentPartAreas) { const pa = buildingAreas[pi]; if (pa > 0 && areaSum / pa >= SUPPRESS_RATIO) suppress.push(pi); }
+  suppress.sort((a, b) => a - b);
+
+  const matched = parts.filter(p => p[4] >= 0).length, unmatched = parts.length - matched;
+  console.log(`[fetch-osm-parts] parts kept: ${parts.length} (skipped: no-height ${skippedNoHeight}, degenerate ${skippedDegenerate})`);
+  console.log(`[fetch-osm-parts] matched to a parent: ${matched} · standalone (no parent match): ${unmatched}`);
+  console.log(`[fetch-osm-parts] suppressed parents (parts cover >=${Math.round(SUPPRESS_RATIO * 100)}% of footprint): ${suppress.length}`);
+
+  const parentMaxH = new Map();
+  for (const p of parts) { if (p[4] >= 0) parentMaxH.set(p[4], Math.max(parentMaxH.get(p[4]) || 0, p[1] / 10)); }
+  const landmarks = [...parentMaxH.entries()].map(([pi, h]) => ({ name: B[pi][3] || null, h, suppressed: suppress.includes(pi) })).filter(x => x.name).sort((a, b) => b.h - a.h).slice(0, 20);
+
+  const out = {
+    meta: {
+      origin, scale, bbox: BBOX, count: parts.length, source: '© OpenStreetMap contributors (ODbL)', generated_at: new Date().toISOString(),
+      tiles_missing: missingTiles, ways_fetched_raw: rawWays.length, ways_unique: ways.length, skipped_no_height: skippedNoHeight, skipped_degenerate: skippedDegenerate,
+    },
+    parts, suppress,
+  };
+  fs.writeFileSync(OUT_FILE, JSON.stringify(out));
+  console.log(`[fetch-osm-parts] wrote ${OUT_FILE} (${(fs.statSync(OUT_FILE).size / 1024).toFixed(1)} KB)`);
+
+  upsertReadmeSection(buildReadmeBody({
+    raw: rawWays.length, unique: ways.length, keptCount: parts.length, skippedNoHeight, skippedDegenerate,
+    matched, unmatched, suppressCount: suppress.length, tilesMissing: missingTiles, landmarks,
+  }));
+}
+
+/* ---------------- 主流程：--bbox W,S,E,N --merge（補抓一小塊，併進既有檔案） ---------------- */
+async function runMerge(ctx, bboxArg, origin) {
+  const { ox, oy, scale, B, grid, cellOf, buildingRings, buildingAreas, typeIdxFor } = ctx;
+
+  let existing;
+  try {
+    existing = JSON.parse(fs.readFileSync(OUT_FILE, 'utf8'));
+  } catch {
+    console.warn(`[fetch-osm-parts] merge: ${OUT_FILE} 不存在或無法解析，當作空檔案開始`);
+    existing = { meta: { origin, scale, bbox: BBOX, count: 0, source: '© OpenStreetMap contributors (ODbL)', generated_at: new Date().toISOString(), tiles_missing: [] }, parts: [], suppress: [] };
+  }
+  if (existing.meta && existing.meta.origin && (existing.meta.origin[0] !== ox || existing.meta.origin[1] !== oy || existing.meta.scale !== scale)) {
+    throw new Error('既有 osm_parts_taipei.json 的 origin/scale 跟 osm_buildings_taipei.json 現在的不一致，拒絕合併（座標系統對不起來）。');
+  }
+
+  console.log(`[fetch-osm-parts] MERGE mode — target bbox [${bboxArg.join(',')}], existing file has ${existing.parts.length} parts, ${existing.suppress.length} suppressed`);
+
+  // 既有每一筆 part 的「環簽章」——之後新抓到的 part 只要簽章撞到，就代表已經在檔案裡了，跳過（讓同一個
+  // bbox 補抓兩次是 idempotent 的，不會長出重複的 part）。
+  const existingSigs = new Set(existing.parts.map(p => ringSignature(p[3])));
+
+  const opts = { timeoutMs: MERGE_FETCH_TIMEOUT_MS, maxRetries: MERGE_MAX_RETRIES, maxSplitDepth: MERGE_MAX_SPLIT_DEPTH };
+  const tileList = tiles(bboxArg, TILE_DEG);
+  console.log(`[fetch-osm-parts] merge: ${tileList.length} tile(s) over [${bboxArg.join(', ')}]`);
+  const rawWays = []; const missingTiles = [];
+  for (let t = 0; t < tileList.length; t++) {
+    const bbox = tileList[t]; const label = `merge ${t + 1}/${tileList.length} [${bbox.map(x => x.toFixed(3)).join(',')}]`;
+    process.stdout.write(`[fetch-osm-parts] tile ${label} … `);
+    const { elements: els, missing } = await fetchTileAdaptive(bbox, label, 0, opts);
+    const partWays = els.filter(el => el.type === 'way' && el.tags && el.tags['building:part']);
+    console.log(`${els.length} elements, ${partWays.length} building:part ways${missing.length ? ` (${missing.length} sub-tile(s) still missing after adaptive split)` : ''}`);
+    rawWays.push(...partWays); missingTiles.push(...missing);
+    await new Promise(r => setTimeout(r, TILE_PAUSE_MS));
+  }
+  console.log(`[fetch-osm-parts] merge: fetched ${rawWays.length} raw building:part ways (missing sub-tiles this run: ${missingTiles.length})`);
+
+  const seen = new Set(); const ways = [];
+  for (const el of rawWays) { if (seen.has(el.id)) continue; seen.add(el.id); ways.push(el); }
+
+  const newParts = []; let skippedNoHeight = 0, skippedDegenerate = 0, dupSkipped = 0;
+  const newAreaByParent = new Map(); // parentIndex → Σ 這次新 part 的面積(m²)
+  const affectedParents = new Set();
+  for (const el of ways) {
+    const ring = ringOf(el); if (!ring) { skippedDegenerate++; continue; }
+    const hh = heightsOf(el.tags || {}); if (!hh) { skippedNoHeight++; continue; }
+    const flat = []; for (const [lon, lat] of ring) flat.push(Math.round((lon - ox) * scale), Math.round((lat - oy) * scale));
+    const sig = ringSignature(flat);
+    if (existingSigs.has(sig)) { dupSkipped++; continue; } // 已經在檔案裡（或這次自己重複抓到）
+    existingSigs.add(sig);
+
+    const [cx, cy] = centroidOf(ring);
+    const cellCandidates = grid.get(cellOf(cx, cy)) || [];
+    let parentIndex = -1, parentArea = Infinity;
+    for (const bi of cellCandidates) { const br = buildingRings[bi]; if (br && pointInRing(cx, cy, br) && buildingAreas[bi] < parentArea) { parentArea = buildingAreas[bi]; parentIndex = bi; } }
+    if (parentIndex >= 0) {
+      const area = ringAreaSqm(ring);
+      newAreaByParent.set(parentIndex, (newAreaByParent.get(parentIndex) || 0) + area);
+      affectedParents.add(parentIndex);
+    }
+    const name = el.tags.name || null;
+    const row = [Math.round(hh.minH * 10), Math.round(hh.h * 10), typeIdxFor(el.tags), flat, parentIndex];
+    if (name) row.push(name);
+    newParts.push(row);
+  }
+  console.log(`[fetch-osm-parts] merge: ${newParts.length} genuinely new part(s) (skipped: no-height ${skippedNoHeight}, degenerate ${skippedDegenerate}, already-present/duplicate ${dupSkipped})`);
+
+  // 「受影響母建物」既有面積：只掃一次既有 parts、只挑 affectedParents 裡的母建物——不是重新比對所有既有
+  // part 的母建物（那些 parentIndex 完全沿用既有值），純粹是為了把 suppress 比例算對需要的既有面積合計。
+  const existingAreaByParent = new Map();
+  if (affectedParents.size) {
+    for (const p of existing.parts) {
+      const pi = p[4]; if (pi == null || pi < 0 || !affectedParents.has(pi)) continue;
+      const ring = []; const flat = p[3]; for (let k = 0; k < flat.length; k += 2) ring.push([ox + flat[k] / scale, oy + flat[k + 1] / scale]);
+      existingAreaByParent.set(pi, (existingAreaByParent.get(pi) || 0) + ringAreaSqm(ring));
+    }
+  }
+
+  const suppressSet = new Set(existing.suppress);
+  let newlySuppressed = 0;
+  for (const pi of affectedParents) {
+    if (suppressSet.has(pi)) continue; // 已經在 suppress 名單——面積只會增加，不會被拿掉，不用重算
+    const total = (existingAreaByParent.get(pi) || 0) + (newAreaByParent.get(pi) || 0);
+    const pa = buildingAreas[pi];
+    if (pa > 0 && total / pa >= SUPPRESS_RATIO) { suppressSet.add(pi); newlySuppressed++; }
+  }
+  console.log(`[fetch-osm-parts] merge: ${affectedParents.size} parent(s) touched by new parts, ${newlySuppressed} newly crossed the suppress threshold`);
+
+  const mergedParts = existing.parts.concat(newParts);
+  const suppress = [...suppressSet].sort((a, b) => a - b);
+
+  // meta.tiles_missing：這次 --bbox 涵蓋（或包住）的舊項目先丟掉，再把這次抓完還失敗的子區塊放回去。
+  const EPS = 1e-6;
+  const within = (t, b) => t[0] >= b[0] - EPS && t[1] >= b[1] - EPS && t[2] <= b[2] + EPS && t[3] <= b[3] + EPS;
+  const oldMissing = (existing.meta.tiles_missing || []).filter(t => !within(t, bboxArg));
+  const tilesMissing = oldMissing.concat(missingTiles);
+
+  const cumulative = {
+    ways_fetched_raw: (existing.meta.ways_fetched_raw || 0) + rawWays.length,
+    ways_unique: (existing.meta.ways_unique || 0) + ways.length,
+    skipped_no_height: (existing.meta.skipped_no_height || 0) + skippedNoHeight,
+    skipped_degenerate: (existing.meta.skipped_degenerate || 0) + skippedDegenerate,
+  };
+
+  const out = {
+    meta: { ...existing.meta, ...cumulative, count: mergedParts.length, tiles_missing: tilesMissing, merged_at: new Date().toISOString() },
+    parts: mergedParts, suppress,
+  };
+  fs.writeFileSync(OUT_FILE, JSON.stringify(out));
+  console.log(`[fetch-osm-parts] merge: wrote ${OUT_FILE} (${(fs.statSync(OUT_FILE).size / 1024).toFixed(1)} KB) — ${mergedParts.length} parts total, ${suppress.length} suppressed, ${tilesMissing.length} tile(s) still missing`);
+
+  // top-20 地標榜、matched/unmatched 一律從「完整合併後的 parts」重算（純聚合既有欄位，不是重新比對母建物）——
+  // 合併可能讓某個地標第一次擠進榜、或名次往前，這兩個數字沒辦法只看「這次新增的」就推得出來。
+  const parentMaxH = new Map();
+  for (const p of mergedParts) { if (p[4] >= 0) parentMaxH.set(p[4], Math.max(parentMaxH.get(p[4]) || 0, p[1] / 10)); }
+  const landmarks = [...parentMaxH.entries()].map(([pi, h]) => ({ name: B[pi][3] || null, h, suppressed: suppress.includes(pi) })).filter(x => x.name).sort((a, b) => b.h - a.h).slice(0, 20);
+  const matched = mergedParts.filter(p => p[4] >= 0).length, unmatched = mergedParts.length - matched;
+
+  upsertReadmeSection(buildReadmeBody({
+    raw: cumulative.ways_fetched_raw, unique: cumulative.ways_unique, keptCount: mergedParts.length,
+    skippedNoHeight: cumulative.skipped_no_height, skippedDegenerate: cumulative.skipped_degenerate,
+    matched, unmatched, suppressCount: suppress.length, tilesMissing, landmarks,
+    mergeNote: `Latest supplementary merge: bbox [${bboxArg.join(',')}] → ${newParts.length} new part(s) added (${dupSkipped} already present), ${affectedParents.size} parent(s) re-checked for suppression.`,
+  }));
+}
+
+/* ---------------- 進入點 ---------------- */
 async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.bbox && !args.merge) throw new Error('--bbox 一定要搭 --merge（單獨 --bbox 會把整份輸出檔覆蓋成只剩這一小塊——加上 --merge 才是併進既有檔案）。');
+  if (args.merge && !args.bbox) throw new Error('--merge 一定要搭 --bbox W,S,E,N。');
+
   console.log('[fetch-osm-parts] loading', BUILDINGS_FILE);
   const buildingsData = JSON.parse(fs.readFileSync(BUILDINGS_FILE, 'utf8'));
   const { origin, scale } = buildingsData.meta; const [ox, oy] = origin;
@@ -169,82 +457,9 @@ async function main() {
   }
   console.log(`[fetch-osm-parts] parent grid ready: ${B.length} buildings, ${grid.size} cells`);
 
-  const tileList = tiles(BBOX, TILE_DEG);
-  console.log(`[fetch-osm-parts] ${tileList.length} tiles (${TILE_DEG}°×${TILE_DEG}°) over bbox [${BBOX.join(', ')}]`);
-  const rawWays = []; const missingTiles = [];
-  for (let t = 0; t < tileList.length; t++) {
-    const bbox = tileList[t]; const label = `${t + 1}/${tileList.length} [${bbox.map(x => x.toFixed(3)).join(',')}]`;
-    process.stdout.write(`[fetch-osm-parts] tile ${label} … `);
-    const { elements: els, missing } = await fetchTileAdaptive(bbox, label);
-    const partWays = els.filter(el => el.type === 'way' && el.tags && el.tags['building:part']);
-    console.log(`${els.length} elements, ${partWays.length} building:part ways${missing.length ? ` (${missing.length} sub-tile(s) still missing after adaptive split)` : ''}`);
-    rawWays.push(...partWays); missingTiles.push(...missing);
-    await new Promise(r => setTimeout(r, TILE_PAUSE_MS));
-  }
-  console.log(`[fetch-osm-parts] fetched ${rawWays.length} raw building:part ways (missing sub-tiles: ${missingTiles.length})`);
-
-  // de-dupe：同一個 way 可能落在兩個相鄰 tile 的重疊處（Overpass bbox filter 抓「至少一個 node 在框內」的 way）。
-  const seen = new Set(); const ways = [];
-  for (const el of rawWays) { if (seen.has(el.id)) continue; seen.add(el.id); ways.push(el); }
-  console.log(`[fetch-osm-parts] ${ways.length} unique building:part ways after de-dup`);
-
-  const parts = []; let skippedNoHeight = 0, skippedDegenerate = 0, matched = 0, unmatched = 0;
-  const parentPartAreas = new Map(); // parentIndex → Σ part 面積(m²)
-  const parentMaxH = new Map(); // parentIndex → 最高 part 的高度(m)
-
-  for (const el of ways) {
-    const ring = ringOf(el); if (!ring) { skippedDegenerate++; continue; }
-    const hh = heightsOf(el.tags || {}); if (!hh) { skippedNoHeight++; continue; }
-    const [cx, cy] = centroidOf(ring);
-    const cellCandidates = grid.get(cellOf(cx, cy)) || [];
-    let parentIndex = -1, parentArea = Infinity;
-    for (const bi of cellCandidates) { const br = buildingRings[bi]; if (br && pointInRing(cx, cy, br) && buildingAreas[bi] < parentArea) { parentArea = buildingAreas[bi]; parentIndex = bi; } }
-    if (parentIndex >= 0) matched++; else unmatched++;
-    if (parentIndex >= 0) {
-      const area = ringAreaSqm(ring);
-      parentPartAreas.set(parentIndex, (parentPartAreas.get(parentIndex) || 0) + area);
-      parentMaxH.set(parentIndex, Math.max(parentMaxH.get(parentIndex) || 0, hh.h));
-    }
-    const flat = []; for (const [lon, lat] of ring) flat.push(Math.round((lon - ox) * scale), Math.round((lat - oy) * scale));
-    const name = el.tags.name || null;
-    const row = [Math.round(hh.minH * 10), Math.round(hh.h * 10), typeIdxFor(el.tags), flat, parentIndex];
-    if (name) row.push(name);
-    parts.push(row);
-  }
-
-  const suppress = [];
-  for (const [pi, areaSum] of parentPartAreas) { const pa = buildingAreas[pi]; if (pa > 0 && areaSum / pa >= SUPPRESS_RATIO) suppress.push(pi); }
-  suppress.sort((a, b) => a - b);
-
-  console.log(`[fetch-osm-parts] parts kept: ${parts.length} (skipped: no-height ${skippedNoHeight}, degenerate ${skippedDegenerate})`);
-  console.log(`[fetch-osm-parts] matched to a parent: ${matched} · standalone (no parent match): ${unmatched}`);
-  console.log(`[fetch-osm-parts] suppressed parents (parts cover >=${Math.round(SUPPRESS_RATIO * 100)}% of footprint): ${suppress.length}`);
-
-  const landmarks = [...parentMaxH.entries()]
-    .map(([pi, h]) => ({ name: B[pi][3] || null, h, suppressed: suppress.includes(pi) }))
-    .filter(x => x.name).sort((a, b) => b.h - a.h).slice(0, 20);
-
-  const out = {
-    meta: { origin, scale, bbox: BBOX, count: parts.length, source: '© OpenStreetMap contributors (ODbL)', generated_at: new Date().toISOString(), tiles_missing: missingTiles },
-    parts, suppress,
-  };
-  fs.writeFileSync(OUT_FILE, JSON.stringify(out));
-  console.log(`[fetch-osm-parts] wrote ${OUT_FILE} (${(fs.statSync(OUT_FILE).size / 1024).toFixed(1)} KB)`);
-
-  const section = `\n## building:part 分段量體（${new Date().toISOString().slice(0, 10)}，scripts/fetch-osm-parts.mjs）\n\n` +
-    `Fetched from ${OVERPASS_URL} — same bbox/tiling as the building footprints above (§16.7 地標形狀).\n\n` +
-    `- Ways fetched (raw, before de-dup): ${rawWays.length}\n` +
-    `- Unique building:part ways: ${ways.length}\n` +
-    `- Parts kept: ${parts.length}\n` +
-    `- Skipped — no usable height (no height／building:levels tag): ${skippedNoHeight}\n` +
-    `- Skipped — degenerate ring: ${skippedDegenerate}\n` +
-    `- Matched to a parent building footprint: ${matched} · standalone (no parent match): ${unmatched}\n` +
-    `- Suppressed parents (parts cover >=${Math.round(SUPPRESS_RATIO * 100)}% of footprint area, parent box no longer drawn — only the parts render): ${suppress.length}\n` +
-    `- Sub-tiles missing (still failing after retries + adaptive splitting down to depth ${MAX_SPLIT_DEPTH}): ${missingTiles.length}${missingTiles.length ? ' — ' + JSON.stringify(missingTiles) : ''}\n\n` +
-    `### Top landmarks by tallest part\n\n` +
-    (landmarks.length ? landmarks.map(x => `- ${x.name} — ${x.h.toFixed(1)} m${x.suppressed ? ' (suppressed parent — parent box replaced by parts)' : ' (parent box kept alongside parts)'}`).join('\n') : '(none found)') + '\n';
-  fs.appendFileSync(README_FILE, section);
-  console.log('[fetch-osm-parts] appended section to', README_FILE);
+  const ctx = { ox, oy, scale, B, grid, cellOf, buildingRings, buildingAreas, typeIdxFor };
+  if (args.merge) await runMerge(ctx, args.bbox, origin);
+  else await runFresh(ctx, origin);
 }
 
 main().catch(e => { console.error('[fetch-osm-parts] FATAL', e); process.exit(1); });
