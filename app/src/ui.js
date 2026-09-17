@@ -119,7 +119,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
 
   /* ---- theme: 夜間戰情室 (dark) · PickPeak 日間 (light) — 舊的獨立 pill 已拿掉，改由 Look 控制（見下方）決定；
      底圖是否要跟著換交給 compose.js（一換主題就照目前尺度挑一個合理的底圖，除非使用者已手動覆寫過底圖） ---- */
-  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
+  ui.setTheme = (t, quiet) => { t = t === 'light' ? 'light' : 'dark'; ui.theme = t; if (ui.explain) ui.explain.setTheme(t); document.body.classList.toggle('theme-light', t === 'light'); viewerApi.setTheme(t); layers.setTheme(t); if (map.focus) map.focus.setTheme(t); else if (map.osm && map.osm.setPalette) map.osm.setPalette(t); if (map.isochrone) map.isochrone.setTheme(t); if (map.walkshed) map.walkshed.setTheme(t); if (map.youbike) map.youbike.setTheme(t); if (map.ground) map.ground.setTheme(t); ui.syncQuality && ui.syncQuality(); ui.updateCredits && ui.updateCredits(); try { localStorage.setItem('pl.theme', t); } catch { /* private mode */ } if (!quiet) toast(t === 'light' ? 'PickPeak 日間主題' : '夜間戰情室主題'); };
 
   /* ---- Look 控制（header）：一顆緊湊 pill（顯示目前外觀，例如「☀ 日照」）＋ 彈出選單，取代先前的 5 段式分段控制——
      那個控制在 1440 寬時會把 lens nav 擠到逐字換行。真正的邏輯在 compose.js（ui.setLook 由它接管，見 createCompose()）；
@@ -360,7 +360,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     s = parts.slice(0, 2).join(''); if (!s) s = String(text || '').replace(/\s+/g, ' ').trim();
     return s.slice(0, 110);
   }
-  ui.userTurn = text => { ui.clearCallouts(); const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
+  ui.userTurn = text => { ui.clearCallouts(); if (ui.explain) ui.explain.exit(); const t = el('div', 'turn user', `<div class="who">你</div><div class="body">${escapeHtml(text)}</div>`); tr.appendChild(t); tr.scrollTop = tr.scrollHeight; return t; };
   ui.agentTurn = () => {
     orb.classList.add('busy'); const token = ++activeToken;
     const t = el('div', 'turn agent', `<div class="who">睿鏡${ui.claudeMode ? ' · ' + (ui.mcp.provider === 'openai' ? 'OpenAI' : ui.mcp.provider === 'anthropic' ? 'Claude' : 'AI') : ''}</div><div class="body"><div class="tools"><details${ui.density === 'annotated' ? ' open' : ''}><summary></summary><div class="list"></div></details></div><div class="answer caret"></div></div>`);
@@ -379,6 +379,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     orb.classList.remove('busy');
     const cap = $('#caption'); $('#caption-text').textContent = text; $('#caption-prov').innerHTML = chipHtml; cap.classList.add('has');
     const prov = $('#provenance'); const cards = [...turn.querySelectorAll('.tool')]; if (cards.length) { prov.innerHTML = `<div class="eyebrow">來源與工具呼叫 · Provenance</div>${cards.map(c => `<div class="prov"><i></i><span class="n"><b>${escapeHtml(c._name || '')}</b></span><span class="r">${escapeHtml(c._summary || '')} · ${c._ms || 0} ms</span></div>`).join('')}`; prov.classList.remove('hidden'); }
+    try { if (ui.explain && !ui.sceneId) ui.explain.onAnswer(turn, text); } catch (e) { console.warn('explain', e); }
   }
   ui.type = async (turn, text) => {
     const token = turn._token; const ans = turn.querySelector('.answer'); const spd = reduce ? 0 : 8;
