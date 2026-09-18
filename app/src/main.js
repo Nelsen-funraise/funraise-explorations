@@ -8,7 +8,7 @@ import { createSensors } from './sensors.js';
 import { Timeline } from './time.js';
 import { Agent } from './agent/agent.js';
 import { ClaudeClient } from './agent/claudeClient.js';
-import { SceneDirector, SCENES } from './scenes.js';
+import { SceneDirector, SCENES, compileScript } from './scenes.js';
 import { MrtNetwork, IsochroneLayer } from './analysis/isochrone.js';
 import { playIntro } from './intro.js';
 import { createPresenter } from './presenter.js';
@@ -36,6 +36,7 @@ import { createPhotoreal } from './layers/photoreal.js';
 import { createFrames } from './layers/frames.js';
 import { createStage } from './fx/stage.js';
 import { createVoicebar } from './ui/voicebar.js';
+import { createKeysDialog } from './ui/keys.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -127,6 +128,8 @@ async function boot() {
   // per-step emphasis (called from scenes.js), and the unified #voicebar replaces the old #cinebar/#caption for both
   // scene narration and AI answers (ui.js's ui.cine/ui.speak and settle() route to it — see src/ui/voicebar.js).
   const stage = createStage({ layers }); map.stage = stage;
+  // Phase 11C 線上版金鑰填寫處（§20.3）：🔑 金鑰 pill → 對話框（ion token／Google key／agent server 網址／存取碼，只存 localStorage）。
+  try { createKeysDialog({ ui, viewerApi: api }); } catch (e) { console.warn('keys dialog unavailable', e); }
   const voicebar = createVoicebar({ ui, director, scenes: SCENES }); ui.voicebar = voicebar;
   { const orig = agent.setLens.bind(agent); agent.setLens = id => { orig(id); ui.syncUrl(); }; }
   // 視圖合成器（Phase 9A，docs/11-v2-cesium-app.md §16）：一個 Look 取代五個各自為政的開關；建在 rig/layers/osm/ground/
@@ -185,7 +188,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.ok) { let pref = null; try { pref = localStorage.getItem('pl.ai'); } catch { /* private mode */ } if (pref !== 'off') ui.setAgentMode(true, true); } if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { Cesium, viewer, map, explain, insights, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine, photoreal, frames, stage, voicebar };
+  window.PL = { compileScript, Cesium, viewer, map, explain, insights, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine, photoreal, frames, stage, voicebar };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {

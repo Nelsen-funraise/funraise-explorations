@@ -1,6 +1,7 @@
 // Built-in (rule-based) agent: intents → simulated MCP tool calls against the embedded FUNRAISE snapshot → camera/layer actions.
 // Tool names and parameter shapes mirror the real "Funraise Data Team" MCP so the same plans can be executed live in Claude mode.
 import { fmtInt, fmtMoney } from '../layers/funraise.js';
+import { SCENES } from '../scenes.js';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const norm = s => (s || '').replace(/[\s,，。！？!?、「」『』()（）]/g, '').replace(/臺/g, '台').toLowerCase();
@@ -94,6 +95,7 @@ export class Agent {
   tryLocal(text) {
     if (!text) return false; const t = norm(text); if (DATA_HINT.test(t)) return false; const T = () => this.ui.agentTurn();
     if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) { this.finish(T(), '我聽得懂：「帶我去○○」、「環繞／街景／俯視／全台／時光模式」、「切到白模／日照／黃金時刻／夜景／相片級」、「沉浸／平衡／標註模式」、「顯示／隱藏 都更／建照／上市公司交易」、「釘在地圖上」、「分享這個視角」、「量距離／量面積」、「切換 投資人／開發商／選址／城市／學研 視角」。資料問題（比較、排名、租金、都更…）我會查 FUNRAISE 即時資料。'); return true; }
+    if (this.sceneIntent(t, T)) return true; // Phase 11A 場景快速路徑（§20.1）：播放／停止／列出場景，0 次 LLM 呼叫
     if (has(t, /沉浸|immersive|乾淨一點|清爽|只留地圖/)) { this.ui.setDensity('immersive'); this.finish(T(), '切到沉浸模式：只留地圖、鏡與指令；面板收成左右邊緣的把手，回答改用字幕。'); return true; }
     if (has(t, /標註模式|annotated|多一點資料|資料模式|全部展開|分析模式/)) { this.ui.setDensity('annotated'); this.finish(T(), '切到標註模式：資料欄全開，接下來亮起的物件會在地圖上加編號，並對應左側「地圖標註」卡片。'); return true; }
     if (has(t, /平衡模式|balanced|一般模式|預設密度/)) { this.ui.setDensity('balanced'); this.finish(T(), '切回平衡模式。'); return true; }
@@ -164,10 +166,36 @@ export class Agent {
     const p = this.resolvePlace(text); if (p) { this.goto(p, T()); return true; }
     return false;
   }
+
+  /** Phase 11A 場景快速路徑（docs/11-v2-cesium-app.md §20.1）：「播放地政場景」「來一段給投資人看的」「全部連播」「停」——內建模式
+   * （handle）與 AI 模式的快速路徑（tryLocal，claudeClient 先問這裡再問 LLM）共用同一份判斷；turnFn 惰性建立回覆的 agent turn。
+   * 客製腳本（幫我做／規劃／編排…）需要模型當導演（server 工具 play_script），內建模式只能提示切到 AI 模式。 */
+  sceneIntent(t, turnFn) {
+    const dir = this.ui.director;
+    if (dir && dir.playing && has(t, /^(停|停止|停下|stop|結束|關掉|暫停|pause|繼續|恢復|resume|下一段|next)/i)) { // 場景播放中的一個字指令（voicebar 的 MutationObserver 已先把場景暫停）
+      if (/暫停|pause/i.test(t)) { dir.pause(); this.finish(turnFn(), '場景暫停；說「繼續」接著播。'); }
+      else if (/繼續|恢復|resume/i.test(t)) { dir.resume(); this.finish(turnFn(), '繼續播放。'); }
+      else { dir.stop(); this.finish(turnFn(), '場景停止。'); }
+      return true;
+    }
+    // Phase 11A 場景快速路徑（§20.1）：「播放地政場景」「來一段給投資人看的」0 次 LLM 呼叫就開播；客製腳本（幫我做／規劃／編排…）
+    // 需要模型當導演（play_script），內建模式只能提示切到 AI 模式。
+    if (has(t, /場景|scene|來一段|播一段|放一段|連播/i) && !has(t, /幫我做|幫我規劃|幫我編排|幫我設計|寫一個|寫個|自訂|客製|規劃一個|做一個|排一個/)) {
+      const d = this.ui.director; const SC = { land: /地政|地籍|地籤|段籍|實價登錄|土地/, investor: /投資|資本/, developer: /開發|供給|建照/, occupier: /選址|企業|內科|南軟/, city: /城市|治理|首長|市府|戰情/, time: /時光|時間軸|2012|2030/ };
+      if (has(t, /停|stop|結束|關掉/i) && d) { d.stop(); this.finish(turnFn(), '場景停止。'); return true; }
+      if (has(t, /全部|連播|所有/) && d) { setTimeout(async () => { for (const sc of SCENES) { await d.play(sc.id); if (d.stopFlag) break; } }, 80); this.finish(turnFn(), `全部連播 ${SCENES.length} 個場景（約 ${Math.round(SCENES.reduce((s, sc) => s + sc.steps.length, 0) * 14 / 60)} 分鐘）。說「停」結束。`); return true; }
+      const id = Object.keys(SC).find(k => SC[k].test(t)); const sc = id ? SCENES.find(s => s.id === id) : null;
+      if (sc && d) { this.finish(turnFn(), `播放「${sc.title}」（${sc.steps.length} 段，約 ${Math.max(1, Math.round(sc.steps.length * 14 / 60))} 分鐘）。播放中可以直接發問，場景會暫停；說「停」結束。`); setTimeout(() => d.play(sc.id), 80); return true; } // 延後到下一個 task：ui.userTurn() 剛加的 .turn.user 節點會讓 voicebar 的 MutationObserver 在本 task 結束後檢查「有場景在播就暫停」——同步開播會被自己的問句暫停
+      if (d) { this.finish(turnFn(), '有這些場景：' + SCENES.map(s => `「${s.title}」`).join('、') + '。說「播放地政場景」「播放投資人場景」或「全部連播」就會開始；要客製腳本請切到 AI 模式說「幫我做一個給○○看的場景」。'); return true; }
+    }
+    if (has(t, /(幫我|替我|給我|請)?(做|規劃|編排|設計|寫|排)(一個|一段|個|一份)?[^。]{0,20}(場景|腳本|導覽|簡報|demo|介紹)/i) && !this.ui.claudeMode) { this.finish(turnFn(), '客製腳本要交給 AI 模式：按下方「內建」切到 AI 模式，再說一次「幫我做一個給地政局長官看的場景」，它會像導演一樣先查數字、再一次排好 4–7 段旁白與鏡頭。現成的可以直接說「播放地政場景」。'); return true; }
+    return false;
+  }
   async handle(text) {
     if (!text || this.busy) return; this.busy = true; this.ui.speech && this.ui.speech.stop(); const t = norm(text); this.ui.userTurn(text); const a = this.ui.agentTurn();
     try {
       if (has(t, /^(幫助|help|你會什麼|可以問什麼)/)) return this.finish(a, '我聽得懂：「模擬○○都更」、「沉浸／平衡／標註模式」、「釘在地圖上」、「帶我去 ○○」、「切換 投資人／開發商／選址／城市／學研 視角」、「顯示／隱藏 都更／建照／上市公司交易」、「這裡容積率多少」、「2028 年南港會長出什麼」、「最近半年信義區上市公司買了什麼」、「比較 A 商圈和 B 商圈的租金」、「哪些公司遷入中山區」、「環繞／街景／俯視／全台／時光模式」、「夜視／熱感／藍圖」。或按「▶ 場景」看電影式導覽。');
+      if (this.sceneIntent(t, () => a)) return; // Phase 11A 場景：播放／停止／列出（§20.1）
       if (has(t, /沉浸|immersive|乾淨一點|清爽|只留地圖/)) { this.ui.setDensity('immersive'); return this.finish(a, '切到沉浸模式：只留地圖、鏡與指令；面板收成左右邊緣的把手，回答改用字幕。'); }
       if (has(t, /標註模式|annotated|多一點資料|資料模式|全部展開|分析模式/)) { this.ui.setDensity('annotated'); return this.finish(a, '切到標註模式：資料欄全開，接下來亮起的物件會在地圖上加編號，並對應左側「地圖標註」卡片。'); }
       if (has(t, /平衡模式|balanced|一般模式|預設密度/)) { this.ui.setDensity('balanced'); return this.finish(a, '切回平衡模式。'); }

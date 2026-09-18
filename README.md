@@ -24,6 +24,12 @@ npm run server                          # 選配：AI agent server（OpenAI 或 
 2. [`docs/03-product-concepts.md`](docs/03-product-concepts.md) — 12 個概念與打分排序
 3. [`docs/07-roadmap.md`](docs/07-roadmap.md) — 0→24 個月路線圖與停損條件
 
+## 線上版（同仁／訪客直接開）
+
+- 前端：<https://nelsen-funraise.github.io/funraise-explorations/>（GitHub Pages，`main` 一推就自動部署）。右上 **▶ 場景** 有六個內建場景（含「地政巡禮 · 從地籍到城市」），對話框直接說「播放地政場景」也行。
+- 金鑰：右上 **🔑 金鑰** 可以貼 Cesium ion token（實景 3D）、agent server 網址與存取碼，只存在自己的瀏覽器；也可以用網址帶參數 `?ion=…&api=…&code=…` 分享。
+- AI 模式／語音／FUNRAISE MCP 即時資料需要 agent server：一鍵放上 Vercel 的步驟與環境變數表見 [`docs/12-hosting.md`](docs/12-hosting.md)。
+
 ## 文件地圖
 | # | 文件 | 內容 |
 |---|---|---|

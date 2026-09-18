@@ -27,7 +27,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   const cmd = $('#cmd');
   const say = text => { text = (text || '').trim(); if (!text) return; cmd.value = ''; if (ui.claudeMode && claude) claude.handle(text); else if (agent) agent.handle(text); };
   ui.say = say;
-  ui.attach = r => { agent = r.agent; claude = r.claude; director = r.director; renderSuggest(agent.lens); };
+  ui.attach = r => { agent = r.agent; claude = r.claude; director = r.director; ui.director = director; renderSuggest(agent.lens); }; // ui.director: agent tools (play_scene／play_script) and agent.js tryLocal reach the director through here
 
   /* ---- clock & status ---- */
   const tick = () => { $('#clock').textContent = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date()) + ' TPE'; }; tick(); setInterval(tick, 1000);
@@ -49,7 +49,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     const m = ui.mcp;
     if (m.status === 'unauthorized') { authWin = window.open(apiUrl('/api/mcp/authorize'), 'peaklens-mcp-auth', 'width=560,height=760,noopener=no'); toast('請在彈出視窗完成 FUNRAISE MCP 授權…'); if (!authWin) toast('瀏覽器擋了彈出視窗，請允許後再點一次'); return; }
     if (m.status === 'live') { toast('FUNRAISE MCP 即時連線中。切到 AI 模式即可即時查詢'); return; }
-    if (m.status === 'noserver') { toast('先在 app/ 執行 npm run server（需 ANTHROPIC_API_KEY），再按一次即可授權 FUNRAISE MCP'); return; }
+    if (m.status === 'noserver') { if (ui.openKeys && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { ui.openKeys(); toast('線上版：在「金鑰」填 agent server 網址（例如你們的 Vercel 部署），AI 模式、語音與 FUNRAISE MCP 即時資料就會上線'); } else toast('先在 app/ 執行 npm start（需 OPENAI_API_KEY 或 ANTHROPIC_API_KEY），再按一次即可授權 FUNRAISE MCP'); return; }
     toast('重新探測 FUNRAISE MCP…'); const h = claude ? await claude.probe(true) : null; ui.setMcp(h);
   };
   addEventListener('message', async e => { if (!e.data || e.data.type !== 'peaklens-mcp-authorized') return; const h = claude ? await claude.probe(true) : null; ui.setMcp(h); toast(h && h.mcp && h.mcp.status === 'live' ? 'FUNRAISE MCP 已授權，即時資料上線 ✓' : '授權完成但尚未連上，請稍後再試'); if (h && h.ok && h.mcp && h.mcp.status === 'live' && !ui.claudeMode) { ui.setAgentMode(true); toast('已切到 Claude 模式：接下來的問題會即時查 FUNRAISE MCP'); } });
@@ -75,7 +75,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
     dbox.querySelectorAll('[data-density]').forEach(b => b.setAttribute('aria-pressed', b.dataset.density === mode));
     layers.setDensity(mode); renderCallouts();
     document.querySelectorAll('#transcript details').forEach(d => { d.open = mode === 'annotated'; });
-    try { localStorage.setItem('pl.density', mode); } catch { /* private mode */ }
+    if (!quiet) { try { localStorage.setItem('pl.density', mode); } catch { /* private mode */ } } // Phase 11B: only a deliberate user choice persists — scenes/presenter/deep links pass quiet and must not leave the app stuck in immersive after reload
     if (!quiet) toast({ immersive: '沉浸模式：滑到左右邊緣把手可暫時展開面板', balanced: '平衡模式：相機移動時面板自動淡出', annotated: '標註模式：亮起的物件會加上編號，對應左側「地圖標註」' }[mode]);
   };
   ui.cycleDensity = () => { const ks = Object.keys(DENSITY); ui.setDensity(ks[(ks.indexOf(ui.density) + 1) % ks.length]); };
@@ -339,11 +339,11 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
       <div class="rows" style="margin-top:6px">${row('使用分區', r.zoning ? `${r.zoning.zone_short || r.zoning.zone_code}${r.zoning.is_special_zone ? '（特定區，容積需查細部計畫）' : ''}` : '—')}${row('容積率 / 建蔽率', `${Math.round(r.far * 100)}% / ${Math.round(r.bcr * 100)}%${r.farKnown ? '' : '（假設）'}`)}${row('基準容積', `${ping(r.baseFloorArea)} 坪`)}${row('獎勵容積', `+${ping(r.bonusFloorArea)} 坪`, true)}${row('標準層', `${ping(r.footprint)} 坪`)}${row('整合難度', r.difficulty)}</div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--ink-3)">容積獎勵 <input id="sim-bonus" type="range" min="0" max="50" step="5" value="${Math.round(r.bonus * 100)}" style="flex:1;accent-color:var(--blue-500)"><span class="mono" id="sim-bonus-v" style="color:var(--ink);min-width:34px;text-align:right">${Math.round(r.bonus * 100)}%</span></label>
       <div class="hint" style="margin-top:6px">${r.notes.map(n => '· ' + escapeHtml(n)).join('<br>')}</div>`;
-    simBox.classList.remove('hidden'); simBox.querySelector('[data-close]').onclick = () => ui.clearSim();
+    simBox.classList.remove('hidden'); document.body.classList.add('sim-open'); simBox.querySelector('[data-close]').onclick = () => ui.clearSim();
     const sl = simBox.querySelector('#sim-bonus'); sl.oninput = () => { sim.bonus = +sl.value / 100; simBox.querySelector('#sim-bonus-v').textContent = sl.value + '%'; const r2 = simulateRenewal(unit, pdata, { bonus: sim.bonus }); if (map.envelope) map.envelope.show(unit, r2.height); const k = simBox.querySelectorAll('.kpi .v'); if (k[1]) k[1].innerHTML = `${r2.floors}<small>層</small>`; if (k[2]) k[2].innerHTML = `${ping(r2.totalFloorArea)}<small>坪</small>`; const rows = simBox.querySelectorAll('.row .v'); if (rows[3]) rows[3].textContent = `+${ping(r2.bonusFloorArea)} 坪`; simBox.querySelectorAll('.kpi .l')[1].textContent = `量體 ${f(r2.height)} m（${sl.value}% 獎勵）`; };
     if (innerWidth < 820) document.body.classList.add('show-inspector'); return r;
   };
-  ui.clearSim = () => { sim.unit = null; simBox.classList.add('hidden'); simBox.innerHTML = ''; if (map.envelope) map.envelope.clear(); };
+  ui.clearSim = () => { sim.unit = null; simBox.classList.add('hidden'); simBox.innerHTML = ''; document.body.classList.remove('sim-open'); if (map.envelope) map.envelope.clear(); };
   ui.simUnits = () => Object.entries((data.parcels && data.parcels.units) || {}).map(([id, u]) => ({ id, ...u }));
 
   /* ---- charts ---- */
@@ -449,7 +449,7 @@ export function createUI({ map, data, basemap, layers, timeline, sensors, viewer
   /* ---- scenes ---- */
   const menu = $('#scenemenu'), sb = $('#scenes');
   for (const sc of SCENES) { const b = el('button', null, `<b>▶ ${sc.title}</b><span>${sc.sub}</span>`); b.onclick = () => { menu.classList.add('hidden'); director && director.play(sc.id); }; menu.appendChild(b); }
-  const all = el('button', null, '<b>▶▶ 全部連播（約 4 分鐘）</b><span>投資人 → 開發商 → 選址 → 城市治理 → 時光</span>');
+  const all = el('button', null, '<b>▶▶ 全部連播（約 6 分鐘）</b><span>投資人 → 開發商 → 選址 → 城市治理 → 地政 → 時光</span>');
   all.onclick = async () => { menu.classList.add('hidden'); if (!director) return; for (const sc of SCENES) { await director.play(sc.id); if (director.stopFlag) break; } };
   menu.appendChild(all);
   sb.onclick = () => { if (director && director.playing) { director.stop(); toast('場景停止'); return; } menu.classList.toggle('hidden'); vmenu.classList.add('hidden'); };
