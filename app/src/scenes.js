@@ -89,7 +89,13 @@ export const SCENES = [
   // 開場／收尾在有金鑰時用實景（Google 相片級 3D Tiles）；中段一律切到日照 Look（正射影像底圖＋白模），因為 NLSC WMTS
   // 疊圖畫在地球影像層上，實景 tileset 蓋著看不到（compose.js enterPhotoreal 也會主動關掉疊圖）。旁白數字全部從快照／
   // timeseries 現算，不寫死。
-  { id: 'land', title: '地政巡禮 · 從地籍到城市', sub: '段籍界 × 公有土地 × 重劃區段徵收 × 都更地號模擬 × 歷年航照 × 實價登錄價值面', steps: [
+  { id: 'land', title: '地政巡禮 · 從地籍到城市', sub: '段籍界 × 公有土地 × 重劃區段徵收 × 都更地號模擬 × 歷年航照 × 實價登錄價值面',
+    // §20.2 預熱機位：每一段 run/beat 的鏡頭參數照抄一份（第 4 段是 simulateRenewal 自己算的 range），開機時（或開播前）先讓相機走一遍把 tile 進快取
+    views: (c) => { const u = (c.data.urban_renewal || []).find(x => x.id === LAND_UNIT); const uc = (u && u._c) || [121.5706, 25.0424]; return [
+      { lon: 121.5645, lat: 25.0339, range: 5200, pitch: -48, heading: 20 }, { lon: 121.5665, lat: 25.031, range: 1500, pitch: -62, heading: 20 }, { lon: 121.565, lat: 25.055, range: 15000, pitch: -62, heading: 0 },
+      { lon: uc[0], lat: uc[1], range: Math.max(700, Math.sqrt((u && u.area_sqm) || 4000) * 9), pitch: -42, heading: 0 }, { lon: 121.6177, lat: 25.0619, range: 1700, pitch: -58, heading: -25 },
+      { lon: 121.56, lat: 25.05, range: 16000, pitch: -74, heading: 15 }, { lon: 121.5645, lat: 25.0339, range: 3200, pitch: -40, heading: 0 }]; },
+    steps: [
     { text: (c) => `歡迎地政局的長官。這是台北的上帝視角：真實的 3D 城市，疊上地政資料。地籍圖、使用分區、建照套繪、實價登錄，${c.map.photoreal && c.map.photoreal.available ? '底下這一層是 Google 相片級 3D 實景，' : ''}全部在同一個畫面裡回答問題。`,
       stage: (c) => ({ lens: 'city', look: c.map.photoreal && c.map.photoreal.available ? 'photoreal' : 'sun', density: 'immersive', layers: { show: ['renewal', 'zones', 'licenses'], hide: ['stock', 'mops', 'moves', 'heat', 'parks', 'future', 'tm', 'parcels'] }, keys: [] }),
       run: async (c) => { c.map.setYear(new Date().getFullYear()); c.map.flyTo(121.5645, 25.0339, { range: 5200, pitch: -48, heading: 20 }); } },
@@ -185,13 +191,44 @@ export function compileScript(input, ctx) {
       if (s.mode === 'orbit') c.map.orbit(lon, lat, range, pitch); else if (s.mode === 'street') c.map.street(lon, lat); else c.map.flyTo(lon, lat, { range, pitch, heading });
     } }];
     if (s.lapse && typeof s.lapse === 'object' && s.lapse.from != null && s.lapse.to != null) beats.push({ at: 0.12, run: async (c) => { c.timeline.startLapse({ from: clampYear(s.lapse.from), to: clampYear(s.lapse.to), durationMs: Math.max(6000, Math.round((c.stepMs || 10000) * 0.8)) }); } });
-    return { text, stage, beats, place: s.place || null };
+    let view = null; if (!simUnit) { const p = s.place && agent && agent.resolvePlace ? agent.resolvePlace(String(s.place)) : null; const lon = Number.isFinite(+s.lon) ? +s.lon : (p && p.lon), lat = Number.isFinite(+s.lat) ? +s.lat : (p && p.lat); if (lon != null && lat != null) view = { lon, lat, range: clampNum(s.range, 150, 60000, (p && p.range) || 1500), pitch: clampNum(s.pitch, -89, -5, -45), heading: Number.isFinite(+s.heading) ? +s.heading : 0 }; }
+    return { text, stage, beats, place: s.place || null, view };
   }).filter(st => st.text);
-  return { id: 'script:' + Date.now().toString(36), title: String(src.title || '自訂導覽').trim().slice(0, 40) || '自訂導覽', sub: String(src.sub || '').trim().slice(0, 80), steps, custom: true, dropped };
+  return { id: 'script:' + Date.now().toString(36), title: String(src.title || '自訂導覽').trim().slice(0, 40) || '自訂導覽', sub: String(src.sub || '').trim().slice(0, 80), steps, custom: true, dropped, views: steps.map(st => st.view).filter(Boolean) };
 }
 
+/** A scene's declared camera views (array or function of the director ctx) — what prewarm() walks through. */
+export function sceneViews(scene, ctx) {
+  if (!scene) return []; let v = scene.views; if (typeof v === 'function') { try { v = v(ctx); } catch (e) { console.warn('[prewarm] scene.views failed', e); v = []; } }
+  return Array.isArray(v) ? v : [];
+}
+const PREWARM_FRESH_MS = 5 * 60 * 1000; // a scene prewarmed within this window is not walked again before play()
 export class SceneDirector {
-  constructor(ctx) { this.c = ctx; this.playing = null; this.paused = false; this.stopFlag = false; this.stepIndex = 0; this._snapshot = null; this._resumeFn = null; this._torndown = true; this._token = 0; }
+  constructor(ctx) { this.c = ctx; this.playing = null; this.paused = false; this.stopFlag = false; this.stepIndex = 0; this._snapshot = null; this._resumeFn = null; this._torndown = true; this._token = 0; this._prewarmed = {}; this.scene = null; }
+
+  /** Phase 11「load 網頁時把地政場景先 pre-render 好」（§20.2）: walk the scene's declared camera views so the 實景 tiles are
+   * already in the tileset cache when the real flights land. Only meaningful with the Google tileset showing (the OSM
+   * white model + basemap need no warm-up); skipped when this scene was warmed < 5 min ago unless opts.force. With
+   * opts.overlay (default true) the boot #loading veil is re-shown as「場景準備中」so the camera jumps stay invisible;
+   * main.js passes overlay:false at boot (the veil is still up) and its own onProgress for the loading message. */
+  async prewarm(idOrScene, opts = {}) {
+    const sc = typeof idOrScene === 'string' ? SCENES.find(s => s.id === idOrScene) : idOrScene; if (!sc) return { skipped: 'unknown-scene' };
+    const { map, viewerApi, prewarmViews } = this.c;
+    const tileset = viewerApi && viewerApi.googleTileset;
+    if (!prewarmViews || !viewerApi || !viewerApi.viewer) return { skipped: 'no-prewarm-hook' };
+    if (!opts.force && !(map.photoreal && map.photoreal.active && tileset && tileset.show)) return { skipped: 'no-photoreal' };
+    const views = sceneViews(sc, this.c); if (!views.length) return { skipped: 'no-views' };
+    const last = this._prewarmed[sc.id]; if (!opts.force && last && Date.now() - last < PREWARM_FRESH_MS) return { skipped: 'fresh' };
+    const overlay = opts.overlay !== false && typeof document !== 'undefined' ? document.getElementById('loading') : null; const msgEl = typeof document !== 'undefined' ? document.getElementById('loadmsg') : null;
+    const label = opts.label || `場景準備中 · ${sc.title}`;
+    const progress = (i, n) => { if (opts.onProgress) opts.onProgress(i, n, sc); else if (msgEl) msgEl.textContent = `${label} · 預先載入鏡頭 ${Math.min(i + 1, n)}／${n}…`; };
+    if (overlay) overlay.classList.remove('done');
+    let r = null;
+    try { r = await prewarmViews({ viewer: viewerApi.viewer, tileset, views, perViewMs: opts.perViewMs ?? 3200, totalMs: opts.totalMs ?? 24000, onProgress: progress }); }
+    catch (e) { console.warn('[prewarm] failed', e); r = { error: e && e.message }; }
+    finally { if (overlay) overlay.classList.add('done'); }
+    this._prewarmed[sc.id] = Date.now(); console.log('[prewarm]', sc.id, JSON.stringify(r)); return r;
+  }
 
   /* ---- state the scene borrows from the user (§18.2 舞台接管): look/density/visible layers/year/lens/camera ---- */
   _snapshotState() {
@@ -270,6 +307,8 @@ export class SceneDirector {
     const narration = text && ui.speak ? ui.speak(text, { onProgress: fire }).catch(() => ({ ms: 0, source: 'error' })) : Promise.resolve({ ms: 0, source: 'none' });
     const res = await narration; const floorMs = Math.max((res && res.ms) || 0, minMs);
     while (!stale() && !this.paused && performance.now() - t0 < floorMs) await wait(120);
+    // §20.2「鏡頭帶過去了、畫面還糊」: with 實景 showing, give the tileset up to 2.5 s to finish this view's tiles before the next step's flight
+    { const va = this.c.viewerApi; const t = va && va.googleTileset; if (t && t.show && this.c.map.photoreal && this.c.map.photoreal.active) { const tw = performance.now(); while (!stale() && !this.paused && t.tilesLoaded === false && performance.now() - tw < 2500) await wait(120); } }
     clearInterval(timer);
     if (stale()) return 'done';
     if (this.paused) return 'paused';
@@ -288,7 +327,9 @@ export class SceneDirector {
 
   async play(id) { try { const u = (this.c && this.c.ui) || this.ui; if (u && u.select) u.select(null); } catch { /* a lingering selection card would sit on top of the scene */ }
     const sc = typeof id === 'string' ? SCENES.find(s => s.id === id) : (id && Array.isArray(id.steps) ? id : null); if (!sc || !sc.steps.length) return; this.stop(); // Phase 11A: play() also takes a compileScript() result (agent 導演)
-    id = sc.id; this.scene = sc;
+    id = sc.id; this.scene = sc; const token0 = this._token;
+    try { await this.prewarm(sc); } catch { /* best effort */ } // §20.2: no-op unless the 實景 tileset is showing and this scene wasn't warmed in the last 5 min
+    if (this._token !== token0) return; // a newer play()/stop() arrived while we were warming up
     const token = ++this._token; // this run's identity — see _runStep's `stale()`
     this.playing = id; this.stopFlag = false; this.paused = false; this.stepIndex = 0; this._torndown = false;
     const { ui } = this.c; this._snapshot = this._snapshotState();

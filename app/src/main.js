@@ -37,6 +37,7 @@ import { createFrames } from './layers/frames.js';
 import { createStage } from './fx/stage.js';
 import { createVoicebar } from './ui/voicebar.js';
 import { createKeysDialog } from './ui/keys.js';
+import { prewarmViews } from './prewarm.js';
 
 const D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
@@ -119,7 +120,7 @@ async function boot() {
   if (trips) { trips.setTheme(ui.theme); const origTheme = ui.setTheme; ui.setTheme = (...a) => { const r = origTheme(...a); trips.setTheme(ui.theme); return r; }; } // 歷年正射影像跟著時間軸換底圖（2014–2025）
   const agent = new Agent(map, data, ui);
   const claude = new ClaudeClient(map, ui, agent);
-  const director = new SceneDirector({ map, ui, agent, data, timeline });
+  const director = new SceneDirector({ map, ui, agent, data, timeline, viewerApi: api, prewarmViews }); // viewerApi + prewarmViews: §20.2 場景鏡頭預熱（director.prewarm）
   ui.attach({ agent, claude, director });
   const measure = createMeasure({ viewer, onSite: site => { const unit = { id: 'draw:' + Date.now(), name: '手繪基地', area_sqm: site.areaSqm, rings: [site.ring], _c: site.centroid }; ui.simulateRenewal(unit); ui.toast(`手繪基地 ${Math.round(site.areaPing).toLocaleString('zh-TW')} 坪 → 容積量體試算`); }, onStatus: () => {} });
   map.measure = measure; measure.setTheme(ui.theme); { const orig = ui.setTheme; ui.setTheme = (...a) => { const r = orig(...a); measure.setTheme(ui.theme); return r; }; } ui.bindMeasure && ui.bindMeasure(measure);
@@ -155,7 +156,17 @@ async function boot() {
   // 已經手動選過別的（日照／黃金／夜景／甚至明確選回白模之外又切回來？不會發生，見上）一律尊重那個選擇，不搶著換。
   if (photoreal && photoreal.available) {
     let savedLook = null; try { savedLook = localStorage.getItem('pl.look'); } catch { /* private mode */ }
-    if (!savedLook || savedLook === 'white') compose.setLook('photoreal', { quiet: true }).catch(() => {});
+    const lookP = (!savedLook || savedLook === 'white') ? compose.setLook('photoreal', { quiet: true }).catch(() => {}) : Promise.resolve();
+    // Phase 11 §20.2「load 網頁時把地政場景先 pre-render 好」: while the #loading veil is still up, wait (bounded) for the
+    // 實景 tileset, then walk the default scene's camera views so its tiles are cached before anyone presses ▶.
+    // ?prewarm=<scene id|off> or localStorage pl.prewarm picks the scene (default: land 地政巡禮).
+    await Promise.race([lookP, new Promise(r => setTimeout(r, 12000))]);
+    let prewarmScene = 'land'; try { prewarmScene = new URLSearchParams(location.search).get('prewarm') || localStorage.getItem('pl.prewarm') || prewarmScene; } catch { /* private mode */ }
+    if (prewarmScene !== 'off' && photoreal.active) {
+      const sc = SCENES.find(x => x.id === prewarmScene) || SCENES.find(x => x.id === 'land');
+      setMsg(`預先載入「${sc.title}」的鏡頭…`);
+      await director.prewarm(sc, { overlay: false, onProgress: (i, n) => setMsg(`預先載入「${sc.title}」鏡頭 ${Math.min(i + 1, n)}／${n}…（實景 3D tiles 進快取，之後場景一到就是清楚的）`) }).catch(e => console.warn('[prewarm] boot failed', e));
+    }
   }
 
   /* ---- picking ---- */
@@ -188,7 +199,7 @@ async function boot() {
   const osmNote = osm ? `${osm.count.toLocaleString('zh-TW')} 棟 OpenStreetMap 3D 建物` : (api.google ? 'Google 相片級 3D Tiles' : '（OSM 建物未載入）');
   setTimeout(() => { const a = ui.agentTurn(); ui.type(a, `你好，這是「睿鏡 PeakLens」v2：真實 3D 台北（${osmNote} × 國土測繪中心正射影像）疊上 FUNRAISE MCP 的 ${(data.buildings || []).length} 棟商辦、${(data.urban_renewal || []).length} 個都更單元、${(data.mops || []).length} 筆上市櫃資產交易、${(data.registry_moves || []).length} 家企業遷徙。按「▶ 場景」看五段電影式巡航，或直接對城市說話：「帶我去信義計畫區」「2028 年南港會長出什麼」。右上角可切換 HUD 密度（沉浸／平衡／標註，快捷鍵 D）。`); }, 1500);
   claude.probe().then(h => { ui.setMcp(h); if (h && h.ok) { let pref = null; try { pref = localStorage.getItem('pl.ai'); } catch { /* private mode */ } if (pref !== 'off') ui.setAgentMode(true, true); } if (h && h.mcp && h.mcp.status === 'unauthorized') setTimeout(() => ui.toast('FUNRAISE MCP 尚未授權：先用快照資料。點右上角「點此授權」即可即時查詢'), 2600); });
-  window.PL = { compileScript, Cesium, viewer, map, explain, insights, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine, photoreal, frames, stage, voicebar };
+  window.PL = { compileScript, scenes: SCENES, prewarm: (id, o) => director.prewarm(id, o), Cesium, viewer, map, explain, insights, layers, agent, ui, timeline, director, claude, data, osm, rig, lighting, hover, ground, focus, trips, isochrone, walkshed, presenter, floorWalk, measure, youbike, envBadge, viewerApi: api, compose, timemachine: map.timemachine, photoreal, frames, stage, voicebar };
 }
 /* HTML overlay anchored to world positions (pins, numbered callouts): repositioned every frame, hidden behind the globe. */
 function createOverlay(scene, container) {
