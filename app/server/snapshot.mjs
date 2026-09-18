@@ -45,8 +45,21 @@ function normalizeTimeseries(raw) {
   return { years, idx, ytdYear: raw.meta.ytd_year || null, districts, series: { sales_all: raw.sales_all || {}, sales_office: raw.sales_office || {}, licenses: raw.licenses || {} }, city: raw.city || {} };
 }
 
+// Phase：Vercel — DEFAULT_DIR（server/../public/data，算相對於這支檔案自己的 import.meta.url）在本機／Docker
+// 絕對對；在 Vercel 的 Node function 裡「這支檔案的 import.meta.url 到底落在哪」取決於 bundler 有沒有把
+// server/*.mjs 攤平成單一輸出檔案，不是我們能保證的細節（app/vercel.json 的 includeFiles 只保證 public/data/**
+// 真的被打進 function，不保證路徑層數跟原始 repo 一樣）。resolveDataDir() 因此不只信一個算法：依序試「呼叫端
+// 明講的目錄／PEAKLENS_DATA_DIR」「跟這支檔案同目錄算出來的預設值」「process.cwd()（Vercel function 常見就是
+// 專案根目錄，跟 includeFiles 的相對路徑基準一致）」，挑第一個「底下真的有 peaklens.json」的——找不到就退回
+// 原本的 DEFAULT_DIR（維持舊行為：讀不到檔案時 readJSON 回 null，快照變空物件，從不丟例外）。
+function resolveDataDir(explicit) {
+  const candidates = [explicit, process.env.PEAKLENS_DATA_DIR, DEFAULT_DIR, path.join(process.cwd(), 'public', 'data'), path.join(process.cwd(), 'app', 'public', 'data')].filter(Boolean);
+  for (const c of candidates) { try { if (fs.existsSync(path.join(c, 'peaklens.json'))) return c; } catch { /* 路徑本身壞掉（例如唯讀檔案系統的怪權限）就跳過，試下一個 */ } }
+  return explicit || process.env.PEAKLENS_DATA_DIR || DEFAULT_DIR;
+}
+
 export function createSnapshot({ dataDir } = {}) {
-  const dir = dataDir || process.env.PEAKLENS_DATA_DIR || DEFAULT_DIR;
+  const dir = resolveDataDir(dataDir);
   const peak = readJSON(path.join(dir, 'peaklens.json')) || {};
   const timeseries = normalizeTimeseries(readJSON(path.join(dir, 'timeseries.json'))); // null when the file is missing or unparseable — callers get a graceful empty result, never a throw
   const DATE = ((peak.meta && (peak.meta.built_at || peak.meta.generated_at)) || '2026-09-14T00:00:00Z').slice(0, 10);

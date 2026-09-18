@@ -1,0 +1,11 @@
+# 睿鏡 PeakLens — Vercel 部署時不要上傳的檔案／目錄。跟 .dockerignore 的清單同一套邏輯：秘密（.env、
+# server/.mcp-token.json）永遠不上傳；node_modules／dist 這種「build 出來的東西」交給 Vercel 自己重建，
+# 本機殘留的舊版本不該混進去。跟 git 走的部署（GitHub 整合）本來就只看已 commit 的檔案，這份主要是保護
+# 用 `vercel` CLI 從本機資料夾直接部署時不小心把這些也帶上去。
+node_modules
+dist
+.env
+.env.local
+server/.mcp-token.json
+server/.tts-cache
+server/.cache
