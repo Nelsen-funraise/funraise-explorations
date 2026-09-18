@@ -18,6 +18,7 @@ import { createCache } from './cache.mjs';
 import { createSetup } from './setup.mjs';
 import { createOrsRoutes } from './routes/ors.mjs';
 import { createLiveRoutes } from './routes/live.mjs';
+import { resolveStateDir } from './statedir.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -42,9 +43,18 @@ let llm = createLLM(env); // provider adapter (OpenAI Responses API or Anthropic
 export function reloadEnv() { const f = loadEnv(ENV_FILE); for (const k of Object.keys(env)) if (!(k in process.env) && !(k in f)) delete env[k]; Object.assign(env, f, process.env); llm = createLLM(env); return env; }
 const MODEL = () => llm ? llm.model : (env.OPENAI_MODEL || env.ANTHROPIC_MODEL || 'none');
 const MCP_URL = env.FUNRAISE_MCP_URL || 'https://connector.mcp.funraise.ai/t/hkvmS7xU5N5TnxXalyUUA/mcp';
-const PUBLIC_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+// Vercel 沒設 PUBLIC_URL 時，用平台自帶的環境變數推：VERCEL_PROJECT_PRODUCTION_URL（正式網域，優先——同一個
+// redirect_uri 才能一直沿用同一個 OAuth client）或 VERCEL_URL（單次 deployment 網址，preview 用）；本機／
+// Docker 都沒有這兩個變數，維持原本 localhost 預設。
+const VERCEL_HOST = env.VERCEL_PROJECT_PRODUCTION_URL || env.VERCEL_URL || '';
+const PUBLIC_URL = (env.PUBLIC_URL || (VERCEL_HOST ? `https://${VERCEL_HOST}` : `http://localhost:${PORT}`)).replace(/\/$/, '');
 const REDIRECT_URI = `${PUBLIC_URL}/api/mcp/callback`;
-const TOKEN_FILE = path.join(here, '.mcp-token.json');
+// Phase：Vercel — server 目錄在唯讀 function 檔案系統上寫不進去，STATE_DIR 會自動改道 os.tmpdir()
+// （見 server/statedir.mjs）；本機／Docker 這裡照舊等於 server 自己，行為完全不變。
+const PREFERRED_STATE_DIR = env.PEAKLENS_STATE_DIR || here;
+const STATE_DIR = resolveStateDir(PREFERRED_STATE_DIR);
+const STATE_IS_TMP = STATE_DIR !== PREFERRED_STATE_DIR;
+const TOKEN_FILE = path.join(STATE_DIR, '.mcp-token.json');
 
 /* ---------------- Phase 9G snapshot-first data layer (server/snapshot.mjs) ----------------
    Owner's complaint: 「資料大部分要先有個快照在上面，不用每次都要去呼叫 tools」. SNAPSHOT loads public/data/peaklens.json
@@ -66,7 +76,7 @@ export const DEFAULT_VOICES = [
   { id: 'twf', name: '台灣腔女生', desc: '清晰專業的台灣女聲（Fish Audio 公開模型）', fish: '3cb8677aa52f4792b0153422dbf4e14b', gender: 'female' },
 ];
 let VOICES = DEFAULT_VOICES; try { if (env.FISH_VOICES) VOICES = JSON.parse(env.FISH_VOICES); } catch { console.warn('[tts] FISH_VOICES is not valid JSON; using defaults'); }
-const TTS_CACHE = path.join(here, '.tts-cache'); fs.mkdirSync(TTS_CACHE, { recursive: true });
+const TTS_CACHE = path.join(STATE_DIR, '.tts-cache'); try { fs.mkdirSync(TTS_CACHE, { recursive: true }); } catch (e) { console.warn('[tts] cache dir unavailable, TTS 快取這次開機關掉:', e.message); }
 export const fnv1a = (str) => { let h = 0x811c9dc5; for (const c of Buffer.from(str, 'utf8')) { h ^= c; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 export async function synthesize(text, voiceId, { speed = 1 } = {}) {
   const v = VOICES.find(x => x.id === voiceId) || VOICES[0]; if (!FISH_KEY_()) throw Object.assign(new Error('FISH_API_KEY not set'), { status: 503 });
@@ -81,10 +91,24 @@ export async function synthesize(text, voiceId, { speed = 1 } = {}) {
 /* ---------------- token store ---------------- */
 const store = {
   load() { try { return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')); } catch { return null; } },
-  save(t) { fs.writeFileSync(TOKEN_FILE, JSON.stringify(t, null, 2), { mode: 0o600 }); return t; },
+  save(t) { try { fs.writeFileSync(TOKEN_FILE, JSON.stringify(t, null, 2), { mode: 0o600 }); } catch (e) { console.warn('[mcp] token 存檔失敗（' + STATE_DIR + '）：' + e.message); } return t; },
   clear() { try { fs.unlinkSync(TOKEN_FILE); } catch { /* none */ } },
 };
 const staticToken = env.FUNRAISE_MCP_TOKEN ? { access_token: env.FUNRAISE_MCP_TOKEN, static: true } : null;
+
+// Phase：Vercel 沒有持久硬碟時的 MCP token 備援。owner 在自己電腦上 /setup → 授權一次會產生 server/.mcp-token.json；
+// FUNRAISE_MCP_TOKEN_JSON 讓他把那份 JSON 整包貼進 Vercel 環境變數，開機時（TOKEN_FILE 還不存在才會做，
+// 絕不覆蓋本機已經授權好的真檔案）拿來種一份到 STATE_DIR——STATE_DIR 是 tmp 的話這份種子只活這個 function
+// instance 的壽命，重啟要重貼；是真的磁碟（本機／Docker）就直接變成正式 token 檔。
+let tokenRotatedOnTmp = false; // refresh 時如果剛好在 tmp 上輪替了 refresh_token，見 tokenRequest() 與 mcpSummary()
+if (!staticToken && !fs.existsSync(TOKEN_FILE) && env.FUNRAISE_MCP_TOKEN_JSON) {
+  try {
+    const seeded = JSON.parse(env.FUNRAISE_MCP_TOKEN_JSON);
+    if (seeded && seeded.access_token) { store.save(seeded); console.log(`[mcp] token 已從 FUNRAISE_MCP_TOKEN_JSON 還原（存到 ${STATE_DIR}${STATE_IS_TMP ? '，暫存' : ''}）`); }
+    else console.warn('[mcp] FUNRAISE_MCP_TOKEN_JSON 缺 access_token，略過');
+  } catch (e) { console.warn('[mcp] FUNRAISE_MCP_TOKEN_JSON 不是合法 JSON：' + e.message); }
+}
+function tokenPersistMode() { if (staticToken) return 'env'; return store.load() ? (STATE_IS_TMP ? 'tmp' : 'file') : 'none'; }
 
 /* ---------------- OAuth 2.1 discovery (MCP authorization spec) ---------------- */
 let metaCache = null;
@@ -129,7 +153,11 @@ async function tokenRequest(params) {
   const r = await fetchJson(meta.token_endpoint, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body });
   if (!r.json || !r.json.access_token) throw new Error('token endpoint ' + r.status + ': ' + r.text.slice(0, 300));
   const saved = store.load() || {}; const tok = { ...saved, access_token: r.json.access_token, refresh_token: r.json.refresh_token || saved.refresh_token || null, token_type: r.json.token_type || 'Bearer', scope: r.json.scope || meta.scopes.join(' '), expires_at: r.json.expires_in ? Date.now() + r.json.expires_in * 1000 : null, token_client: { client_id: c.client_id, client_secret: c.client_secret || null }, obtained_at: Date.now() };
-  store.save(tok); mcpState = { status: 'unknown', checked: 0 }; return tok;
+  store.save(tok);
+  // STATE_DIR 是 tmp 備援時，剛剛存的（可能是輪替過的新 refresh_token）這份只活這個 instance——記一筆旗標，
+  // /api/health 會提醒 owner 回 /setup 重新匯出 FUNRAISE_MCP_TOKEN_JSON，不然下次冷啟動舊的 env 值可能已經失效。
+  if (params.grant_type === 'refresh_token' && STATE_IS_TMP) tokenRotatedOnTmp = true;
+  mcpState = { status: 'unknown', checked: 0 }; return tok;
 }
 async function finishAuthorize(code, state) { const p = pending.get(state); if (!p) throw new Error('unknown or expired state'); pending.delete(state); return tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, code_verifier: p.verifier }); }
 async function validToken() {
@@ -152,7 +180,7 @@ async function mcpProbe(force = false) {
   } catch (e) { mcpState = { status: 'unreachable', checked: Date.now(), reason: e.message }; }
   return mcpState;
 }
-const mcpSummary = s => ({ status: s.status, url: MCP_URL, reason: s.reason || null, server: s.server || null, expires_at: s.expires_at || null, authorize_url: '/api/mcp/authorize', static_token: !!staticToken });
+const mcpSummary = s => ({ status: s.status, url: MCP_URL, reason: s.reason || null, server: s.server || null, expires_at: s.expires_at || null, authorize_url: '/api/mcp/authorize', static_token: !!staticToken, persist: tokenPersistMode(), ...(tokenRotatedOnTmp ? { warning: 'refresh token 剛在暫存空間（tmp）被輪替過，這個 function instance 重啟或換機就會遺失——請到 /setup「匯出 MCP token」重新複製，貼回 Vercel 的 FUNRAISE_MCP_TOKEN_JSON。' } : {}) });
 
 /* ---------------- Claude agent ---------------- */
 const LAYER_KEYS = ['stock', 'future', 'licenses', 'renewal', 'zones', 'mops', 'moves', 'infra', 'parks', 'heat', 'mrt'];
@@ -191,6 +219,10 @@ const CAMERA_TOOLS = [
   { name: 'select_entity', description: '選取地圖物件並在面板顯示其詳細資料（key 同 highlight）。', input_schema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] } },
   { name: 'present_place', description: '展示巨集：一次完成「飛過去／環繞＋擺出風格＋套用外觀 Look」，取代好幾個單獨的鏡頭工具。使用者說「用更好的視角幫我呈現」「展示一下○○」「帶我去○○，環繞＋黃金時刻」時優先用這個，一回合解決，不要分成多次 fly_to／set_camera_mode／set_look。', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地名（大樓、商圈、行政區、捷運站、園區）' }, style: { type: 'string', enum: ['orbit', 'street', 'overview'], description: '呈現風格：orbit 環繞（預設，最適合展示）、street 街景、overview 拉遠俯視' }, look: { type: 'string', enum: ['white', 'sun', 'golden', 'night', 'photoreal'], description: '外觀 Look：white 白模、sun 日照、golden 黃金時刻（展示首選）、night 夜景、photoreal 相片級' }, range_m: { type: 'number' } }, required: ['place'] } },
   { name: 'set_look', description: '切換外觀 Look（取代分別呼叫 set_theme／set_sun／set_quality 三個工具）：white 白模（預設，分析用）、sun 日照（可給 hour 5.5–19.5）、golden 黃金時刻（展示用）、night 夜景、photoreal 相片級（需 Google 金鑰，沒有則維持白模）。', input_schema: { type: 'object', properties: { look: { type: 'string', enum: ['white', 'sun', 'golden', 'night', 'photoreal'] }, hour: { type: 'number' } }, required: ['look'] } },
+  // Phase 11A 場景與腳本（docs/11-v2-cesium-app.md §20.1）：讓 agent 不只「跳去一個地方開關圖層」，而是像導演一樣一次排好整段導覽。
+  { name: 'list_scenes', description: '列出內建電影式場景（id／標題／副標／步數），供 play_scene 使用。', input_schema: { type: 'object', properties: {} } },
+  { name: 'play_scene', description: '播放內建場景（旁白、鏡頭、圖層、物件標示全自動編排）：investor 資本流向・投資人巡航、developer 供給雷達・開發商、occupier 企業選址、city 城市治理・首長戰情室、time 時光 2012→2030、land 地政巡禮（段籤界／公有土地／重劃與區段徵收／都更地號模擬／歷年航照／實價登錄價值面，給地政單位看）。使用者說「播放○○場景」「放一段給地政局看」且有合適的內建場景時直接用；要客製才用 play_script。', input_schema: { type: 'object', properties: { id: { type: 'string', enum: ['investor', 'developer', 'occupier', 'city', 'time', 'land'] } }, required: ['id'] } },
+  { name: 'play_script', description: '像導演一樣編排並播放一段客製導覽腳本：使用者要「幫我做／規劃／編排一個給○○看的場景、腳本、導覽、簡報流程」時用。先用 query_snapshot／search_local_snapshot 查好要講的數字與物件 key，再「一次」呼叫本工具把 4–7 段全部排好（不要一段一段分開呼叫，也不要改用 fly_to／set_layers 慢慢調）。每段 steps[i]：text 旁白（繁中 1–2 句、含具體數字與地名，會被念出來並顯示在語音列）、place 地名（大樓／商圈／行政區／捷運站／園區，前端用快照解析）或 lon／lat、range 公尺（500 街廓・1500 街區・5000 行政區・15000 全市）、pitch（-30 貼近～-75 俯視）、heading、mode（fly／orbit／street）、look（photoreal／sun／golden／night／white）、lens、layers {show,hide}（stock、future、licenses、renewal、zones、mops、moves、infra、parks、heat、parcels、mrt、tm）、keys（要框起來加編號的物件 key，最多 6 個）、overlays（landsect 段籤界／publicland 公有土地／buildx 分棟建物框；每段列出這段要疊的，沒列＝全關）、year（時間軸年份）、lapse {from,to}（這段播放時間軸）、simulate_renewal（都更單元 id 或名稱：跑智慧都更模擬長出可建量體）。呼叫後只用 2–3 句列出段落大綱與資料來源，不要重複整段旁白。', input_schema: { type: 'object', properties: { title: { type: 'string' }, sub: { type: 'string' }, steps: { type: 'array', minItems: 1, maxItems: 9, items: { type: 'object', properties: { text: { type: 'string' }, place: { type: 'string' }, lon: { type: 'number' }, lat: { type: 'number' }, range: { type: 'number' }, pitch: { type: 'number' }, heading: { type: 'number' }, mode: { type: 'string', enum: ['fly', 'orbit', 'street'] }, look: { type: 'string', enum: ['photoreal', 'sun', 'golden', 'night', 'white'] }, lens: { type: 'string', enum: ['investor', 'developer', 'occupier', 'city', 'research'] }, layers: { type: 'object', properties: { show: { type: 'array', items: { type: 'string' } }, hide: { type: 'array', items: { type: 'string' } } } }, keys: { type: 'array', items: { type: 'string' } }, overlays: { type: 'array', items: { type: 'string', enum: ['landsect', 'publicland', 'buildx', 'liquefaction', 'road'] } }, year: { type: 'integer' }, lapse: { type: 'object', properties: { from: { type: 'integer' }, to: { type: 'integer' } } }, simulate_renewal: { type: 'string' } }, required: ['text'] } } }, required: ['title', 'steps'] } },
 ];
 const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科技的台灣不動產上帝視角（God's Eye View × FUNRAISE MCP）。使用者是不動產投資人、開發商、企業選址主管、政府局處或學研人員，用口語（繁體中文）對城市發問；你同時「操作畫面」與「回答問題」。
 
@@ -202,6 +234,7 @@ const SYSTEM = `你是「睿鏡 PeakLens」的地圖 agent：FUNRAISE 方睿科�
 5. 若使用者只是閒聊或問產品，簡短回答並建議一個可示範的指令。
 6. 專用工具：捷運等時圈／通勤圈 → show_isochrone；步行／騎車／開車生活圈 → show_walkshed；天氣／空氣品質 → get_environment；YouBike → set_live_layer；對焦／只看這棟 → focus；企業遷徙動線 → play_trips；日照／陰影 → set_sun（或直接用 set_look／present_place）；疊圖（段籍界、公有土地、液化）→ set_overlay；展示模式 → presenter；樓層視角／站上 N 樓 → floor_view；分享視角 → share_view；外觀（白模／日照／黃金時刻／夜景／相片級）一律用 set_look，不要分別呼叫 set_theme／set_sun／set_quality；「用更好的視角呈現」「展示一下」這類籠統要求優先用 present_place 一次完成。
 7. 畫面工具在同一回合平行呼叫（一次回傳多個 function_call），鏡頭／外觀最多一回合就決定好、不要分成好幾回合慢慢調；查完資料立刻用文字回答，不要再多繞一輪確認；每次回覆一定要有文字，即使只是一句確認也好，絕不能只呼叫工具卻不留一句話。
+8. 場景與腳本：使用者說「播放○○場景」「放一段給○○看」→ 有合適的內建場景（investor／developer／occupier／city／time／land 地政）就用 play_scene（不確定有哪些就先 list_scenes）；「幫我做／規劃／編排一個給○○（地政局長官、投資人、董事會、客戶…）看的場景／腳本／導覽／簡報」→ 你就是導演：先用 query_snapshot 查 2–3 個會講到的數字與物件 key，再用 play_script「一次」排好 4–7 段（開場全景 → 每個主題一段：一個鏡頭 + 要亮的圖層與 keys + 一句有數字的旁白 → 收尾），絕不要一段一段用 fly_to／set_layers 慢慢調；回覆只列段落大綱與資料來源。
 畫面狀態與資料來源狀態會附在下方（由 server 提供）。` + '\n\n## 快照內容\n' + SNAPSHOT.describe();
 
 function json(res, code, body) { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': env.ALLOWED_ORIGIN || '*', 'access-control-allow-headers': 'content-type, x-peaklens-code', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); }
@@ -305,9 +338,15 @@ if (process.argv.includes('--check')) { const m = await mcpProbe(true).catch(e =
 const GATE_FREE = new Set(['/api/health', '/api/mcp/callback']); const rateBuckets = new Map();
 function rateOk(ip, pathname) { const limit = pathname === '/api/agent' ? +(env.RATE_AGENT_PER_MIN || 30) : pathname === '/api/tts' ? +(env.RATE_TTS_PER_MIN || 60) : 240; const key = ip + '|' + (pathname === '/api/agent' || pathname === '/api/tts' ? pathname : 'other'); const now = Date.now(); const arr = (rateBuckets.get(key) || []).filter(t => now - t < 60000); arr.push(now); rateBuckets.set(key, arr); if (rateBuckets.size > 5000) rateBuckets.clear(); return arr.length <= limit; }
 const ORS = createOrsRoutes(env); const LIVE = createLiveRoutes(env);
-const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root });
-if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))) {
-  http.createServer(async (req, res) => {
+const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root, getMcpToken: () => ({ token: store.load(), static: !!staticToken, persist: tokenPersistMode() }) });
+// Phase：Vercel — 這支 handler 本身跟 host 無關（單純 (req,res) → 用 req.url 自己解析路由），本機／Docker 用
+// http.createServer(handler).listen(PORT) 直接跑；Vercel 的 Node function（app/api/[[...path]].mjs）改成
+// import { handler } 再 export default，讓 Vercel 自己呼叫，不需要也不應該再 .listen() 一次（Vercel 的 runtime
+// 才是真正在聽 port 的那一層）。IS_MAIN 判斷「這個檔案是不是被直接執行」（node server/index.mjs）；
+// PEAKLENS_NO_LISTEN=1 額外提供一個手動關掉 .listen() 的旋鈕，主要給 server/handler.test.mjs 這類測試用——
+// 它們自己建一個 http.createServer(handler) 打在別的 ephemeral port 上，不需要（也不該跟）這裡的 PORT 搶。
+const IS_MAIN = import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url));
+export const handler = async (req, res) => {
     const url = new URL(req.url, 'http://x');
     try {
       if (req.method === 'OPTIONS') return json(res, 204, {});
@@ -339,8 +378,10 @@ if (import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && path.
       if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'unknown route' });
       return serveStatic(req, res);
     } catch (e) { console.error('[error]', e); return json(res, e.status || 500, { error: e.message || String(e) }); }
-  }).listen(PORT, async () => {
+};
+if (IS_MAIN && env.PEAKLENS_NO_LISTEN !== '1') {
+  http.createServer(handler).listen(PORT, async () => {
     const m = await mcpProbe(true).catch(e => ({ status: 'error', reason: e.message }));
-    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  snapshot=${SNAPSHOT.stats.date}(${Object.values(SNAPSHOT.stats.counts).reduce((a, b) => a + b, 0)} rows${SNAPSHOT.stats.hasTimeseries ? '+ts' : ''})  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}`);
+    console.log(`PeakLens agent server on http://localhost:${PORT}  llm=${llm ? llm.provider + ':' + llm.model : 'OFF (set OPENAI_API_KEY or ANTHROPIC_API_KEY, or open /setup)'}  mcp=${m.status}${m.reason ? ' (' + m.reason + ')' : ''}  snapshot=${SNAPSHOT.stats.date}(${Object.values(SNAPSHOT.stats.counts).reduce((a, b) => a + b, 0)} rows${SNAPSHOT.stats.hasTimeseries ? '+ts' : ''})  tts=${FISH_KEY_() ? 'fish' : 'none'}  access=${env.PEAKLENS_ACCESS_CODE ? 'code-protected' : 'open'}  setup=${PUBLIC_URL}/setup  authorize=${PUBLIC_URL}/api/mcp/authorize  static=${fs.existsSync(path.join(DIST, 'index.html')) ? 'dist/' : 'none'}  state=${STATE_DIR}${STATE_IS_TMP ? '(tmp fallback)' : ''}`);
   });
 }

@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveStateDir } from '../statedir.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url)); // .../app/server/routes
 
@@ -293,9 +294,11 @@ function flattenS2S(raw) {
  * ============================================================ */
 export function createLiveRoutes(env) {
   // 磁碟快取目錄可用 env.PEAKLENS_CACHE_DIR 覆寫（比照 index.mjs 的 PEAKLENS_DIST 慣例），
-  // 讓測試能把 24h 快取導到 scratchpad，不要動到真的 app/server/.cache/。
-  const cacheDir = env.PEAKLENS_CACHE_DIR ? path.resolve(env.PEAKLENS_CACHE_DIR) : path.join(here, '..', '.cache');
-  try { fs.mkdirSync(cacheDir, { recursive: true }); } catch (e) { console.warn('[live] cache dir unavailable:', e.message); }
+  // 讓測試能把 24h 快取導到 scratchpad，不要動到真的 app/server/.cache/。Phase：Vercel — 預設目錄
+  // （app/server/.cache）在唯讀 function 檔案系統上寫不進去時，resolveStateDir() 會自動改道 os.tmpdir()
+  // （見 ../statedir.mjs）；本機／Docker 這裡本來就可寫，行為不變（只是不再需要自己 try/catch 一次 mkdir）。
+  const preferredCacheDir = env.PEAKLENS_CACHE_DIR ? path.resolve(env.PEAKLENS_CACHE_DIR) : (env.PEAKLENS_STATE_DIR ? path.join(env.PEAKLENS_STATE_DIR, '.cache') : path.join(here, '..', '.cache'));
+  const cacheDir = resolveStateDir(preferredCacheDir);
   const tdxCacheFile = path.join(cacheDir, 'tdx_s2s.json');
 
   const weatherCache = makeCache(10 * 60 * 1000);

@@ -50,7 +50,7 @@ async function testKey(key, env, getLLM) {
   } catch (e) { return { ok: false, detail: e.message }; }
 }
 
-export function createSetup({ env, envFile, reload, getLLM, appRoot }) {
+export function createSetup({ env, envFile, reload, getLLM, appRoot, getMcpToken }) {
   let build = { running: false, log: '', code: null, at: 0 };
   const state = () => ({ envFile, provider: getLLM() ? getLLM().provider : null, model: getLLM() ? getLLM().model : null, build: { running: build.running, code: build.code, at: build.at, tail: build.log.slice(-1200) }, keys: KEYS.map(d => ({ ...d, set: !!env[d.k], masked: d.secret === false ? (env[d.k] || '') : mask(env[d.k] || '') })) });
   const startBuild = () => { if (build.running) return false; build = { running: true, log: '', code: null, at: Date.now() }; const p = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { cwd: appRoot, env: { ...process.env, ...Object.fromEntries(Object.entries(env).filter(([k]) => k.startsWith('VITE_'))) } }); const onData = d => { build.log = (build.log + d.toString()).slice(-20000); }; p.stdout.on('data', onData); p.stderr.on('data', onData); p.on('close', code => { build.running = false; build.code = code; }); p.on('error', e => { build.running = false; build.code = -1; build.log += '\n' + e.message; }); return true; };
@@ -61,6 +61,10 @@ export function createSetup({ env, envFile, reload, getLLM, appRoot }) {
       if (url.pathname === '/api/setup' && req.method === 'GET') return json(res, 200, state());
       if (url.pathname === '/api/setup' && req.method === 'POST') { const body = await readBody(req, 64000); const values = {}; for (const [k, v] of Object.entries(body.values || {})) if (KEYS.some(d => d.k === k)) values[k] = String(v ?? '').trim(); writeEnv(envFile, values); reload(); return json(res, 200, { saved: Object.keys(values), ...state() }); }
       if (url.pathname === '/api/setup/test' && req.method === 'POST') { const body = await readBody(req, 4000); const out = await testKey(String(body.key || ''), env, getLLM); return json(res, 200, { key: body.key, ...out }); }
+      // Phase：Vercel — 「匯出 MCP token」：本機授權一次之後，把 server/.mcp-token.json 整份內容原樣交給前端，
+      // 讓 owner 貼進 Vercel 的 FUNRAISE_MCP_TOKEN_JSON（見 index.mjs 開機時的 seed 邏輯）。跟其他 /api/setup/*
+      // 一樣只限本機（上面已經擋過 isLocal），內容本身也只在按下「顯示」之後才會被前端拿去畫面上顯示。
+      if (url.pathname === '/api/setup/mcp-token' && req.method === 'GET') { const info = getMcpToken ? getMcpToken() : { token: null, static: false, persist: 'none' }; return json(res, 200, info); }
       if (url.pathname === '/api/setup/build' && req.method === 'POST') return json(res, 200, { started: startBuild(), running: true });
       if (url.pathname === '/api/setup/build' && req.method === 'GET') return json(res, 200, state().build);
       return json(res, 404, { error: 'unknown setup route' });
@@ -94,6 +98,12 @@ footer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}pr
 <form id="f" onsubmit="return false"></form>
 <footer><button class="primary" id="save">儲存到 .env</button><button id="testall">全部測試</button><button id="build">重新 build（前端金鑰）</button><span class="res" id="saveres"></span></footer>
 <pre id="buildlog" hidden></pre>
+<section>
+<h2>匯出 MCP token（貼到 Vercel 的 FUNRAISE_MCP_TOKEN_JSON）</h2>
+<p style="margin:0 0 10px;color:var(--ink2);font-size:13px">部署到 Vercel 的 server 沒有持久硬碟，存不住 <code>server/.mcp-token.json</code>。在這台電腦上完成一次 FUNRAISE MCP 授權後，把下面這段 JSON 整包貼進 Vercel 專案的環境變數 <code>FUNRAISE_MCP_TOKEN_JSON</code>，開機時就會用它還原 token，不用再授權一次。refresh token 過期輪替後（<code>/api/health</code> 的 <code>mcp.warning</code> 會提醒）記得回來重新匯出、更新 Vercel 上的值。</p>
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><button type="button" id="mcpReveal">顯示</button><button type="button" id="mcpCopy" disabled>複製</button><span class="res" id="mcpRes"></span></div>
+<pre id="mcpJson" style="user-select:none">••••••••••••••••••••••••••••••••••••••••</pre>
+</section>
 </main>
 <script>
 const $=s=>document.querySelector(s);let ST=null;
@@ -104,5 +114,11 @@ async function test(k){const r=$('#r-'+k);r.textContent='測試中…';r.classNa
 $('#save').onclick=async()=>{const values={};for(const inp of $('#f').querySelectorAll('input'))if(inp.value.trim())values[inp.name]=inp.value.trim();if(!Object.keys(values).length){$('#saveres').textContent='沒有新值';return;}$('#saveres').textContent='儲存中…';const j=await (await fetch('/api/setup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({values})})).json();ST=j;$('#saveres').textContent='已寫入 '+j.saved.join(', ')+(j.saved.some(k=>k.startsWith('VITE_'))?'（含前端金鑰：請按「重新 build」）':'');$('#saveres').className='res ok';render();$('#status').textContent=ST.provider?('AI agent：'+ST.provider+' · '+ST.model):'AI agent：尚未設定金鑰';for(const k of j.saved)if(ST.keys.find(x=>x.k===k&&x.test))test(k);};
 $('#testall').onclick=()=>{for(const k of ST.keys)if(k.test&&k.set)test(k.k);};
 $('#build').onclick=async()=>{await fetch('/api/setup/build',{method:'POST'});$('#buildlog').hidden=false;const tick=async()=>{const b=await (await fetch('/api/setup/build')).json();$('#buildlog').textContent=b.tail||'…';if(b.running)setTimeout(tick,1500);else $('#buildlog').textContent+='\\n[完成 · exit '+b.code+'] 重新整理 http://localhost:'+location.port+'/ 即可';};tick();};
+let mcpRevealed=null;
+$('#mcpReveal').onclick=async()=>{const r=$('#mcpRes');r.textContent='讀取中…';r.className='res';const j=await (await fetch('/api/setup/mcp-token')).json();
+ if(j.static){$('#mcpJson').textContent='目前用的是固定 Token（環境變數 FUNRAISE_MCP_TOKEN），把同一把貼到 Vercel 的 FUNRAISE_MCP_TOKEN 就好，不需要這段 JSON。';r.textContent='';return;}
+ if(!j.token){$('#mcpJson').textContent='尚未授權——先在主畫面按右上角「授權」，走完一次 FUNRAISE MCP 登入再回來這頁。';r.textContent='';return;}
+ mcpRevealed=JSON.stringify(j.token,null,2);$('#mcpJson').textContent=mcpRevealed;$('#mcpJson').style.userSelect='text';$('#mcpCopy').disabled=false;r.textContent='persist：'+j.persist;r.className='res ok';};
+$('#mcpCopy').onclick=async()=>{if(!mcpRevealed)return;try{await navigator.clipboard.writeText(mcpRevealed);$('#mcpRes').textContent='已複製';$('#mcpRes').className='res ok';}catch(e){$('#mcpRes').textContent='複製失敗，請手動選取複製';$('#mcpRes').className='res bad';}};
 load();
 </script></html>`;
