@@ -135,9 +135,13 @@ export class FunraiseLayers {
     const inBounds = (lon, lat) => !b || (lon >= b[0] - padLon && lon <= b[2] + padLon && lat >= b[1] - padLat && lat <= b[3] + padLat);
     const inView = [], outView = [];
     // §18.1 效能：主力清單來自 build() 尾端快取的 this._labeled（見那裡的註解——大部分實體根本沒有 label，
-    // 這裡不用再逐一 `if (!e.label) continue`）；'fx' 是唯一會在 build() 之後動態新增/整批清空 label 實體的
-    // datasource（時間軸「長高」特效，onYearChange()），沒有快取、現抓——通常是空的，只有跨年動畫還沒消失的
-    // 那 2.5 秒才有內容，這段額外開銷可以忽略。
+    // 這裡不用再逐一 `if (!e.label) continue`）。兩個 datasource 沒有快取、現抓，因為它們的實體是在
+    // FunraiseLayers.build() 完成之後才由「外部」加進來，_labeled 這個 build() 時期的快照本來就看不到：
+    // 'fx' 是時間軸「長高」特效（onYearChange()，本檔自己的方法，但實體是動態新增/整批清空的）；
+    // 'tm' 是價值時光機的 12 個行政區量體＋標籤（layers/timemachine.js 的 _build()，該模組在 main.js 裡是
+    // compose 建好之後才 new 出來，晚於 layers.build() 很多——這裡如果沒有現抓，這 12 個標籤就永遠不會被
+    // recomputeLabels() 摸到，會卡在 Cesium 預設的 show:true，不受尺度／標籤預算／選取狀態管控）。兩者都很
+    // 小（'fx' 通常是空的，只有跨年動畫還沒消失的 2.5 秒才有內容；'tm' 固定 12 個），現抓的額外開銷可忽略。
     const visit = (e, pl, layer, key) => {
       if (!e.label) return;
       if (key && (key === this.selectedKey || this.isHot(key))) { e.label.show = true; e.label.eyeOffset = EYE_BIAS; return; }
@@ -152,6 +156,7 @@ export class FunraiseLayers {
     };
     for (const { e, pl, layer, key } of this._labeled || []) visit(e, pl, layer, key);
     for (const e of this.ds.fx.entities.values) { if (e.label) visit(e, null, null, null); }
+    for (const e of this.ds.tm.entities.values) { if (!e.label) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; visit(e, pl, pl ? pl.layer : null, pl ? pl.key : null); }
     inView.sort((a, c) => c.imp - a.imp); outView.sort((a, c) => c.imp - a.imp);
     const budget = this.labelBudget == null ? Infinity : this.labelBudget; let shown = 0;
     for (const r of inView) { r.e.label.show = shown < budget; shown++; }
@@ -179,9 +184,10 @@ export class FunraiseLayers {
     switch (layer) { case 'stock': return item.grade === 'A' || item.grade === 'P' ? 0.9 : item.grade === 'F' ? 0.6 : 0.35; case 'future': return 0.8; case 'renewal': return item.category === '政府主導' ? 0.75 : 0.4; case 'mops': return Math.min(1, 0.5 + Math.log10(Math.max(1, item.total_price || 1)) / 20); case 'licenses': return 0.3; case 'zones': return 0.3; case 'infra': return 0.85; case 'parks': return 0.85; case 'heat': return 0.9; case 'mrt': return 0.4; case 'moves': return 0.45; default: return 0.5; }
   }
   build() { this.buildStock(); this.buildMarkers(); this.buildFuture(); this.buildParcels(); this.buildLicenses(); this.buildRenewal(); this.buildZones(); this.buildMops(); this.buildMoves(); this.buildInfra(); this.buildParks(); this.buildHeat(); this.buildMrt(); this.buildDistricts();
-    // §18.1 效能：除了 'fx'（時間軸長高特效，onYearChange() 會在這之後動態新增/整批清空）以外，每個 datasource
-    // 的實體在這之後都不會再變動——把「有 label 的實體」連同讀好的 pl/layer/key 快取起來，recomputeLabels()
-    // 之後只掃這個小很多的清單，不用每次都連「沒有 label」的量體/針腳/路網線段一起掃過一遍。
+    // §18.1 效能：除了 'fx'（時間軸長高特效，onYearChange() 之後動態新增/整批清空）跟 'tm'（價值時光機的 12
+    // 個行政區量體，layers/timemachine.js 建構時才補進來，晚於這裡）以外，每個 datasource 的實體在這之後都
+    // 不會再變動——把「有 label 的實體」連同讀好的 pl/layer/key 快取起來，recomputeLabels() 之後只掃這個小
+    // 很多的清單（'fx'／'tm' 現抓，見那裡的註解），不用每次都連「沒有 label」的量體/針腳/路網線段一起掃過。
     this._labeled = [];
     for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) { if (!e.label) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; e._imp = pl ? this.importance(pl.layer, pl.item) : 1; this._labeled.push({ e, pl, layer: pl ? pl.layer : null, key: pl ? pl.key : null }); }
   }
