@@ -85,7 +85,7 @@ https://nelsen-funraise.github.io/funraise-explorations/?api=https://<你的專�
 
 兩種做法都可以同時存在——做法 B（🔑 對話框或帶參數連結）的值優先於做法 A（build 時內建的 `VITE_API_BASE`），適合「repo 預設打某個環境，但這次想讓特定客戶連到另一個」的情境。
 
-如果前後端乾脆都在 Vercel（不用 Pages），就完全不用管這一節——同源，`API` 留空即可，這也是第 1 節「一路部署」出來的預設狀態。
+如果前後端乾脆都在 Vercel（不用 Pages），就完全不用管這一節——同源，`API` 留空即可，這正是第 1 節部署步驟跑完之後的預設狀態。
 
 ## 4. 限制
 
