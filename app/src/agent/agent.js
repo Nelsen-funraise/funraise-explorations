@@ -183,9 +183,9 @@ export class Agent {
     if (has(t, /場景|scene|來一段|播一段|放一段|連播/i) && !has(t, /幫我做|幫我規劃|幫我編排|幫我設計|寫一個|寫個|自訂|客製|規劃一個|做一個|排一個/)) {
       const d = this.ui.director; const SC = { land: /地政|地籍|地籤|段籍|實價登錄|土地/, investor: /投資|資本/, developer: /開發|供給|建照/, occupier: /選址|企業|內科|南軟/, city: /城市|治理|首長|市府|戰情/, time: /時光|時間軸|2012|2030/ };
       if (has(t, /停|stop|結束|關掉/i) && d) { d.stop(); this.finish(turnFn(), '場景停止。'); return true; }
-      if (has(t, /全部|連播|所有/) && d) { (async () => { for (const sc of SCENES) { await d.play(sc.id); if (d.stopFlag) break; } })(); this.finish(turnFn(), `全部連播 ${SCENES.length} 個場景（約 ${Math.round(SCENES.reduce((s, sc) => s + sc.steps.length, 0) * 14 / 60)} 分鐘）。說「停」結束。`); return true; }
+      if (has(t, /全部|連播|所有/) && d) { setTimeout(async () => { for (const sc of SCENES) { await d.play(sc.id); if (d.stopFlag) break; } }, 80); this.finish(turnFn(), `全部連播 ${SCENES.length} 個場景（約 ${Math.round(SCENES.reduce((s, sc) => s + sc.steps.length, 0) * 14 / 60)} 分鐘）。說「停」結束。`); return true; }
       const id = Object.keys(SC).find(k => SC[k].test(t)); const sc = id ? SCENES.find(s => s.id === id) : null;
-      if (sc && d) { this.finish(turnFn(), `播放「${sc.title}」（${sc.steps.length} 段，約 ${Math.max(1, Math.round(sc.steps.length * 14 / 60))} 分鐘）。播放中可以直接發問，場景會暫停；說「停」結束。`); d.play(sc.id); return true; }
+      if (sc && d) { this.finish(turnFn(), `播放「${sc.title}」（${sc.steps.length} 段，約 ${Math.max(1, Math.round(sc.steps.length * 14 / 60))} 分鐘）。播放中可以直接發問，場景會暫停；說「停」結束。`); setTimeout(() => d.play(sc.id), 80); return true; } // 延後到下一個 task：ui.userTurn() 剛加的 .turn.user 節點會讓 voicebar 的 MutationObserver 在本 task 結束後檢查「有場景在播就暫停」——同步開播會被自己的問句暫停
       if (d) { this.finish(turnFn(), '有這些場景：' + SCENES.map(s => `「${s.title}」`).join('、') + '。說「播放地政場景」「播放投資人場景」或「全部連播」就會開始；要客製腳本請切到 AI 模式說「幫我做一個給○○看的場景」。'); return true; }
     }
     if (has(t, /(幫我|替我|給我|請)?(做|規劃|編排|設計|寫|排)(一個|一段|個|一份)?[^。]{0,20}(場景|腳本|導覽|簡報|demo|介紹)/i) && !this.ui.claudeMode) { this.finish(turnFn(), '客製腳本要交給 AI 模式：按下方「內建」切到 AI 模式，再說一次「幫我做一個給地政局長官看的場景」，它會像導演一樣先查數字、再一次排好 4–7 段旁白與鏡頭。現成的可以直接說「播放地政場景」。'); return true; }
