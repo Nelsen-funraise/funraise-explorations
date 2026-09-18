@@ -1,5 +1,6 @@
 // PeakLens v2 — Cesium viewer setup (keyless by default: NLSC orthophoto + OSM extrusions)
 import * as Cesium from 'cesium';
+import { getKey } from './keys.js';
 
 export const BASEMAPS = { // keyless tile sources verified 2026-09-16 (OSM raw tiles removed: blocked by the OSMF tile usage policy for app traffic)
   nlsc_photo: { name: '正射影像（國土測繪中心）', url: 'https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', credit: '國土測繪中心 正射影像 (NLSC)', max: 19, years: [2014, 2025] },
@@ -23,7 +24,7 @@ export async function createViewer(container, opts = {}) {
   // Phase 10P（docs/11-v2-cesium-app.md §18.1）：window.__PL_TEST_ION 只給無頭測試用——沙盒沒有真的 ion/Google
   // 金鑰也連不到網路，測試靠這個旗標模擬「金鑰齊全」情境，好驗證 photoreal.js 的 available/失敗回退路徑；正式
   // 環境一律用 VITE_CESIUM_ION_TOKEN。
-  const ionToken = import.meta.env.VITE_CESIUM_ION_TOKEN || (typeof window !== 'undefined' && window.__PL_TEST_ION) || undefined;
+  const ionToken = getKey('ion') || import.meta.env.VITE_CESIUM_ION_TOKEN || (typeof window !== 'undefined' && window.__PL_TEST_ION) || undefined; // Phase 11C: a runtime key (🔑 金鑰 dialog / ?ion=) wins over the build-time one
   if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
   const viewer = new Cesium.Viewer(container, {
     baseLayer: false,
@@ -106,7 +107,7 @@ export async function createViewer(container, opts = {}) {
   // 兩條路徑（§18.1）：有 VITE_GOOGLE_MAPS_API_KEY 就走 GoogleMaps.defaultApiKey；沒有 Google 金鑰但有 ion token
   // 就呼叫 createGooglePhotorealistic3DTileset() 不帶 key（走 ion 資產 2275207，只需要上面已經設好的
   // Cesium.Ion.defaultAccessToken）。兩把都沒有時直接回傳 null，不嘗試建立。
-  const gkey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const gkey = getKey('gkey') || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   let googleTileset = null, googlePromise = null, googleError = null;
   const ensureGoogle = (tilesetOptions) => {
     if (googleTileset) return Promise.resolve(googleTileset);

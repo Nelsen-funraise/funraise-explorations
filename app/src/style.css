@@ -265,13 +265,18 @@ body.d-immersive .cesium-widget-credits{opacity:.5}
    band) and #gimbal (bumped up above the band below). Only the voice bar, gimbal and hover cards stay at full
    strength; the rest of the chrome (topbar, edge tabs already handled above) recedes instead of vanishing outright
    so a stray click can still reach it. */
-body.d-immersive::before,body.d-immersive::after{content:"";position:fixed;left:0;right:0;height:6vh;background:#000;pointer-events:none;z-index:3;opacity:.94}
-body.d-immersive::before{top:0}
-body.d-immersive::after{bottom:0}
-body.theme-light.d-immersive::before,body.theme-light.d-immersive::after{background:#0B1220}
-body.d-immersive #readout{top:calc(6vh + 14px)}
-body.d-immersive #topbar{opacity:.28;transition:opacity .3s}
-body.d-immersive #topbar:hover{opacity:1}
+/* Phase 11B 「上下有一個深色的遮罩把 UI 都擋住了」: the bands used to ride on body.d-immersive alone (and scenes/presenter
+   persisted that density into localStorage), so they outlived the scene and sat ABOVE the topbar. Now they only exist
+   while a scene is actually playing (body.cinema) or in presenter mode, and at z-index 2 they sit UNDER every control
+   (#topbar/#console/#voicebar 6, #gimbal 7, #insights 4). Plain immersive density = panels collapse, nothing covers. */
+body.d-immersive.cinema::before,body.d-immersive.cinema::after,body.presenting::before,body.presenting::after{content:"";position:fixed;left:0;right:0;height:5vh;background:#000;pointer-events:none;z-index:2;opacity:.9}
+body.d-immersive.cinema::before,body.presenting::before{top:0}
+body.d-immersive.cinema::after,body.presenting::after{bottom:0}
+body.theme-light.d-immersive.cinema::before,body.theme-light.d-immersive.cinema::after,body.theme-light.presenting::before,body.theme-light.presenting::after{background:#0B1220}
+body.d-immersive.cinema #readout{top:calc(5vh + 14px)}
+body.cinema #topbar{opacity:.28;transition:opacity .3s}
+body.cinema #topbar:hover{opacity:1}
+body.cinema.sim-open #inspector{opacity:1} /* 智慧都更模擬卡 opened by a scene step stays legible */
 body.d-annotated #inspector{width:360px;max-height:calc(100vh - 290px)}
 /* §18.3 洞察列需要的淨空：標註模式把圖層欄的可視高度收窄，讓 #insights（見 insights.css，位置由 insights.js 依實測
    #rail/#gimbal 間距動態計算）在它與 #gimbal 之間穩定留出一段夠放 3–5 張晶片的高度，而不是搶著疊在一起。 */
@@ -326,7 +331,7 @@ body.moving:not(.d-annotated) #inspector:hover,body.moving:not(.d-annotated) #ra
 .gcol button{width:28px;height:28px;padding:0;border-radius:6px;font-size:13px;line-height:1;font-family:var(--mono)}
 .gcol input[type=range]{writing-mode:vertical-lr;direction:rtl;width:18px;height:44px;accent-color:var(--blue-500);margin:0}
 #g-2d[aria-pressed="true"]{background:var(--blue-500);color:var(--gray-950);border-color:transparent}
-body.d-immersive #gimbal{opacity:.55;bottom:calc(6vh + 12px)} body.d-immersive #gimbal:hover{opacity:1}
+body.d-immersive #gimbal{opacity:.55} body.d-immersive.cinema #gimbal{bottom:calc(5vh + 12px)} body.d-immersive #gimbal:hover{opacity:1}
 body.moving:not(.d-annotated) #gimbal{opacity:1}
 #share{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur)}
 /* ---- Look 控制（header）：一顆緊湊 pill（顯示目前外觀）＋ 彈出選單，取代舊的 5 段式分段控制（會把 lens nav 擠到換行）
@@ -407,3 +412,16 @@ body.theme-light #yearhud .y{color:var(--blue-700)}
 .status>*{order:0} .status #datastamp,.status #clock{order:9}
 @media (max-width:1600px){ .brand .sub{display:none} #topbar{gap:10px} .status{gap:8px} #datastamp,#clock{display:none} }
 @media (max-width:1500px){ #mcpstat span{display:none} #mcpstat{padding:4px 8px} #mcpstat i{margin:0 2px} }
+/* ---- Phase 11C 🔑 金鑰（線上版金鑰填寫處，src/ui/keys.js）：跟 #look／#lookmenu 同一套 pill + 右上彈出面板 ---- */
+#keys{padding:4px 10px;border-radius:999px;font-size:11px;font-family:var(--mono);background:var(--panel);backdrop-filter:var(--blur);white-space:nowrap;flex-shrink:0}
+#keys[aria-expanded="true"]{border-color:var(--blue-400);color:var(--blue-300)}
+@media (max-width:1500px){#keys span{display:none}}
+body.presenting #keys{display:none}
+#keysmenu{position:absolute;right:16px;top:58px;width:min(440px,calc(100vw - 32px));padding:14px;display:flex;flex-direction:column;gap:10px;z-index:21;max-height:calc(100vh - 80px);overflow:auto}
+#keysmenu .kf{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2)}
+#keysmenu .kf span{font-weight:600;color:var(--ink)}
+#keysmenu .kf input{width:100%;padding:7px 9px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--panel-solid);color:var(--ink);font:12px var(--mono)}
+#keysmenu .kf small{font-size:11px;color:var(--ink-3);line-height:1.4}
+#keysmenu .kbtns{display:flex;gap:6px;flex-wrap:wrap}
+#keysmenu .kbtns button[data-act="save"]{background:var(--blue-500);color:#fff;border-color:transparent}
+#keysmenu .kstat{font-size:10px;color:var(--ink-3);line-height:1.5}

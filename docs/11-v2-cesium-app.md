@@ -534,3 +534,22 @@ Nelsen 第二輪實測回饋：為什麼不用真實 3D 紋理；場景裡的虛
 - AI 模式在 server 有模型時自動開啟並記住選擇；AI 一句失敗改用內建 agent 回答該句，不再整個切回內建；內建的「聽不懂」會提示切到 AI 模式。
 - MCP refresh token 綁定取得它的 client：換埠（8787→8790）後不再因重新註冊 client 而 400「Client ID mismatch」；refresh 被拒就清 token 並提示重新授權。
 - `/setup` 說明 ion token 就能開實景，Google 金鑰可選。
+
+## 20. Phase 11：地政參訪場景、agent 導演、遮罩修正、線上版金鑰、效能與 Vercel（2026-09-18）
+
+觸發：地政長官當日到訪、Nelsen 出差，需要同仁能直接開的線上版；加上三個實測回饋——「跑場景時來不及 render、糊成一坨、一直在重新 loading」、「上下有一個深色遮罩把 UI 都擋住」、「agent 一次只會跳去一個地方開關圖層，沒辦法像腳本那麼細緻」。
+
+### 20.1 地政巡禮場景與 agent 導演（`src/scenes.js`、`src/agent/*`、`server/index.mjs`）
+
+- **新場景 `land`「地政巡禮 · 從地籍到城市」（7 段）**：① 開場全景（有金鑰用實景，否則日照）→ ② 國土測繪中心段籍界＋公有土地 WMTS 疊在 3D 城市上（切到日照 Look：疊圖畫在地球影像層，實景 tileset 蓋著看不到）→ ③ 全市 73 處市地重劃／區段徵收（54＋19，`zone:` 脈衝，框南港經貿園區、基隆河截彎取直段、新隆里）→ ④ 都更：2,337 處更新地區與單元（大安區 360 最多），走進信義區公辦都更「兒福B1-2及B3-2」跑智慧都更模擬（3 筆地號、住3、容積率 225%／建蔽率 45%、30% 獎勵 → 8 層 29 m 量體；這一段切到平衡密度並用 `body.sim-open` 讓模擬卡在電影模式下保持不透明）→ ⑤ 南港經貿園區歷年正射影像 2014→2025 跟時間軸自動換年 → ⑥ 實價登錄價值面 2012→2026（`tm` 12 區，旁白現算高點 2013 年 34,705 件、2026 年到目前 8,693 件）→ ⑦ 收尾回實景環繞。旁白數字全部從快照／timeseries 現算。場景快照多記了 **NLSC 疊圖清單與模擬卡狀態**，結束時一併還原（`_snapshotState`／`_restoreSnapshotNow`）。
+- **agent 導演**：三個新工具。`list_scenes`；`play_scene {id}`（六個內建場景）；`play_script {title, sub, steps[]}` —— 每段 `{text, place|lon/lat, range, pitch, heading, mode fly|orbit|street, look, lens, layers{show,hide}, keys[], overlays[], year, lapse{from,to}, simulate_renewal}`。前端 `compileScript(input, ctx)`（`scenes.js`）逐段驗證（圖層鍵、物件 key 必須存在，不存在的回報在 `dropped`；photoreal 沒金鑰退成 sun；數值夾範圍；第一段進沉浸、都更模擬段用平衡）並翻成與內建場景完全相同的 `stage + beats` 結構，`SceneDirector.play()` 現在同時接受 id 或場景物件。SYSTEM 新增規則 8：「幫我做一個給○○看的場景／腳本」→ 先 `query_snapshot` 查 2–3 個數字與 key，再**一次**呼叫 `play_script` 排好 4–7 段，不要一段一段用 `fly_to`／`set_layers` 慢慢調。工具回傳後模型只列段落大綱；場景一開始 `ui.cine()` 就設了 `ui.sceneId`，所以收尾文字只顯示、不搶語音。
+- **內建模式也能播**：`Agent.sceneIntent()`（`handle()` 與 AI 模式的 `tryLocal()` 共用）——「播放地政場景」「來一段給投資人看的」「全部連播」「停」「有哪些場景」0 次 LLM 呼叫；「幫我做一個…場景」在內建模式會提示切到 AI 模式。
+- 全部連播改為六段（投資人 → 開發商 → 選址 → 城市治理 → 地政 → 時光，約 6 分鐘）。
+
+### 20.3 遮罩修正（`src/style.css`、`src/ui.js`）
+
+根因兩個：(a) §18.3 的 6vh 上下黑帶掛在 `body.d-immersive` 上、`z-index:3`，而 `#topbar`／`#console` 是 6——理論上在下面，但 `body.d-immersive #topbar{opacity:.28}` 把整條 header 淡到幾乎看不見；(b) 場景與展示模式用 `ui.setDensity('immersive', true)` 接管密度，而 `setDensity` 不分 quiet 一律寫 `localStorage pl.density`，所以場景一播（或中途重新整理），下次開機就卡在沉浸密度＋黑帶＋淡掉的 header。修法：黑帶只在 `body.cinema`（場景播放中）或 `body.presenting` 出現，`z-index:2`（低於所有控制項）、高度 5vh；header 只在 `cinema` 淡出；`setDensity(mode, quiet)` 只有使用者自己按（`!quiet`）才寫 localStorage。冒煙：沉浸密度無場景 → `::before` content `none`、topbar opacity 1；場景中 → 黑帶出現、topbar .28；停止 → 全部還原、`pl.density` 不變。
+
+### 20.5 線上版金鑰填寫處（`src/keys.js`、`src/ui/keys.js`、`viewer.js`、`api.js`）
+
+GitHub Pages 這種靜態託管沒有 `/setup`，所以前端多了 **🔑 金鑰** pill → 對話框，四個欄位只存 `localStorage`（`pl.ion`／`pl.gkey`／`pl.api`／`pl.code`），不上傳、不進 build：Cesium ion token（實景 3D＋地形）、Google Maps key（選填）、agent server 網址（AI 模式／語音／MCP 即時；留空＝同網域）、存取碼。網址也能帶參數分享 `?ion=…&api=…&code=…`，載入後自動存起來並從網址列移除（`absorbUrlKeys()`）。runtime 值優先於 build 時的 `VITE_*`。右上 MCP 狀態在非 localhost 且沒有 server 時，點一下直接開這個對話框。server 端金鑰（OpenAI／Fish／MCP token）永遠不在這裡——見 `docs/12-hosting.md`。

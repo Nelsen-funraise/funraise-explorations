@@ -3,6 +3,7 @@
 // with visible text + speech even when the model only ever moves the camera; SSE streaming types/speaks as text arrives.
 import { apiFetch } from '../api.js';
 import { applyLook } from './agent.js';
+import { SCENES, compileScript } from '../scenes.js';
 
 // zh-TW one-line summary of an executed tool, used when even the forced "final" text-only round comes back empty/fails —
 // e.g. [fly_to 台北101, set_look golden] → "已飛到台北101並切到黃金時刻。" Keep in sync with the tool list in server/index.mjs.
@@ -41,6 +42,9 @@ function describe(name, input) {
     case 'get_view_state': case 'search_local_snapshot': return '查了畫面狀態';
     case 'show_chart': return '畫了圖表';
     case 'simulate_renewal': return '跑了都更模擬';
+    case 'list_scenes': return '查了場景清單';
+    case 'play_scene': return `播放了「${(SCENES.find(s => s.id === input.id) || {}).title || input.id || '場景'}」`;
+    case 'play_script': return `編排並播放了「${input.title || '自訂導覽'}」（${Array.isArray(input.steps) ? input.steps.length : 0} 段）`;
     default: return '執行了畫面操作';
   }
 }
@@ -181,6 +185,11 @@ export class ClaudeClient {
       case 'search_local_snapshot': { const q = (input.query || '').toLowerCase(); const hits = []; for (const [layer, arr] of Object.entries({ stock: m.data.buildings, future: m.data.future_dev, renewal: m.data.urban_renewal, mops: m.data.mops, infra: m.data.public_infras, parks: m.data.industrial_parks, zones: m.data.development_zones })) for (const it of arr || []) { const n = (it.name || it.company_name || '').toLowerCase(); if (n.includes(q)) hits.push({ layer, key: `${layer === 'parks' ? 'ipark' : layer === 'zones' ? 'zone' : layer}:${it.id}`, name: it.name || it.company_name, lon: it.lon, lat: it.lat }); if (hits.length >= 20) break; } return { hits }; }
       case 'show_chart': { ui.showBars(input.title || '', (input.rows || []).map(r => ({ k: r.label, v: r.value, label: r.display })), '#C98E2C'); return { ok: true }; }
       case 'select_entity': { const e = m.entityByKey(input.key); if (!e) return { ok: false }; ui.select(e.properties.pl.getValue().item, e.properties.pl.getValue().layer); return { ok: true }; }
+      // Phase 11A 場景與腳本（§20.1）：play() 回傳的是整段場景播完的 promise —— 這裡絕不能 await，否則工具回合會卡到場景結束。
+      // 場景一開始 ui.cine() 就會設 ui.sceneId，所以之後模型的收尾文字只會顯示在對話框、不會搶語音（ui.type 有 !ui.sceneId 的守門）。
+      case 'list_scenes': return { ok: true, scenes: SCENES.map(s => ({ id: s.id, title: s.title, sub: s.sub, steps: s.steps.length })) };
+      case 'play_scene': { const d = ui.director; if (!d) return { ok: false, error: 'scene director unavailable' }; const sc = SCENES.find(s => s.id === input.id); if (!sc) return { ok: false, error: 'unknown scene', scenes: SCENES.map(s => s.id) }; d.play(sc.id); return { ok: true, id: sc.id, title: sc.title, steps: sc.steps.length, note: `已開始播放（約 ${Math.max(1, Math.round(sc.steps.length * 14 / 60))} 分鐘）；播放中使用者可以直接發問（場景會暫停），說「停」或按 ■ 結束` }; }
+      case 'play_script': { const d = ui.director; if (!d) return { ok: false, error: 'scene director unavailable' }; const sc = compileScript(input, { map: m, ui, agent: this.agent, data: m.data }); if (!sc.steps.length) return { ok: false, error: 'no usable steps (每段至少要有 text)' }; d.play(sc); return { ok: true, id: sc.id, title: sc.title, steps: sc.steps.map((s, i) => ({ i: i + 1, place: s.place || null, keys: s.stage.keys.length, look: s.stage.look || null })), dropped_keys: sc.dropped, note: '已開始播放；回覆只要列段落大綱' }; }
       default: return { ok: false, error: 'unknown tool ' + name };
     }
   }

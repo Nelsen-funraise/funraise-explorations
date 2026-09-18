@@ -12,6 +12,7 @@
 //   3. 「場景字幕框和AI對話框互相干擾」→ narration now flows through ui.speak()/ui.cine(), which route to the single
 //      #voicebar (src/ui/voicebar.js) instead of the old separate #cinebar/#caption.
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const LAND_UNIT = 'urf04f7256b2128'; // 信義區公辦都更「兒福B1-2及B3-2」：快照 parcels.units 裡有地號／使用分區／建照套繪的單元之一（地政場景第 4 段）
 export const SCENES = [
   { id: 'investor', title: '資本流向 · 投資人巡航', sub: '上市櫃資產交易 × 商圈行情 × 台北101 環繞', steps: [
     { text: (c) => { const areas = (c.data.business_areas || []).filter(a => ((a.self_series && a.self_series.rent) || a.rent_series || []).length);
@@ -83,6 +84,45 @@ export const SCENES = [
     { text: '同一張地圖，換一個鏡，就是另一份簡報。', stage: { keys: [] },
       run: async (c) => { c.map.flyTo(121.548, 25.047, { range: 15000, pitch: -62, heading: 0 }); } },
   ] },
+  // Phase 11A 地政巡禮（docs/11-v2-cesium-app.md §20.1）：給地政單位長官看的場景 —— 段籍界／公有土地疊圖 → 73 處重劃與區段徵收
+  // → 公辦都更單元的地號、使用分區、容積率與智慧都更模擬 → 歷年正射影像 2014→2025 → 實價登錄 12 區價值面 2012→2026。
+  // 開場／收尾在有金鑰時用實景（Google 相片級 3D Tiles）；中段一律切到日照 Look（正射影像底圖＋白模），因為 NLSC WMTS
+  // 疊圖畫在地球影像層上，實景 tileset 蓋著看不到（compose.js enterPhotoreal 也會主動關掉疊圖）。旁白數字全部從快照／
+  // timeseries 現算，不寫死。
+  { id: 'land', title: '地政巡禮 · 從地籍到城市', sub: '段籍界 × 公有土地 × 重劃區段徵收 × 都更地號模擬 × 歷年航照 × 實價登錄價值面', steps: [
+    { text: (c) => `歡迎地政局的長官。這是台北的上帝視角：真實的 3D 城市，疊上地政資料。地籍圖、使用分區、建照套繪、實價登錄，${c.map.photoreal && c.map.photoreal.available ? '底下這一層是 Google 相片級 3D 實景，' : ''}全部在同一個畫面裡回答問題。`,
+      stage: (c) => ({ lens: 'city', look: c.map.photoreal && c.map.photoreal.available ? 'photoreal' : 'sun', density: 'immersive', layers: { show: ['renewal', 'zones', 'licenses'], hide: ['stock', 'mops', 'moves', 'heat', 'parks', 'future', 'tm', 'parcels'] }, keys: [] }),
+      run: async (c) => { c.map.setYear(new Date().getFullYear()); c.map.flyTo(121.5645, 25.0339, { range: 5200, pitch: -48, heading: 20 }); } },
+    { text: '先把國土測繪中心的段籍界與公有土地地籍，直接疊在 3D 城市上：每一條地段界線、每一塊公有地，都在它真正的位置，不用再對圖。',
+      stage: { look: 'sun', layers: { show: ['renewal'] }, keys: [] },
+      run: async (c) => { c.ui.setOverlay('landsect', true); c.ui.setOverlay('publicland', true); c.map.flyTo(121.5665, 25.031, { range: 1500, pitch: -62, heading: 20 }); } },
+    { text: (c) => { const z = c.data.development_zones || []; const n1 = z.filter(x => x.category === '市地重劃').length, n2 = z.filter(x => x.category === '區段徵收').length;
+        return `拉高到全市：臺北市 ${z.length} 處市地重劃與區段徵收，${n1} 處市地重劃、${n2} 處區段徵收。南港經貿園區、基隆河成美橋到南湖大橋段、新隆里，都是區段徵收辦理完成的案子。`; },
+      stage: { lens: 'city', look: 'sun', layers: { show: ['zones'] }, keys: ['zone:TUW2244651796', 'zone:SGI2244638699', 'zone:HCF2244516339'] },
+      run: async (c) => { c.ui.setOverlay('landsect', false); c.ui.setOverlay('publicland', false); (c.data.development_zones || []).forEach(z => c.map.pulse('zone:' + z.id, 9000)); c.map.flyTo(121.565, 25.055, { range: 15000, pitch: -62, heading: 0 }); } },
+    { text: (c) => { const st = (c.data.urban_renewal_stats && c.data.urban_renewal_stats.by_district) || []; const total = st.reduce((s, d) => s + (d.count || 0), 0); const top = st.slice().sort((a, b) => (b.count || 0) - (a.count || 0))[0];
+        const u = (c.data.urban_renewal || []).find(x => x.id === LAND_UNIT); const pd = c.data.parcels && c.data.parcels.units ? c.data.parcels.units[LAND_UNIT] : null; const n = pd ? (pd.parcels || []).length : 0; const zn = pd && pd.zoning && pd.zoning[0];
+        const far = zn && zn.far_decimal ? `容積率 ${Math.round(zn.far_decimal * 100)}%` : '', bcr = zn && zn.bcr_decimal ? `建蔽率 ${Math.round(zn.bcr_decimal * 100)}%` : '';
+        return `都更是地政與都發的交會點：臺北市 ${total.toLocaleString('zh-TW')} 處更新地區與單元${top ? `，${top.district}最多、${top.count} 處` : ''}。走進信義區公辦都更「${u ? u.name : '兒福B1-2及B3-2'}」：${n} 筆地號、${zn ? zn.zone_name : '第三種住宅區'}${far ? '，' + far : ''}${bcr ? '、' + bcr : ''}，套上 30% 容積獎勵，可建量體直接長出來。`; },
+      stage: { look: 'sun', density: 'balanced', layers: { show: ['renewal', 'parcels'] }, keys: ['renewal:' + LAND_UNIT] },
+      run: async (c) => { const u = (c.data.urban_renewal || []).find(x => x.id === LAND_UNIT); c.ui.setOverlay('landsect', true); if (u && c.ui.simulateRenewal) c.ui.simulateRenewal(u, { bonus: 0.3 }); else c.map.flyTo(121.5708, 25.0424, { range: 900, pitch: -42, heading: 10 }); } },
+    { text: '同一塊地、十二年的變化。這是國土測繪中心 2014 到 2025 年的歷年正射影像，跟著時間軸自動換年份：南港經貿園區從區段徵收完成，到今天的天際線。',
+      stage: { look: 'sun', density: 'immersive', layers: { show: ['zones', 'future'] }, keys: ['zone:TUW2244651796'], emphasis: 1 },
+      beats: [
+        { at: 0, run: async (c) => { c.ui.clearSim && c.ui.clearSim(); c.ui.setOverlay('landsect', false); c.ui.setOverlay('publicland', false); c.map.setYear(2014); c.map.flyTo(121.6177, 25.0619, { range: 1700, pitch: -58, heading: -25 }); } },
+        { at: 0.12, run: async (c) => { c.timeline.startLapse({ from: 2014, to: 2025, durationMs: Math.max(8000, Math.round((c.stepMs || 12000) * 0.85)) }); } },
+      ] },
+    { text: (c) => { const tm = c.map.timemachine; let peak = null, last = null; if (tm && tm.cityStats) { for (let y = 2012; y <= 2026; y++) { const s = tm.cityStats(y); if (!s || !s.salesAll) continue; if (!s.ytd && (!peak || s.salesAll > peak.salesAll)) peak = s; last = s; } }
+        return `最後是地政局最重要的資料：實價登錄。12 個行政區、2012 到 2026 年，每一年的成交量長成一面：藍色年增、橘色年減，高度就是當年的量。${peak ? `${peak.year} 年 ${peak.salesAll.toLocaleString('zh-TW')} 件是高點` : ''}${last && last.ytd ? `，${last.year} 年到目前 ${last.salesAll.toLocaleString('zh-TW')} 件` : ''}。同一面牆也能切成商辦成交或建照。`; },
+      stage: (c) => { const tm = c.map.timemachine; const top = tm && tm.topMover ? tm.topMover(2020) : null; return { lens: 'research', look: 'sun', density: 'immersive', layers: { show: ['tm'] }, keys: top ? ['tm:' + top.name] : [] }; },
+      beats: [
+        { at: 0, run: async (c) => { c.map.timemachine && c.map.timemachine.setMetric('sales_all'); c.map.setYear(2012); c.map.flyTo(121.56, 25.05, { range: 16000, pitch: -74, heading: 15 }); } },
+        { at: 0.12, run: async (c) => { c.timeline.startLapse({ from: 2012, to: 2026, durationMs: Math.max(9000, Math.round((c.stepMs || 12000) * 0.85)) }); } },
+      ] },
+    { text: '地籍、分區、建照、都更、實價登錄，本來就是這座城市的骨架。睿鏡把它們放回真實的 3D 台北，讓每一個決策都看得見。歡迎現場直接問它，用說的就行。',
+      stage: (c) => ({ look: c.map.photoreal && c.map.photoreal.available ? 'photoreal' : 'sun', layers: { show: ['renewal', 'zones'] }, keys: [] }),
+      run: async (c) => { c.map.setYear(new Date().getFullYear()); c.map.orbit(121.5645, 25.0339, 3200, -40, 0.03); } },
+  ] },
   { id: 'time', title: '時光 · 2012 → 2030', sub: '過去與未來同框 × 12 區價值面', steps: [
     { text: '最後，把時間軸整個播一遍：2012 到 2030 年。這次不只是大樓一棟一棟長出來——先看整個台北市 12 個行政區的價值面怎麼隨時間起伏。',
       stage: { lens: 'research', layers: { show: ['tm', 'future'] }, keys: [] },
@@ -108,6 +148,48 @@ export const SCENES = [
   ] },
 ];
 
+/* ---- Phase 11A agent 導演（§20.1）：把 agent 工具 play_script 給的 steps 編成 SceneDirector 吃的場景物件 ----
+ * 老闆的痛點：「agent 一次只會跳去一個地方開關圖層，沒有像我們腳本安排那麼細緻」。play_script 讓模型一次交出 4–7 段
+ * {text, place|lon/lat, range, pitch, heading, mode, look, lens, layers, keys, overlays, year, lapse, simulate_renewal}，
+ * 這裡逐段驗證（圖層鍵、物件 key 必須真的存在；photoreal 沒金鑰退成 sun；數值夾在安全範圍）並翻成 stage + beats，
+ * 之後和內建場景走完全相同的播放路徑（舞台接管、旁白節拍、暫停／恢復、結束還原）。純函式，便於 smoke 直接測。 */
+const SCRIPT_OVERLAYS = ['landsect', 'publicland', 'buildx', 'liquefaction', 'road'];
+const SCRIPT_LOOKS = ['photoreal', 'sun', 'golden', 'night', 'white'], SCRIPT_LENSES = ['investor', 'developer', 'occupier', 'city', 'research'];
+const clampNum = (v, lo, hi, dflt) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
+const clampYear = (y) => clampNum(y, 2012, 2030, 2026);
+function findUnit(data, ref) { const s = String(ref || '').trim(); if (!s) return null; const arr = (data && data.urban_renewal) || []; return arr.find(u => u.id === s) || arr.find(u => (u.name || '') === s) || arr.find(u => (u.name || '').includes(s)) || null; }
+export function compileScript(input, ctx) {
+  const { map, agent, data } = ctx || {}; const src = input || {};
+  const rawSteps = Array.isArray(src.steps) ? src.steps.slice(0, 9) : [];
+  const layerKeys = (map && map.layerKeys) || []; const dropped = [];
+  const steps = rawSteps.map((s, i) => {
+    s = s && typeof s === 'object' ? s : {};
+    const text = String(s.text || '').trim().slice(0, 400);
+    const stage = { keys: [] };
+    if (SCRIPT_LENSES.includes(s.lens)) stage.lens = s.lens;
+    if (SCRIPT_LOOKS.includes(s.look)) stage.look = (s.look === 'photoreal' && !(map && map.photoreal && map.photoreal.available)) ? 'sun' : s.look;
+    if (s.layers && typeof s.layers === 'object') { const pick = a => (Array.isArray(a) ? a : []).filter(k => layerKeys.includes(k)); const show = pick(s.layers.show), hide = pick(s.layers.hide); if (show.length || hide.length) stage.layers = { show, hide }; }
+    for (const k of (Array.isArray(s.keys) ? s.keys : []).slice(0, 12)) { if (typeof k !== 'string') continue; if (map && map.entityByKey && map.entityByKey(k)) { if (stage.keys.length < 6) stage.keys.push(k); } else dropped.push(k); }
+    const simUnit = s.simulate_renewal ? findUnit(data || (map && map.data), s.simulate_renewal) : null; if (s.simulate_renewal && !simUnit) dropped.push('renewal:' + s.simulate_renewal);
+    stage.density = simUnit ? 'balanced' : (i === 0 ? 'immersive' : undefined); // 第一段進沉浸（電影框），都更模擬那段要看到左側模擬卡
+    if (!stage.density) delete stage.density;
+    const overlays = (Array.isArray(s.overlays) ? s.overlays : []).filter(k => SCRIPT_OVERLAYS.includes(k));
+    const beats = [{ at: 0, run: async (c) => {
+      if (c.ui.setOverlay) for (const k of SCRIPT_OVERLAYS) c.ui.setOverlay(k, overlays.includes(k)); // 每段自己宣告要疊的；沒宣告＝全關（跟內建場景一樣乾淨）
+      if (s.year != null) c.map.setYear(clampYear(s.year));
+      if (simUnit && c.ui.simulateRenewal) { c.ui.simulateRenewal(simUnit, { bonus: clampNum(s.bonus, 0, 0.5, 0.3) }); return; } // simulateRenewal 自己會飛過去
+      const p = s.place && agent && agent.resolvePlace ? agent.resolvePlace(String(s.place)) : null;
+      const lon = Number.isFinite(+s.lon) ? +s.lon : (p && p.lon), lat = Number.isFinite(+s.lat) ? +s.lat : (p && p.lat);
+      if (lon == null || lat == null) return; // 沒給地點也解析不到：鏡頭不動，只換舞台與旁白
+      const range = clampNum(s.range, 150, 60000, (p && p.range) || 1500), pitch = clampNum(s.pitch, -89, -5, -45), heading = Number.isFinite(+s.heading) ? +s.heading : null;
+      if (s.mode === 'orbit') c.map.orbit(lon, lat, range, pitch); else if (s.mode === 'street') c.map.street(lon, lat); else c.map.flyTo(lon, lat, { range, pitch, heading });
+    } }];
+    if (s.lapse && typeof s.lapse === 'object' && s.lapse.from != null && s.lapse.to != null) beats.push({ at: 0.12, run: async (c) => { c.timeline.startLapse({ from: clampYear(s.lapse.from), to: clampYear(s.lapse.to), durationMs: Math.max(6000, Math.round((c.stepMs || 10000) * 0.8)) }); } });
+    return { text, stage, beats, place: s.place || null };
+  }).filter(st => st.text);
+  return { id: 'script:' + Date.now().toString(36), title: String(src.title || '自訂導覽').trim().slice(0, 40) || '自訂導覽', sub: String(src.sub || '').trim().slice(0, 80), steps, custom: true, dropped };
+}
+
 export class SceneDirector {
   constructor(ctx) { this.c = ctx; this.playing = null; this.paused = false; this.stopFlag = false; this.stepIndex = 0; this._snapshot = null; this._resumeFn = null; this._torndown = true; this._token = 0; }
 
@@ -115,7 +197,8 @@ export class SceneDirector {
   _snapshotState() {
     const { map, ui, agent } = this.c;
     let camera = null; try { const p = map.center(); camera = { lon: p.lon, lat: p.lat, height: p.height, heading: map.heading, pitch: map.pitch }; } catch { /* not ready */ }
-    return { look: map.compose ? map.compose.look : null, density: ui.density, layers: ui.visibleLayers ? ui.visibleLayers() : [], year: map.year, lens: agent && agent.lens, camera };
+    return { look: map.compose ? map.compose.look : null, density: ui.density, layers: ui.visibleLayers ? ui.visibleLayers() : [], year: map.year, lens: agent && agent.lens, camera,
+      overlays: ui.overlays ? [...ui.overlays()] : [], simOpen: typeof document !== 'undefined' && document.body.classList.contains('sim-open') }; // Phase 11A: scenes now toggle NLSC overlays and open the 智慧都更模擬 card — both go back to how the user had them
   }
   async _restoreSnapshotNow() {
     const s = this._snapshot; if (!s) return; this._snapshot = null; const { map, ui, agent } = this.c;
@@ -124,6 +207,8 @@ export class SceneDirector {
     if (s.density) ui.setDensity(s.density, true);
     if (s.layers && map.layerKeys) for (const k of map.layerKeys) ui.setLayer(k, s.layers.includes(k));
     if (s.year != null) map.setYear(s.year);
+    if (s.overlays && ui.overlays && ui.setOverlay) for (const k of new Set([...ui.overlays(), ...s.overlays])) ui.setOverlay(k, s.overlays.includes(k));
+    if (!s.simOpen && ui.clearSim && typeof document !== 'undefined' && document.body.classList.contains('sim-open')) ui.clearSim();
     if (s.camera) map.flyTo(s.camera.lon, s.camera.lat, { range: s.camera.height, pitch: s.camera.pitch, heading: s.camera.heading, duration: 1.4 });
   }
 
@@ -202,7 +287,8 @@ export class SceneDirector {
   }
 
   async play(id) { try { const u = (this.c && this.c.ui) || this.ui; if (u && u.select) u.select(null); } catch { /* a lingering selection card would sit on top of the scene */ }
-    const sc = SCENES.find(s => s.id === id); if (!sc) return; this.stop();
+    const sc = typeof id === 'string' ? SCENES.find(s => s.id === id) : (id && Array.isArray(id.steps) ? id : null); if (!sc || !sc.steps.length) return; this.stop(); // Phase 11A: play() also takes a compileScript() result (agent 導演)
+    id = sc.id; this.scene = sc;
     const token = ++this._token; // this run's identity — see _runStep's `stale()`
     this.playing = id; this.stopFlag = false; this.paused = false; this.stepIndex = 0; this._torndown = false;
     const { ui } = this.c; this._snapshot = this._snapshotState();
