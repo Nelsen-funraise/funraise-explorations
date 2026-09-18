@@ -26,6 +26,18 @@ export async function createViewer(container, opts = {}) {
   // 環境一律用 VITE_CESIUM_ION_TOKEN。
   const ionToken = getKey('ion') || import.meta.env.VITE_CESIUM_ION_TOKEN || (typeof window !== 'undefined' && window.__PL_TEST_ION) || undefined; // Phase 11C: a runtime key (🔑 金鑰 dialog / ?ion=) wins over the build-time one
   if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
+  // §18.1 效能（Phase 11P owner 反饋：實景場景播放很卡、一直像在重新 loading）：Cesium 1.124 的 RequestScheduler
+  // 全域上限本來就已經是 maximumRequests=50 / maximumRequestsPerServer=18（不是舊版常見印象中的 6），這裡是在
+  // 那之上再放寬——現代瀏覽器＋HTTP/2 對單一來源撐得住遠不只 18 個並行請求，尤其 Google Photorealistic 3D
+  // Tiles（不論走 Google 金鑰或 ion 資產 2275207，實際 tile 內容都是從 tile.googleapis.com 直接抓，見
+  // GoogleMaps.mapTilesApiEndpoint／createGooglePhotorealistic3DTileset 原始碼；ion 那條路徑只有一次性的
+  // metadata 解析會經過 ion 自己的端點，不是逐 tile 的瓶頸）——這裡放在全域環境設定（跟 ion token 一起），
+  // 不是只有 photoreal 用得到：NLSC WMTS 底圖／疊圖也一起吃這個全域配額。單一 host 上限只給 tile.googleapis.com
+  // 特別放寬，其餘 host（含 assets.ion.cesium.com，防禦性設定，實際會不會用到這條路徑未經真實網路驗證）維持
+  // 全域預設的 18，不要把所有配額都讓給同一個來源。
+  Cesium.RequestScheduler.maximumRequests = 96;
+  Cesium.RequestScheduler.requestsByServer['tile.googleapis.com:443'] = 24;
+  Cesium.RequestScheduler.requestsByServer['assets.ion.cesium.com:443'] = 24;
   const viewer = new Cesium.Viewer(container, {
     baseLayer: false,
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),

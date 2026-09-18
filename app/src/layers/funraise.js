@@ -23,6 +23,12 @@ export const LAYERS = {
 };
 const C = (hex, a = 1) => Cesium.Color.fromCssColorString(hex).withAlpha(a);
 const MRT_COLOR = { '文湖線': '#C48C31', '淡水信義線': '#E3002C', '松山新店線': '#008659', '中和新蘂線': '#F8B61C', '中和新蘆線': '#F8B61C', '板南線': '#0070BD', '環狀線': '#FFDB00' };
+// §18.1 效能（Phase 11P owner 反饋：實景場景播放時很卡）：future_dev／renewal 的材質顏色只有幾種固定狀態，
+// 但包著它們的 CallbackProperty(fn,false) 每一幀都會被重新估值——先把 Color 物件建好、每幀只換參照，不要每
+// 一幀都重新 parse hex 字串／配置新物件（Cesium 的 ColorMaterialProperty.getValue() 本來就會把值 clone 進自己
+// 的 result，回傳同一個快取物件參照是安全的，不會被 Cesium 反過來修改）。
+const FUTURE_MAT_DONE = C('#93DCE6', 0.78), FUTURE_MAT_HOT = C('#93DCE6', 0.45), FUTURE_MAT_COOL = C('#93DCE6', 0.2);
+const RENEWAL_OUTLINE_BASE = Cesium.Color.fromCssColorString('#EDE9FE'); // 都更單元「呼吸」外框只有透明度在變，底色不用每一幀重 parse
 // §18.3: softer/larger heat glow — a gentler multi-stop falloff (was a hard 0.9→0.42→0 two-step) and lower base alpha below.
 const heatDisc = (() => { let url = null; return () => { if (url) return url; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,0.68)'); grd.addColorStop(0.35, 'rgba(255,255,255,0.34)'); grd.addColorStop(0.7, 'rgba(255,255,255,0.12)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.fillRect(0, 0, 256, 256); url = c.toDataURL('image/png'); return url; }; })();
 const heatTint = (hot, light, mul = 1) => light ? Cesium.Color.fromCssColorString('#16A4C0').withAlpha((0.14 + hot * 0.10) * mul) : Cesium.Color.fromCssColorString(`rgb(${Math.round(252 - 66 * hot)},${Math.round(190 - 98 * hot)},${Math.round(131 - 86 * hot)})`).withAlpha((0.22 + hot * 0.10) * mul);
@@ -102,7 +108,7 @@ export class FunraiseLayers {
   /** §16.3 遷徙動線播放中: mops/licenses labels hide (recomputeLabels' gate), stock icons (the marker cluster billboards) dim to 40%. */
   setTripsDim(on) { this._tripsDim = !!on; this.setFlatAlpha('markers', on ? 0.4 : 1); this.recomputeLabels(); }
   setSelected(key) { this.selectedKey = key || null; this.recomputeLabels(); }
-  setLabelBudget(n) { this.labelBudget = n; this.recomputeLabels(); }
+  setLabelBudget(n, { recompute = true } = {}) { this.labelBudget = n; if (recompute) this.recomputeLabels(); } // §18.1 效能：compose.js 的 apply() 在同一次尺度變更裡緊接著呼叫 applyScale()（尾端自己會 recompute 一次）——呼叫端可以傳 {recompute:false} 避免同一批變更算兩次全部標籤，預設值維持原行為不變
   /** compose.js passes rig.bounds() here on every apply() (not just on scale change) so the budget ranks labels that
    * are actually near the current camera first — a *global* top-N by importance (the previous behaviour) could easily
    * pick 24 labels scattered anywhere in Taipei, none of them on screen. null clears back to unscoped/global ranking. */
@@ -128,19 +134,24 @@ export class FunraiseLayers {
     const b = this._viewBounds; const padLon = b ? (b[2] - b[0]) * 0.25 : 0, padLat = b ? (b[3] - b[1]) * 0.25 : 0;
     const inBounds = (lon, lat) => !b || (lon >= b[0] - padLon && lon <= b[2] + padLon && lat >= b[1] - padLat && lat <= b[3] + padLat);
     const inView = [], outView = [];
-    for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) {
-      if (!e.label) continue;
-      const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; const key = pl ? pl.key : null; const layer = pl ? pl.layer : null;
-      if (key && (key === this.selectedKey || this.isHot(key))) { e.label.show = true; e.label.eyeOffset = EYE_BIAS; continue; }
+    // §18.1 效能：主力清單來自 build() 尾端快取的 this._labeled（見那裡的註解——大部分實體根本沒有 label，
+    // 這裡不用再逐一 `if (!e.label) continue`）；'fx' 是唯一會在 build() 之後動態新增/整批清空 label 實體的
+    // datasource（時間軸「長高」特效，onYearChange()），沒有快取、現抓——通常是空的，只有跨年動畫還沒消失的
+    // 那 2.5 秒才有內容，這段額外開銷可以忽略。
+    const visit = (e, pl, layer, key) => {
+      if (!e.label) return;
+      if (key && (key === this.selectedKey || this.isHot(key))) { e.label.show = true; e.label.eyeOffset = EYE_BIAS; return; }
       e.label.eyeOffset = Cesium.Cartesian3.ZERO;
       const L = layer ? LAYERS[layer] : null;
-      if (L && L.labelScales && !L.labelScales.includes(scale)) { e.label.show = false; continue; }
-      if (ringActive && layer === 'renewal') { e.label.show = false; continue; }
-      if (tripsDim && (layer === 'mops' || layer === 'licenses')) { e.label.show = false; continue; }
-      const imp = e._imp == null ? 1 : e._imp; if (imp < minImp) { e.label.show = false; continue; }
+      if (L && L.labelScales && !L.labelScales.includes(scale)) { e.label.show = false; return; }
+      if (ringActive && layer === 'renewal') { e.label.show = false; return; }
+      if (tripsDim && (layer === 'mops' || layer === 'licenses')) { e.label.show = false; return; }
+      const imp = e._imp == null ? 1 : e._imp; if (imp < minImp) { e.label.show = false; return; }
       const pos = this._entityLonLat(e, pl);
       (pos && !inBounds(pos[0], pos[1]) ? outView : inView).push({ e, imp });
-    }
+    };
+    for (const { e, pl, layer, key } of this._labeled || []) visit(e, pl, layer, key);
+    for (const e of this.ds.fx.entities.values) { if (e.label) visit(e, null, null, null); }
     inView.sort((a, c) => c.imp - a.imp); outView.sort((a, c) => c.imp - a.imp);
     const budget = this.labelBudget == null ? Infinity : this.labelBudget; let shown = 0;
     for (const r of inView) { r.e.label.show = shown < budget; shown++; }
@@ -168,7 +179,12 @@ export class FunraiseLayers {
     switch (layer) { case 'stock': return item.grade === 'A' || item.grade === 'P' ? 0.9 : item.grade === 'F' ? 0.6 : 0.35; case 'future': return 0.8; case 'renewal': return item.category === '政府主導' ? 0.75 : 0.4; case 'mops': return Math.min(1, 0.5 + Math.log10(Math.max(1, item.total_price || 1)) / 20); case 'licenses': return 0.3; case 'zones': return 0.3; case 'infra': return 0.85; case 'parks': return 0.85; case 'heat': return 0.9; case 'mrt': return 0.4; case 'moves': return 0.45; default: return 0.5; }
   }
   build() { this.buildStock(); this.buildMarkers(); this.buildFuture(); this.buildParcels(); this.buildLicenses(); this.buildRenewal(); this.buildZones(); this.buildMops(); this.buildMoves(); this.buildInfra(); this.buildParks(); this.buildHeat(); this.buildMrt(); this.buildDistricts();
-    for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) { if (!e.label) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; e._imp = pl ? this.importance(pl.layer, pl.item) : 1; } }
+    // §18.1 效能：除了 'fx'（時間軸長高特效，onYearChange() 會在這之後動態新增/整批清空）以外，每個 datasource
+    // 的實體在這之後都不會再變動——把「有 label 的實體」連同讀好的 pl/layer/key 快取起來，recomputeLabels()
+    // 之後只掃這個小很多的清單，不用每次都連「沒有 label」的量體/針腳/路網線段一起掃過一遍。
+    this._labeled = [];
+    for (const ds of Object.values(this.ds)) for (const e of ds.entities.values) { if (!e.label) continue; const pl = e.properties && e.properties.pl ? e.properties.pl.getValue() : null; e._imp = pl ? this.importance(pl.layer, pl.item) : 1; this._labeled.push({ e, pl, layer: pl ? pl.layer : null, key: pl ? pl.key : null }); }
+  }
   /* ---- 商辦存量 ---- */
   buildStock() {
     for (const b of this.d.buildings || []) {
@@ -177,7 +193,8 @@ export class FunraiseLayers {
       const foot = this.osm ? this.osm.nearest(b.lon, b.lat, 48) : null; if (foot) h = Math.max(h, foot.h + 1.5);
       b._h = h; b._built = built;
       const show = new Cesium.CallbackProperty(() => built == null || built <= this.year, false);
-      const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(col, this.isHot(key) ? 0.98 : (grade === 'A' ? 0.82 : 0.62)), false));
+      const matHot = C(col, 0.98), matCool = C(col, grade === 'A' ? 0.82 : 0.62); // §18.1 效能：兩種固定狀態算好快取，CallbackProperty 每幀只切換參照
+      const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this.isHot(key) ? matHot : matCool, false));
       const common = { show, properties: null };
       if (foot) this.add('stock', key, b, { ...common, polygon: { shadows: Cesium.ShadowMode.ENABLED, hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(foot.ring)), height: 0, extrudedHeight: h, material: mat, outline: true, outlineColor: C(col, .95), outlineWidth: 1 } });
       else { const side = Math.max(18, Math.min(60, Math.sqrt((b.total_floor_area || 6000) / Math.max(1, floors + (b.floor_below || 0))) * 1.2)); this.add('stock', key, b, { ...common, position: Cesium.Cartesian3.fromDegrees(b.lon, b.lat, h / 2), box: { dimensions: new Cesium.Cartesian3(side, side, h), material: mat, outline: true, outlineColor: C(col, .95) } }); }
@@ -232,7 +249,7 @@ export class FunraiseLayers {
       const prog = () => Math.max(0.12, Math.min(1, (this.year - (done - 3)) / 3));
       const pos = new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegrees(f.lon, f.lat, h * prog() / 2), false);
       const dims = new Cesium.CallbackProperty(() => new Cesium.Cartesian3(side, side, h * prog()), false);
-      const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C('#93DCE6', this.year >= done ? 0.78 : (this.isHot(key) ? 0.45 : 0.2)), false));
+      const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this.year >= done ? FUTURE_MAT_DONE : (this.isHot(key) ? FUTURE_MAT_HOT : FUTURE_MAT_COOL), false));
       this.add('future', key, f, { position: pos, box: { shadows: Cesium.ShadowMode.ENABLED, dimensions: dims, material: mat, outline: true, outlineColor: C('#BBEAF0', .9) } });
       // §18.3 needle: box-top (its current, animated height) up to the floating chip, so the ghost volume reads as "claimed" rather than a bare box.
       this.ds.future.entities.add({ polyline: { positions: new Cesium.CallbackProperty(() => Cesium.Cartesian3.fromDegreesArrayHeights([f.lon, f.lat, Math.max(0, h * prog()), f.lon, f.lat, h * prog() + 8]), false), width: 1, material: C('#93DCE6', .5), disableDepthTestDistance: Number.POSITIVE_INFINITY } });
@@ -253,9 +270,10 @@ export class FunraiseLayers {
   buildRenewal() {
     for (const u of this.d.urban_renewal || []) {
       if (!u.rings) continue; const key = 'renewal:' + u.id; const gov = u.category === '政府主導'; let cx = 0, cy = 0, n = 0;
+      const fillHot = C(gov ? '#DDD6FE' : '#C4B5FD', .75), fillCool = C(gov ? '#DDD6FE' : '#C4B5FD', .08); // §18.1 效能：同一個單元的每一圈共用同一對快取色
       for (const ring of u.rings) { const flat = []; for (const p of ring) { flat.push(p[0], p[1]); cx += p[0]; cy += p[1]; n++; } if (flat.length < 6) continue;
         // §18.3: 8% base fill (keep hue) + a breathing edge — outline alpha oscillates .35↔.6 over a 2.4s cycle so the unit reads as "alive" even when nothing else is happening.
-        this.add('renewal', key + ':' + n, u, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: 3, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => C(gov ? '#DDD6FE' : '#C4B5FD', this.isHot(key) ? .75 : .08), false)), outline: true, outlineColor: new Cesium.CallbackProperty(() => C('#EDE9FE', .475 + .125 * Math.sin(this.t * (Math.PI * 2 / 2.4))), false) } }); }
+        this.add('renewal', key + ':' + n, u, { polygon: { hierarchy: new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(flat)), height: 0.5, extrudedHeight: 3, material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this.isHot(key) ? fillHot : fillCool, false)), outline: true, outlineColor: new Cesium.CallbackProperty(() => RENEWAL_OUTLINE_BASE.withAlpha(.475 + .125 * Math.sin(this.t * (Math.PI * 2 / 2.4))), false) } }); }
       if (n) { u._c = [cx / n, cy / n]; this.ds.labels.entities.add({ show: new Cesium.CallbackProperty(() => this.vis.renewal, false), position: Cesium.Cartesian3.fromDegrees(cx / n, cy / n, 10), billboard: { ...BB(gov ? 'renew' : 'renew', gov ? '#DDD6FE' : '#C4B5FD', gov ? 24 : 18, 7000), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, gov ? 9000 : 4000) }, label: label(shortName(u.name), { color: '#DDD6FE', far: 2600, dy: -16 }), properties: { pl: { layer: 'renewal', key, item: u } } }); }
     }
   }

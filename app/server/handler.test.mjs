@@ -16,6 +16,12 @@ function check(label, got, want) { const g = JSON.stringify(got), w = JSON.strin
 // 本身是「檔案」而不是目錄，mkdir -p 在任何權限（含 root）下都一定 ENOTDIR，效果跟 Vercel function 上的
 // EROFS/EACCES 一樣——「這個目錄用不了」。用它當整支測試的 PEAKLENS_STATE_DIR，一次驗證「唯讀狀態目錄
 // 不會讓開機掛掉、其餘功能照常」，比只測 resolveStateDir() 本身更接近真實情境。
+// resolveStateDir() 的 tmp 備援永遠是同一個固定路徑（os.tmpdir()/peaklens）——這是設計上刻意的（同一台機器
+// 上不同 process／同一個 Lambda instance 重複呼叫都要找得到同一份），但也代表它是「共用、跨這支測試存活」
+// 的位置：先前手動驗證或上一次測試如果在同一台機器留過 .mcp-token.json，這裡會撿到，把「應該是空的」斷言
+// 弄髒。開頭先清掉，確保這支測試從乾淨狀態開始，不受機器上其他 process 的歷史殘留影響。
+try { fs.rmSync(path.join(os.tmpdir(), 'peaklens'), { recursive: true, force: true }); } catch { /* 沒有就算了 */ }
+
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'peaklens-handler-test-'));
 const blockerFile = path.join(tmpRoot, 'this-is-a-file-not-a-dir');
 fs.writeFileSync(blockerFile, 'x');

@@ -65,7 +65,13 @@ export function createCompose(ctx) {
 
   const state = { scale: 'S3', look: 'white', overrides: { theme: false, basemap: false, sun: false, quality: false, night: false }, requestedQuality: { ao: false, bloom: false, hdr: false, facade: false }, youbikeWanted: false, photoreal: false };
 
-  function reapplyQuality() { const eff = effectiveQuality(state.requestedQuality, state.scale, state.look); return realSetQuality(eff); }
+  /** §18.1 效能（Phase 11P）：3D Tiles 本身就是完整光照的空拍紋理，泛光／HDR／AO 這些後製只會疊加 GPU 成本、
+   *  不會讓它更好看——effectiveQuality() 只看 look/scale 決定要不要開，不知道「現在其實是實景在當底」這件事：
+   *  單純 'photoreal' look 本來就整組請求 false 所以沒差，但『夜景』借用實景底座時（見下面 usePhotorealBase）
+   *  LOOKS.night 仍會請求 bloom/hdr——這裡蓋掉。reapplyQuality() 跟下面 ui.setQuality 是唯二兩個呼叫
+   *  effectiveQuality() 的地方，共用這個 guard，手動開關那條路徑不會漏掉。 */
+  function guardPhotorealQuality(eff) { if (state.photoreal) { eff.bloom = false; eff.hdr = false; eff.ao = false; } return eff; }
+  function reapplyQuality() { const eff = guardPhotorealQuality(effectiveQuality(state.requestedQuality, state.scale, state.look)); return realSetQuality(eff); }
   function youBikeScaleOK(scale) { return scale === 'S3' || scale === 'S4'; }
   function reapplyYouBike() { if (!youbike) return; const eff = state.youbikeWanted && youBikeScaleOK(state.scale); if (!!youbike.visible !== eff) youbike.setVisible(eff); }
   function applyBasemapForScale() { if (state.overrides.basemap) return; if (state.look === 'white' || state.look === 'sun') realSetBasemap(basemapForLook(state.look, state.scale)); }
@@ -78,12 +84,15 @@ export function createCompose(ctx) {
     state.scale = next;
     layers.setViewBounds(rig.bounds());
     if (changed || force) {
+      // 效能（Phase 11P）：applyScale() 尾端本來就會整批 recomputeLabels() 一次——先把新 budget 設好（傳
+      // {recompute:false} 跳過它自己那次 recompute），讓 applyScale() 收尾時用新 mask + 新 budget 一次算完，
+      // 不要連續整批掃兩次全部標籤實體（這條路徑在每次跨尺度的飛行落地後都會跑一次）。
+      layers.setLabelBudget(LABEL_BUDGET[next] ?? 24, { recompute: false });
       layers.applyScale(next);
-      layers.setLabelBudget(LABEL_BUDGET[next] ?? 24);
       applyBasemapForScale();
       reapplyQuality();
       reapplyYouBike();
-      if (state.photoreal && map.photoreal) map.photoreal.setQualityForScale(next); // §18.1「效能」：S4 12 / S3 16 / S2 24 / S1+ 32，尺度變了就重打一次
+      if (state.photoreal && map.photoreal) map.photoreal.setQualityForScale(next); // §18.1「效能」：S4 16 / S3 20 / S2 28 / S1+ 32，尺度變了就重打一次
     } else {
       layers.recomputeLabels();
     }
@@ -170,7 +179,7 @@ export function createCompose(ctx) {
   ui.setNight = (on) => { state.overrides.night = true; return realSetNight(on); };
   ui.setQuality = (q) => {
     state.requestedQuality = { ...state.requestedQuality, ...q }; state.overrides.quality = true;
-    const eff = effectiveQuality(state.requestedQuality, state.scale, state.look);
+    const eff = guardPhotorealQuality(effectiveQuality(state.requestedQuality, state.scale, state.look));
     const cur = realSetQuality(eff);
     const notes = noteFor(q, eff); const adjusted = notes.length > 0;
     if (adjusted) ui.toast && ui.toast(notes.join('；'));
@@ -191,6 +200,17 @@ export function createCompose(ctx) {
   let moveT = null;
   viewer.camera.moveEnd.addEventListener(() => { clearTimeout(moveT); moveT = setTimeout(() => apply(false), 250); });
 
+  /* ---- §18.1 效能（Phase 11P）：飛行／環繞中放寬實景 tileset 的 SSE（map.photoreal.setMotion），目的地的
+     tile 才有機會在鏡頭抵達前就流進來，不是落地後才開始要；停下後 debounce 收緊。moveStart/moveEnd 是 Cesium
+     場景層級的通用事件——CameraRig 的環繞（camera.lookAt() 每個 tick 都改變換矩陣）跟一般 flyToBoundingSphere()
+     都會被判定成「在動」（實測 Cesium 原始碼 View.prototype.checkForCameraUpdates：純比較相機 transform 有沒
+     有變，跟移動手段無關），所以不用另外去改 camera.js 分別盯這兩種模式。跟上面那個 250ms 的 debounce 是兩件
+     獨立的事（一個管尺度重判定、一個只管 SSE 鬆緊），各自的計時器互不干擾；map.photoreal 在這個模組建構時還
+     不存在（main.js 晚一步才建），所以跟 enterPhotoreal/exitPhotoreal 一樣，讀取延後到事件真的觸發的當下。 */
+  let motionRestoreT = null;
+  viewer.camera.moveStart.addEventListener(() => { clearTimeout(motionRestoreT); motionRestoreT = null; map.photoreal && map.photoreal.setMotion && map.photoreal.setMotion(true); });
+  viewer.camera.moveEnd.addEventListener(() => { clearTimeout(motionRestoreT); motionRestoreT = setTimeout(() => { motionRestoreT = null; map.photoreal && map.photoreal.setMotion && map.photoreal.setMotion(false); }, 400); });
+
   /* ---- §16.3 遷徙動線播放中：沒有事件可訂閱，poll trips.playing；完成 3 秒後才還原 ---- */
   if (trips) {
     let wasPlaying = false, restoreT = null;
@@ -205,7 +225,7 @@ export function createCompose(ctx) {
   /* ---- 開機預設：白模（日間主題）／夜景（夜間主題），由已還原的主題決定；套一次目前的尺度與視野 ---- */
   state.scale = scaleFor(rig.lonlat[2], null);
   layers.setViewBounds(rig.bounds());
-  layers.applyScale(state.scale); layers.setLabelBudget(LABEL_BUDGET[state.scale] ?? 24);
+  layers.setLabelBudget(LABEL_BUDGET[state.scale] ?? 24, { recompute: false }); layers.applyScale(state.scale); // 效能：同一支雙寫，見 apply() 裡的註解
   setLook(ui.theme === 'light' ? 'white' : 'night', { quiet: true }).catch(() => {});
 
   return api;

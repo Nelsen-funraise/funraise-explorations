@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "server": "node server/index.mjs",
     "check": "node server/index.mjs --check",
+    "test": "node --test 'server/**/*.test.mjs'",
     "data:build": "node data/build.mjs",
     "smoke": "node scripts/smoke.mjs",
     "tts:prerender": "node scripts/prerender-tts.mjs",
