@@ -8,5 +8,11 @@
       "maxDuration": 60,
       "includeFiles": "public/data/**"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    }
+  ]
 }

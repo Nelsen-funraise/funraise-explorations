@@ -340,7 +340,7 @@ function rateOk(ip, pathname) { const limit = pathname === '/api/agent' ? +(env.
 const ORS = createOrsRoutes(env); const LIVE = createLiveRoutes(env);
 const SETUP = createSetup({ env, envFile: ENV_FILE, reload: reloadEnv, getLLM: () => llm, appRoot: root, getMcpToken: () => ({ token: store.load(), static: !!staticToken, persist: tokenPersistMode() }) });
 // Phase：Vercel — 這支 handler 本身跟 host 無關（單純 (req,res) → 用 req.url 自己解析路由），本機／Docker 用
-// http.createServer(handler).listen(PORT) 直接跑；Vercel 的 Node function（app/api/[[...path]].mjs）改成
+// http.createServer(handler).listen(PORT) 直接跑；Vercel 的 Node function（app/api/index.mjs）改成
 // import { handler } 再 export default，讓 Vercel 自己呼叫，不需要也不應該再 .listen() 一次（Vercel 的 runtime
 // 才是真正在聽 port 的那一層）。IS_MAIN 判斷「這個檔案是不是被直接執行」（node server/index.mjs）；
 // PEAKLENS_NO_LISTEN=1 額外提供一個手動關掉 .listen() 的旋鈕，主要給 server/handler.test.mjs 這類測試用——

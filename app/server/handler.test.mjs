@@ -1,4 +1,4 @@
-// server/handler.test.mjs — Phase：Vercel。端對端測試 `export const handler`（app/api/[[...path]].mjs 這支
+// server/handler.test.mjs — Phase：Vercel。端對端測試 `export const handler`（app/api/index.mjs 這支
 // Vercel adapter 實際會 import 並呼叫的同一個函式）：用 PEAKLENS_NO_LISTEN=1 匯入 server/index.mjs（不要它自己
 // .listen()），自己接一個 ephemeral port 的 http.createServer(handler)，像真的 client 一樣打過去。
 // 同一套風格：純 Node、沒有測試框架、`node server/handler.test.mjs` 或 `node --test`（在 server/ 裡跑，見
